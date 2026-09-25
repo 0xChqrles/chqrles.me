@@ -13,7 +13,7 @@ The source of https://chqrles.me.
    title: "The title"
    date: 2026-09-25
    description: "One or two sentences, for link previews and the feed."
-   image: ./header.jpg
+   image: ./header.jpg   # at least 1200×630
    imageAlt: "What the header image shows."
    lang: fr          # fr or en, fr by default
    draft: false      # true keeps it off the site
@@ -23,7 +23,7 @@ The source of https://chqrles.me.
    ```
 
 3. Drop the header image in the same folder.
-4. Push to `main`. CI checks the post, builds the site and deploys it.
+4. Push to `main`. CI checks the post and builds the site. (The deploy comes with the infrastructure.)
 
 A post with a missing or misspelled field fails the build, with a message that names the field.
 

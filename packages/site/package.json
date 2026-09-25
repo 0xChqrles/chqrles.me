@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "astro dev --force",
+    "build": "astro build --force",
     "preview": "astro preview",
     "typecheck": "astro check",
     "test": "vitest run"
@@ -15,6 +15,7 @@
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.5",
+    "rehype-raw": "^7.0.0",
     "sharp": "^0.35.4",
     "unist-util-visit-parents": "^6.0.2"
   },

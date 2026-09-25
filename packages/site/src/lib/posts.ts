@@ -4,10 +4,10 @@ import { frenchSpacing } from './french-spacing'
 export type Post = CollectionEntry<'posts'>
 export type Lang = Post['data']['lang']
 
-// Newest first. A draft renders under `pnpm dev` and never reaches a
-// production build, so it is never in the index, the feed or the sitemap.
+// Newest first. Drafts are here only under `pnpm dev`: a production build
+// never loads them (content.config.ts).
 export async function getPosts(): Promise<Post[]> {
-  const posts = await getCollection('posts', ({ data }) => import.meta.env.DEV || !data.draft)
+  const posts = await getCollection('posts')
   return posts.sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
 }
 

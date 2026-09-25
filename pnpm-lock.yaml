@@ -25,6 +25,9 @@ importers:
       astro:
         specifier: ^7.3.5
         version: 7.3.5(@astrojs/markdown-remark@7.3.1)(@types/node@24.13.6)(yaml@2.9.1)
+      rehype-raw:
+        specifier: ^7.0.0
+        version: 7.0.0
       sharp:
         specifier: ^0.35.4
         version: 0.35.4(@types/node@24.13.6)

@@ -3,6 +3,7 @@ import { getImage, Picture } from 'astro:assets'
 import { render } from 'astro:content'
 import Base from '../layouts/Base.astro'
 import { formatDate, getPosts, typeset, type Post } from '../lib/posts'
+import { assertShareable, SHARE_HEIGHT, SHARE_WIDTH } from '../lib/share-image'
 import { postPath } from '../lib/urls'
 
 export async function getStaticPaths() {
@@ -17,10 +18,10 @@ interface Props {
 const { post } = Astro.props
 const { title, description, date, image, imageAlt, lang } = post.data
 const { Content } = await render(post)
-// The share preview is a 1200×630 crop of the header image.
+if (image) assertShareable(post.id, image)
 const share =
   image && imageAlt
-    ? { src: (await getImage({ src: image, width: 1200, height: 630, fit: 'cover', format: 'jpg' })).src, alt: imageAlt }
+    ? { src: (await getImage({ src: image, width: SHARE_WIDTH, height: SHARE_HEIGHT, fit: 'cover', format: 'jpg' })).src, alt: imageAlt }
     : undefined
 ---
 

@@ -1,6 +1,6 @@
 import rss from '@astrojs/rss'
 import type { APIContext } from 'astro'
-import { getPosts } from '../lib/posts'
+import { getPosts, typeset } from '../lib/posts'
 import { postPath } from '../lib/urls'
 import { SITE_DESCRIPTION, SITE_NAME } from '../site'
 
@@ -13,8 +13,8 @@ export async function GET(context: APIContext) {
     trailingSlash: true,
     customData: '<language>fr</language>',
     items: posts.map(({ id, data }) => ({
-      title: data.title,
-      description: data.description,
+      title: typeset(data.title, data.lang),
+      description: typeset(data.description, data.lang),
       pubDate: data.date,
       link: postPath(id),
     })),

@@ -31,12 +31,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # astro check loads the posts first, so a post with bad frontmatter fails here.
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Test
         run: pnpm test
 
-      # The build is the content check: a post with bad frontmatter fails here.
+      # The build checks the posts again, and their images (size, missing file).
       - name: Build
         run: pnpm build
