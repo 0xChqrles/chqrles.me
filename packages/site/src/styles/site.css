@@ -830,12 +830,14 @@ a.track-row:focus-visible {
   stroke-linejoin: round;
 }
 
+/* A distance sits on its link; its wide halo of the figure's ground cuts the
+   line around it, like a dimension on a drawing. */
 .plane-distance {
   font-size: 12px;
   fill: var(--ink);
   paint-order: stroke;
   stroke: var(--raise);
-  stroke-width: 6px;
+  stroke-width: 12px;
   stroke-linejoin: round;
 }
 

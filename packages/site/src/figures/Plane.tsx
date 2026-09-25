@@ -186,21 +186,18 @@ export default function Plane({ points, states, links = [], arrows = false, coor
             const a = at[from]
             const b = at[to]
             if (!a || !b) return null
-            // The distance sits beside the link, on its lower side: a point's
-            // words are written above it. The square keeps the domain's
-            // proportions, so the offset comes from the data alone.
-            const ux = (b.x - a.x) / (x1 - x0)
-            const uy = (a.y - b.y) / (y1 - y0)
-            const norm = Math.hypot(ux, uy) || 1
-            const down = ux >= 0 ? 1 : -1
-            const nx = (-uy / norm) * down
-            const ny = (ux / norm) * down
+            // The distance is written on the link, at its middle and along it
+            // (kept upright), and the line breaks around it: a dimension, as on
+            // a drawing. The square keeps the domain's proportions, so the
+            // angle comes from the data alone.
+            const angle = (Math.atan2((a.y - b.y) / (y1 - y0), (b.x - a.x) / (x1 - x0)) * 180) / Math.PI
+            const upright = angle > 90 ? angle - 180 : angle < -90 ? angle + 180 : angle
             return (
               <g key={`${from}-${to}`} className={accent ? 'plane-link is-accent' : 'plane-link'}>
                 <line x1={X(a.x)} y1={Y(a.y)} x2={X(b.x)} y2={Y(b.y)} />
                 {distance && (
                   <svg x={X((a.x + b.x) / 2)} y={Y((a.y + b.y) / 2)} overflow="visible">
-                    <text className="plane-distance" textAnchor="middle" dx={nx * 12} dy={ny * 12 + 4}>
+                    <text className="plane-distance" textAnchor="middle" dy="0.35em" transform={`rotate(${upright})`}>
                       {fmt(Math.hypot(a.x - b.x, a.y - b.y))}
                     </text>
                   </svg>
@@ -231,9 +228,6 @@ export default function Plane({ points, states, links = [], arrows = false, coor
           {Object.entries(at).map(([id, p]) => {
             const label = labels[id]
             if (arrows && !label && !move) return null
-            // Near the right edge, the words go to the point's left.
-            const left = (p.x - x0) / (x1 - x0) > 0.62
-            const side = { x: left ? -10 : 10, textAnchor: left ? 'end' : 'start' } as const
             return (
               <svg key={id} x={X(p.x)} y={Y(p.y)} overflow="visible">
                 <g
@@ -261,12 +255,12 @@ export default function Plane({ points, states, links = [], arrows = false, coor
                   {!arrows && <rect x="-4" y="-4" width="8" height="8" />}
                   {move && <rect className="plane-hit" x="-16" y="-16" width="32" height="32" />}
                   {label && (
-                    <text className="plane-label" x={side.x} y="-9" textAnchor={side.textAnchor}>
+                    <text className="plane-label" y="-12" textAnchor="middle">
                       {label}
                     </text>
                   )}
                   {label && coordinates && (
-                    <text className="plane-coords" x={side.x} y="16" textAnchor={side.textAnchor}>
+                    <text className="plane-coords" y="22" textAnchor="middle">
                       {`${fmt(p.x)} ; ${fmt(p.y)}`}
                     </text>
                   )}

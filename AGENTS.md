@@ -126,8 +126,9 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 - **The components**, each in the figure frame (one step of value, then `FIG. 0N` and a
   caption; a caption may quote a word as `` `code` ``):
   - `<Plane>`: points on two axes. `points`, or `states` (arrangements of the same point
-    ids the reader switches between); `links` (with `distance` written live, and
-    `accent` for the one segment a figure is about); `arrows` (vectors from the origin);
+    ids the reader switches between); `links` (with `distance` written live on the
+    link, along it, the line breaking around it, and `accent` for the one segment a figure
+    is about); `arrows` (vectors from the origin);
     `mean` (the points' mean as an accent vector, a string labels it); `ticks` (the grid's values
     on the edges); `coordinates` (beside each point); `move` (drag, or arrow keys);
     `domain`; `digits` (decimals written, 1 by default).
