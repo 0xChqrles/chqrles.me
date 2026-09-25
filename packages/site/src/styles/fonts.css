@@ -1,0 +1,45 @@
+/* Every face is self-hosted: the build bundles the files under /_astro.
+   latin-ext is declared with latin so an uppercase Ÿ never falls back; its
+   unicode-range means it only downloads when a page needs it. */
+
+/* TEXT: the article's own voice, and every title. Variable weight and
+   optical size, so the title is cut for display and the body for reading. */
+@import '@fontsource-variable/newsreader/opsz.css';
+@import '@fontsource-variable/newsreader/opsz-italic.css';
+
+/* MONO: the chrome (cues, datelines, durations, captions) and code. */
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-600.css';
+@import '@fontsource/ibm-plex-mono/latin-400-italic.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-400-italic.css';
+
+/* PIXEL: track numbers only. Its grid is 50 units on a 1350 em, so at 27px
+   one design pixel is one CSS pixel. It is only ever set at 27px (1×) or 54px
+   (2×), never scaled, never animated. Ascent and descent add up to the em,
+   so with a line height equal to its size the baseline lands on a whole pixel. */
+@import '@fontsource/jersey-15/latin-400.css';
+
+/* No Fontsource subset carries U+202F, the narrow no-break space the French
+   spacing puts before ; ? ! and inside 10 000, so each browser would take it
+   from some other font. This one-glyph font fills it in for the text face:
+   an empty glyph 0.125em wide with no height, made with fontTools'
+   FontBuilder, holding nothing from any typeface. Declared last, it is tried
+   first for that one character. */
+@font-face {
+  font-family: 'Newsreader Variable';
+  font-style: normal;
+  font-weight: 200 800;
+  src: url('./nnbsp.woff2') format('woff2');
+  unicode-range: U+202F;
+}
+@font-face {
+  font-family: 'Newsreader Variable';
+  font-style: italic;
+  font-weight: 200 800;
+  src: url('./nnbsp.woff2') format('woff2');
+  unicode-range: U+202F;
+}

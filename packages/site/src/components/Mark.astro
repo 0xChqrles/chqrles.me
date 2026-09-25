@@ -1,0 +1,9 @@
+---
+import { MARK_HEIGHT, MARK_WIDTH, markPath } from '../lib/mark'
+
+// The pixel mark, at a whole number of CSS pixels per cell (set in CSS).
+---
+
+<svg class="mark" viewBox={`0 0 ${MARK_WIDTH} ${MARK_HEIGHT}`} shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+  <path d={markPath()} fill="currentColor"></path>
+</svg>
