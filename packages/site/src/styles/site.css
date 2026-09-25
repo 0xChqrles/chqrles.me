@@ -677,8 +677,14 @@ a.track-row:focus-visible {
   background: var(--line);
   border-radius: 2px;
 }
-.code-mark,
-.code-mark span {
+/* In a block with marks, the rest of the code steps back to the muted ink,
+   so the marked words stand out by value as well as weight. */
+.prose pre:has(.code-mark),
+.prose pre:has(.code-mark) :is(.code-ink, .code-soft) {
+  color: var(--muted);
+}
+.prose pre:has(.code-mark) .code-mark,
+.prose pre:has(.code-mark) .code-mark span {
   color: var(--ink);
   font-weight: 600;
 }

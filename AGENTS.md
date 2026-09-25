@@ -114,7 +114,8 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   (`packages/site/src/lib/code-theme.ts`): ```` ```text /chat/ ```` marks every `chat`,
   ```` ```text /:/2 ```` only the second `:`, and marks combine (`/a/ /b/1,3`). The text
   stays the author's own. Mark what the prose points at: the word under study, the one
-  that changes, the one the model reads.
+  that changes, the one the model reads. In a block with marks, the rest of the code steps
+  back to the muted ink; marked words stay in the ink, bold.
 
 ### Figures
 
