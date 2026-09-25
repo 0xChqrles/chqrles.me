@@ -1,5 +1,5 @@
 ---
-title: "Comment j’ai amélioré Cémantix avec Jev là où les LLM échouaient ?"
+title: "J’ai amélioré Cémantix avec une IA qui ne peut pas parler"
 date: 2026-09-25
 description: "Cémantix mesure la distance entre les mots sans jamais lire la phrase. Des embeddings aux entrailles des LLM, le récit d’une tentative pour lui apprendre le contexte, jusqu’à Jev."
 draft: true
@@ -209,7 +209,7 @@ envoler, tournoyer, planer, virevolter, flotter
 
 On tient notre solution. On garde Cémantix pour trouver rapidement des candidats, puis on utilise un LLM pour éliminer ceux qui ont le mauvais sens. On ne compare plus `voler` et `tuer` dans le vide, on les laisse d’abord lire leur phrase respective, puis on compare ce qu’ils sont devenus. En théorie, l’idée est parfaite.
 
-Pourtant, l’article s’intitule **Comment j’ai amélioré Cémantix avec Jev là où les LLM échouaient ?** La théorie avait omis trois détails importants.
+Pourtant, l’article s’intitule **J’ai amélioré Cémantix avec une IA qui ne peut pas parler**. La théorie avait omis trois détails importants.
 
 ### Problème 1 : Masque causal
 
