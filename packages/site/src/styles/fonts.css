@@ -4,8 +4,8 @@
 
 /* TEXT: the article's own voice, and every title. Variable weight and
    optical size, so the title is cut for display and the body for reading. */
-@import '@fontsource-variable/newsreader/opsz.css';
-@import '@fontsource-variable/newsreader/opsz-italic.css';
+@import '@fontsource-variable/source-serif-4/opsz.css';
+@import '@fontsource-variable/source-serif-4/opsz-italic.css';
 
 /* MONO: the chrome (cues, datelines, durations, captions) and code. */
 @import '@fontsource/ibm-plex-mono/latin-400.css';
@@ -30,16 +30,16 @@
    FontBuilder, holding nothing from any typeface. Declared last, it is tried
    first for that one character. */
 @font-face {
-  font-family: 'Newsreader Variable';
+  font-family: 'Source Serif 4 Variable';
   font-style: normal;
-  font-weight: 200 800;
+  font-weight: 200 900;
   src: url('./nnbsp.woff2') format('woff2');
   unicode-range: U+202F;
 }
 @font-face {
-  font-family: 'Newsreader Variable';
+  font-family: 'Source Serif 4 Variable';
   font-style: italic;
-  font-weight: 200 800;
+  font-weight: 200 900;
   src: url('./nnbsp.woff2') format('woff2');
   unicode-range: U+202F;
 }

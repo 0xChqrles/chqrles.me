@@ -11,10 +11,11 @@
   --line: #2c2a27; /* the quiet hairline: a gap between tracks */
   --line-strong: #6f6a62; /* crop marks, rules that must be seen */
   --muted: #999489; /* secondary text, 6.24:1 on the ground */
-  --ink: #e4e2dc; /* everything else, 14.56:1 */
+  --ink: #e4e2dc; /* titles, bold, chrome: everything else, 14.56:1 */
+  --text: #d0ccc3; /* the body text, 11.8:1: a step under the ink */
   --cue: #ff5a1f; /* vermilion: where you are, 6.05:1 */
 
-  --face-text: 'Newsreader Variable', Georgia, serif;
+  --face-text: 'Source Serif 4 Variable', Georgia, serif;
   --face-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --face-pixel: 'Jersey 15', var(--face-mono);
 
@@ -49,6 +50,10 @@ body {
   font-family: var(--face-text);
   font-synthesis: none;
   font-optical-sizing: auto;
+  /* macOS thickens light text on a dark ground by default; this draws the
+     letters as designed. Nothing else reads it. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -452,6 +457,7 @@ a.track-row:focus-visible {
   font-size: 19px;
   line-height: 1.58;
   font-weight: 400;
+  color: var(--text);
   hyphens: auto;
   -webkit-hyphens: auto;
   hyphenate-limit-chars: 8 4 4;
@@ -470,6 +476,10 @@ a.track-row:focus-visible {
 
 .prose strong {
   font-weight: 640;
+}
+
+.prose :is(h2, h3, strong) {
+  color: var(--ink);
 }
 
 .prose a {

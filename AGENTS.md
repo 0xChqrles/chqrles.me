@@ -159,14 +159,18 @@ colour, icon or furniture is reused.
 - **Tokens** live in `:root` of `packages/site/src/styles/site.css`; the favicon and the
   share image read the same values from `packages/site/src/lib/palette.ts` (keep both in
   step). Ground `#121110`, raise `#1b1a18` (one step of value: code, placeholders, the
-  sleeve's card), hairlines `#2c2a27` and `#6f6a62`, muted `#999489`, ink `#e4e2dc`, and
+  sleeve's card), hairlines `#2c2a27` and `#6f6a62`, muted `#999489`, ink `#e4e2dc`, the
+  body text a step under it, `#d0ccc3` (titles and bold keep the ink), and
   **vermilion `#ff5a1f`, the one accent**: "where you are" (the playhead, hover, the
   favicon, the point a reader holds). A figure may also accent one specific thing it is
   about (this distance, this arc, the mean), never a concept it shows in general: the
   distance between words, how attention spreads, a set of vectors. Every text colour is at least 4.5:1 on the ground.
+- **Letters are drawn as designed**: `-webkit-font-smoothing: antialiased`, because macOS
+  otherwise thickens light text on a dark ground.
 - **Three voices, strict roles** (`packages/site/src/styles/fonts.css`, all self-hosted):
-  Newsreader for every title and the body (21/33.6 on desktop, 19/30 on a phone, a 660px
-  column); IBM Plex Mono for the chrome (11px, uppercase, tracked 0.12em, hierarchy by
+  Source Serif 4 for every title and the body (21/33.6 on desktop, 19/30 on a phone, a 660px
+  column), chosen for its taller lowercase: on a dark ground small letters cost the most;
+  IBM Plex Mono for the chrome (11px, uppercase, tracked 0.12em, hierarchy by
   weight only) and code; Jersey 15, a pixel face, for track numbers only, at 27px (its
   pixel grid) or 54px, never scaled otherwise.
 - **The index is a tracklist**: number, title, date, and the reading time as a duration
