@@ -8,6 +8,7 @@
     "build": "pnpm --filter @chqrles/site build",
     "preview": "pnpm --filter @chqrles/site preview",
     "typecheck": "pnpm -r --if-present run typecheck",
-    "test": "pnpm -r --if-present run test"
+    "test": "pnpm -r --if-present run test",
+    "synth": "pnpm --filter @chqrles/infra synth"
   }
 }

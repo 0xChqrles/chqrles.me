@@ -1,0 +1,52 @@
+name: Deploy
+
+# Deploys the site on every push to main, and on demand. Never the deploy-role
+# stack: that one is deployed once, by hand (see README.md in this folder).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Deploys never overlap: a new run waits for the one in progress, never cancels it.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # the OIDC token that assumes the AWS deploy role
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The version comes from the root packageManager field.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # A post with bad frontmatter fails here, and nothing is deployed.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy
+        run: pnpm --filter @chqrles/infra exec cdk deploy ChqrlesMeSite --require-approval never

@@ -41,3 +41,8 @@ jobs:
       # The build checks the posts again, and their images (size, missing file).
       - name: Build
         run: pnpm build
+
+      # cdk-nag findings fail here. No AWS credentials: the zone lookup comes
+      # from the committed cdk.context.json.
+      - name: Synth
+        run: pnpm --filter @chqrles/infra exec cdk synth --lookups=false --quiet
