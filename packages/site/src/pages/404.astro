@@ -1,0 +1,11 @@
+---
+import Base from '../layouts/Base.astro'
+import { SITE_DESCRIPTION, SITE_NAME } from '../site'
+---
+
+<Base title="404" description={SITE_DESCRIPTION} lang="fr">
+  <main>
+    <h1>404</h1>
+    <a href="/">{SITE_NAME}</a>
+  </main>
+</Base>

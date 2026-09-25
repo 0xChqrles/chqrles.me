@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://chqrles.me/sitemap-index.xml

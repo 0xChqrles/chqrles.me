@@ -1,0 +1,43 @@
+name: CI
+
+# Runs on every pull request and on pushes to main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer run on the same branch or PR cancels the one it supersedes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The version comes from the root packageManager field.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # astro check loads the posts first, so a post with bad frontmatter fails here.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      # The build checks the posts again, and their images (size, missing file).
+      - name: Build
+        run: pnpm build
