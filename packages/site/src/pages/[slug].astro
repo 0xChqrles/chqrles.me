@@ -48,8 +48,7 @@ const day = date.toISOString().slice(0, 10)
           <span class="track-no" aria-hidden="true">{trackNumber(number)}</span>
           <h1>{typeset(title, lang)}</h1>
         </div>
-        {/* The sleeve's credits. The length is the sum of the sections, so it
-            carries the ledger's double rule. */}
+        {/* The sleeve's credits: the date, the length (the sum of the sections), the language. */}
         <ul class="credits micro">
           <li><time datetime={day}>{formatDate(date, lang)}</time></li>
           <li><span class="sum">{formatDuration(seconds)}</span></li>

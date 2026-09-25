@@ -165,7 +165,7 @@ colour, icon or furniture is reused.
   about (this distance, this arc, the mean), never a concept it shows in general: the
   distance between words, how attention spreads, a set of vectors. Every text colour is at least 4.5:1 on the ground.
 - **Three voices, strict roles** (`packages/site/src/styles/fonts.css`, all self-hosted):
-  Newsreader for every title and the body (21/33.6 on desktop, 19/30 on a phone, a 600px
+  Newsreader for every title and the body (21/33.6 on desktop, 19/30 on a phone, a 660px
   column); IBM Plex Mono for the chrome (11px, uppercase, tracked 0.12em, hierarchy by
   weight only) and code; Jersey 15, a pixel face, for track numbers only, at 27px (its
   pixel grid) or 54px, never scaled otherwise.
@@ -178,7 +178,8 @@ colour, icon or furniture is reused.
   JavaScript, the photo printed in one ink.
 - **The mark is a pixel q** (`packages/site/src/lib/mark.ts`), 5×7 cells at 3px (4px on a
   wide screen): the only link home. The favicon is the same q in vermilion.
-- **One emphasis gesture**: the ledger double rule, under a sum (an article's length).
+- **Totals** (an article's length, the index's runtime) are written in the ink, bold. No
+  double rule, no underline.
 - **Edge furniture**, from 1040px only: a timeline down the right edge, a tick per section
   placed by reading time, with the vermilion playhead. Below that, the playhead is a
   hairline along the top.

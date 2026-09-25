@@ -23,7 +23,7 @@
   --pixel-2x: 54px;
 
   --gutter: 16px;
-  --column: 600px;
+  --column: 660px;
   /* On a wide screen the cues and track numbers hang in this margin. */
   --margin-col: 136px;
   --margin-gap: 32px;
@@ -217,7 +217,7 @@ a.track-row:focus-visible {
   outline-offset: 8px;
 }
 
-/* The sum of the tracks, as a ledger writes a total: under a double rule. */
+/* The sum of the tracks. */
 .total {
   display: flex;
   justify-content: flex-end;
@@ -226,24 +226,10 @@ a.track-row:focus-visible {
   border-top: 1px solid var(--line);
 }
 
-/* ── The one emphasis gesture: the ledger's double rule ───────────────────
-   Two hairlines under a figure, flush to its ink: this is the sum. Drawn,
-   never laid out, so nothing moves when it appears. */
+/* A total (an article's length, the index's runtime): the ink, bold. */
 .sum {
-  position: relative;
   color: var(--ink);
   font-weight: 600;
-}
-
-.sum::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0.12em; /* the tracking after the last glyph is not ink */
-  bottom: -5px;
-  height: 4px;
-  border-top: 1px solid var(--ink);
-  border-bottom: 1px solid var(--ink);
 }
 
 @media (min-width: 1040px) {
