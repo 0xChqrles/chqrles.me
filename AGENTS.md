@@ -175,11 +175,20 @@ colour, icon or furniture is reused.
   pixel grid) or 54px, never scaled otherwise.
 - **The index is a tracklist**: number, title, date, and the reading time as a duration
   (220 words a minute, `packages/site/src/lib/duration.ts`), newest first.
-- **The header image is the sleeve** (`packages/site/src/components/Sleeve.astro`): a
-  square crop on the photo's subject, printer's crop marks at the corners, printed as a
+- **The header image is the sleeve** (`packages/site/src/components/Sleeve.astro`): the
+  photo in its own shape, held between 3:4 and 2:1 and cut on its subject past that
+  (`packages/site/src/lib/sleeve.ts`), printer's crop marks at the corners, printed as a
   one-bit 8×8 ordered dither in the ink that develops once on load
   (`packages/site/src/lib/dither.ts`, `packages/site/src/scripts/plate.ts`). Without
-  JavaScript, the photo printed in one ink.
+  JavaScript, the photo printed in one ink. The screen scales it whole, never crops it: an
+  empty SVG in its shape (the trim) holds that shape before the photo loads, script or
+  not, because the CSP forbids giving the ratio inline.
+- **The first screen stacks, at every width** (`packages/site/src/styles/site.css`): the
+  whole photo in the column, no taller than 60svh (a portrait narrows); the credits as a
+  caption line along its foot, the date at its left edge, the length and the language at
+  its right; then the track number and the title across the column, the number hanging in
+  the left margin from 1040px. The title keeps the column's width, so even a long one
+  stays at a few lines instead of a stack of short ones.
 - **The mark is a pixel q** (`packages/site/src/lib/mark.ts`), 5×7 cells at 3px (4px on a
   wide screen): the only link home. The favicon is the same q in vermilion.
 - **Totals** (an article's length, the index's runtime) are written in the ink, bold. No
@@ -191,8 +200,9 @@ colour, icon or furniture is reused.
   Reduced motion shows both settled. The page reads fully without JavaScript.
 - **Code** is highlighted from the palette by value, weight and slant, never by hue
   (`packages/site/src/lib/code-theme.ts`); Shiki's inline colours become classes.
-- **Share images**: a post's is the 1200×630 crop of its header photo; the index's is
-  `/share.png`, drawn at build time from the mark and the newest post's dithered sleeve
+- **Share images**: a post's is the 1200×630 crop of its header photo, cut on its subject
+  like the sleeve; the index's is `/share.png`, drawn at build time from the mark and the
+  newest post's dithered sleeve in its own shape, by the sleeve's ratio rule
   (`packages/site/src/lib/share-card.ts`). No words: link previews print the title.
 - **Never**: textures, gradients, glows, shadows, a radius above 2px, a second accent, a
   pixel face at a size that is not a whole multiple of its grid, helper copy.

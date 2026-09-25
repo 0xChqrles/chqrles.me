@@ -26,9 +26,13 @@ const { Content } = await render(post)
 // The post's figures write numbers in its language.
 Astro.locals.lang = lang
 if (image) assertShareable(post.id, image)
+// The link preview is cut on the photo's subject, as the sleeve is.
 const share =
   image && imageAlt
-    ? { src: (await getImage({ src: image, width: SHARE_WIDTH, height: SHARE_HEIGHT, fit: 'cover', format: 'jpg' })).src, alt: imageAlt }
+    ? {
+        src: (await getImage({ src: image, width: SHARE_WIDTH, height: SHARE_HEIGHT, fit: 'cover', position: 'attention', format: 'jpg' })).src,
+        alt: imageAlt,
+      }
     : undefined
 const day = date.toISOString().slice(0, 10)
 ---
@@ -43,7 +47,8 @@ const day = date.toISOString().slice(0, 10)
 >
   <main class="record column">
     <article>
-      <header class="sleeve-head">
+      {/* Only a draft may have no photo: its header then stays in the column. */}
+      <header class:list={['sleeve-head', { 'has-sleeve': image && imageAlt }]}>
         <div class="title-row">
           <span class="track-no" aria-hidden="true">{trackNumber(number)}</span>
           <h1>{typeset(title, lang)}</h1>

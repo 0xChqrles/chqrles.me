@@ -280,27 +280,54 @@ a.track-row:focus-visible {
   padding: 72px 0 96px;
 }
 
+/* Without a photo (a draft) the header is one column: the credits, then
+   the track number and the title. */
 .sleeve-head {
   display: grid;
   grid-template-areas:
-    'sleeve'
     'credits'
     'title';
   margin-bottom: 56px;
 }
 
+/* With one, the first screen stacks at every width: the whole photo, its
+   credits as a caption line along its foot, then the track number and the
+   title across the column. The first column is as wide as the photo, so the
+   caption keeps to its edges. The photo stands at most --tall high. */
+.has-sleeve {
+  --tall: 60svh;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'sleeve .'
+    'credits .'
+    'title title';
+}
+
 .sleeve {
   grid-area: sleeve;
+  justify-self: start;
   position: relative;
   margin: 0;
-  aspect-ratio: 1;
   background: var(--raise);
+}
+
+/* The sleeve's shape: the trim, at its largest size, scaled down whole to
+   the column and to --tall. A portrait narrows rather than losing its top
+   and bottom. Its size attributes would fix its width and height apart;
+   auto leaves both to its shape. */
+.trim {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: var(--tall);
 }
 
 .sleeve picture {
   display: contents;
 }
 
+/* The photo fills the trim, whose shape it already has. */
 .sleeve img {
   position: absolute;
   inset: 0;
@@ -315,7 +342,7 @@ a.track-row:focus-visible {
      ink, and a contrast under 1 lifts the black onto the ground. */
   filter: grayscale(1) contrast(1.08) brightness(0.93) sepia(0.09) contrast(0.859);
 }
-/* The dither, one backing pixel per cell, scaled up by a whole number. */
+/* The dither, one backing pixel per cell, one CSS pixel each. */
 .sleeve canvas {
   position: absolute;
   top: 0;
@@ -381,6 +408,18 @@ a.track-row:focus-visible {
   margin: 0;
 }
 
+/* Under a photo they are its caption: the date at its left edge, the rest
+   at its right edge, below the crop marks. The line takes the photo's width
+   and never widens it. */
+.has-sleeve .credits {
+  width: 0;
+  min-width: 100%;
+}
+
+.has-sleeve .credits li:first-child {
+  margin-right: auto;
+}
+
 .title-row {
   grid-area: title;
   margin-top: 40px;
@@ -400,22 +439,12 @@ a.track-row:focus-visible {
   text-wrap: balance;
 }
 
-/* From a tablet up, the sleeve is a 420px square with its credits beside it,
-   bottom-aligned, as on the back of a record. */
 @media (min-width: 641px) {
   .sleeve-head {
-    grid-template-columns: 420px minmax(0, 1fr);
-    grid-template-areas:
-      'sleeve credits'
-      'title title';
-    column-gap: 32px;
     margin-bottom: 72px;
   }
   .credits {
-    flex-direction: column;
-    align-self: end;
-    gap: 10px;
-    margin: 0;
+    margin-top: 24px;
   }
   .title-row {
     margin-top: 48px;
@@ -431,23 +460,25 @@ a.track-row:focus-visible {
     padding-top: 96px;
   }
   .sleeve-head {
-    margin-bottom: 80px;
+    margin-bottom: 96px;
   }
-  /* The number hangs in the margin, on the title's first baseline. */
+}
+
+/* On a wide screen the number hangs in the margin, on the title's first
+   baseline, like the index's and the section cues. */
+@media (min-width: 1040px) {
   .title-row {
     display: grid;
     grid-template-columns: var(--margin-col) minmax(0, 1fr);
     column-gap: var(--margin-gap);
     align-items: first baseline;
-    margin: 56px 0 0 calc(-1 * (var(--margin-col) + var(--margin-gap)));
+    margin-left: calc(-1 * (var(--margin-col) + var(--margin-gap)));
   }
   .title-row .track-no {
     justify-self: end;
   }
   .sleeve-head h1 {
     margin: 0;
-    font-size: 52px;
-    line-height: 1.06;
   }
 }
 

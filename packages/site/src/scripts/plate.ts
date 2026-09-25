@@ -3,13 +3,10 @@ import { lit, toneMap } from '../lib/dither'
 // THE SLEEVE DEVELOPS. The photo is printed as a one-bit ordered dither on a
 // canvas over it. On load the exposure rises once from nothing to full, 20
 // stepped frames at 40ms, so the brightest cells light first; reduced motion
-// shows the last frame. The canvas holds one backing pixel per cell and is
-// scaled up by a whole number with pixelated rendering, so every cell is a
-// sharp square. Without the script the photo stays, printed in one ink.
+// shows the last frame. A cell is one CSS pixel: the canvas holds one backing
+// pixel per cell, drawn with pixelated rendering, so every cell is a sharp
+// square. Without the script the photo stays, printed in one ink.
 
-// A cell is a whole number of CSS pixels, as large as the sleeve allows while
-// keeping at least 320 cells across.
-const MIN_COLS = 320
 const FRAMES = 20
 const FRAME_MS = 40
 // Each cell is the mean of a 4×4 block of the photo: an area filter, where a
@@ -33,9 +30,8 @@ for (const plate of document.querySelectorAll<HTMLElement>('[data-plate]')) {
 
   // The photo's brightness per cell, cropped like object-fit: cover, then toned.
   const sample = () => {
-    const cell = Math.max(1, Math.floor(plate.clientWidth / MIN_COLS))
-    cols = Math.floor(plate.clientWidth / cell)
-    rows = Math.floor(plate.clientHeight / cell)
+    cols = plate.clientWidth
+    rows = plate.clientHeight
     const source = document.createElement('canvas')
     source.width = cols * OVERSAMPLE
     source.height = rows * OVERSAMPLE
@@ -57,8 +53,8 @@ for (const plate of document.querySelectorAll<HTMLElement>('[data-plate]')) {
     tone = toneMap(luma, cols, rows)
     canvas.width = cols
     canvas.height = rows
-    canvas.style.width = `${cols * cell}px`
-    canvas.style.height = `${rows * cell}px`
+    canvas.style.width = `${cols}px`
+    canvas.style.height = `${rows}px`
     ink = getComputedStyle(canvas).color.match(/\d+/g)!.map(Number)
   }
 
@@ -91,11 +87,14 @@ for (const plate of document.querySelectorAll<HTMLElement>('[data-plate]')) {
     }, FRAME_MS)
   }
 
-  // A new width redraws the finished sleeve at once, never develops again.
-  let width = plate.clientWidth
+  // A new size redraws the finished sleeve at once, never develops again: the
+  // sleeve follows the screen's height as well as its width.
+  const measure = () => `${plate.clientWidth}×${plate.clientHeight}`
+  let size = measure()
   new ResizeObserver(() => {
-    if (!plate.classList.contains('is-live') || plate.clientWidth === width) return
-    width = plate.clientWidth
+    const now = measure()
+    if (!plate.classList.contains('is-live') || now === size) return
+    size = now
     sample()
     paint(1)
   }).observe(plate)
