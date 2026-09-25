@@ -186,18 +186,14 @@ export default function Plane({ points, states, links = [], arrows = false, coor
             const a = at[from]
             const b = at[to]
             if (!a || !b) return null
-            // The distance is written on the link, at its middle and along it
-            // (kept upright), and the line breaks around it: a dimension, as on
-            // a drawing. The square keeps the domain's proportions, so the
-            // angle comes from the data alone.
-            const angle = (Math.atan2((a.y - b.y) / (y1 - y0), (b.x - a.x) / (x1 - x0)) * 180) / Math.PI
-            const upright = angle > 90 ? angle - 180 : angle < -90 ? angle + 180 : angle
+            // The distance is written on the link, at its middle, level, and the
+            // line breaks around it: a dimension, as on a drawing.
             return (
               <g key={`${from}-${to}`} className={accent ? 'plane-link is-accent' : 'plane-link'}>
                 <line x1={X(a.x)} y1={Y(a.y)} x2={X(b.x)} y2={Y(b.y)} />
                 {distance && (
                   <svg x={X((a.x + b.x) / 2)} y={Y((a.y + b.y) / 2)} overflow="visible">
-                    <text className="plane-distance" textAnchor="middle" dy="0.35em" transform={`rotate(${upright})`}>
+                    <text className="plane-distance" textAnchor="middle" dy="0.35em">
                       {fmt(Math.hypot(a.x - b.x, a.y - b.y))}
                     </text>
                   </svg>
