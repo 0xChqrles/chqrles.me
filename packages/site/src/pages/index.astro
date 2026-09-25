@@ -1,0 +1,23 @@
+---
+import Base from '../layouts/Base.astro'
+import { formatDate, getPosts, typeset } from '../lib/posts'
+import { postPath } from '../lib/urls'
+import { SITE_DESCRIPTION, SITE_NAME } from '../site'
+
+const posts = await getPosts()
+---
+
+<Base title={SITE_NAME} description={SITE_DESCRIPTION} lang="fr" path="/">
+  <main>
+    <ol>
+      {
+        posts.map(({ id, data }) => (
+          <li lang={data.lang === 'fr' ? undefined : data.lang}>
+            <a href={postPath(id)}>{typeset(data.title, data.lang)}</a>
+            <time datetime={data.date.toISOString().slice(0, 10)}>{formatDate(data.date, data.lang)}</time>
+          </li>
+        ))
+      }
+    </ol>
+  </main>
+</Base>

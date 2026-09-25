@@ -1,0 +1,13 @@
+{
+  "name": "chqrles.me",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "pnpm --filter @chqrles/site dev",
+    "build": "pnpm --filter @chqrles/site build",
+    "preview": "pnpm --filter @chqrles/site preview",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test"
+  }
+}

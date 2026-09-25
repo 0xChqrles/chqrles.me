@@ -1,0 +1,56 @@
+---
+import { getImage, Picture } from 'astro:assets'
+import { render } from 'astro:content'
+import Base from '../layouts/Base.astro'
+import { formatDate, getPosts, typeset, type Post } from '../lib/posts'
+import { postPath } from '../lib/urls'
+
+export async function getStaticPaths() {
+  const posts = await getPosts()
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }))
+}
+
+interface Props {
+  post: Post
+}
+
+const { post } = Astro.props
+const { title, description, date, image, imageAlt, lang } = post.data
+const { Content } = await render(post)
+// The share preview is a 1200×630 crop of the header image.
+const share =
+  image && imageAlt
+    ? { src: (await getImage({ src: image, width: 1200, height: 630, fit: 'cover', format: 'jpg' })).src, alt: imageAlt }
+    : undefined
+---
+
+<Base
+  title={typeset(title, lang)}
+  description={typeset(description, lang)}
+  lang={lang}
+  path={postPath(post.id)}
+  article={{ published: date }}
+  share={share}
+>
+  <main>
+    <article>
+      <header>
+        <h1>{typeset(title, lang)}</h1>
+        <time datetime={date.toISOString().slice(0, 10)}>{formatDate(date, lang)}</time>
+      </header>
+      {
+        image && imageAlt && (
+          <Picture
+            src={image}
+            alt={imageAlt}
+            formats={['avif', 'webp']}
+            widths={[640, 960, 1280, 1920]}
+            sizes="(min-width: 60rem) 60rem, 100vw"
+            priority
+          />
+        )
+      }
+      <Content />
+    </article>
+  </main>
+</Base>
