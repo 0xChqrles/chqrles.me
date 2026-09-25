@@ -1,13 +1,14 @@
 // The mark: a "q" drawn on an 8×8 cell grid, which is also a record on its
-// spindle with the tonearm at rest. One cell is one unit of the viewBox.
+// spindle: the bowl is the disc, its one lit cell the spindle, and the long
+// descender the tonearm. One cell is one unit of the viewBox.
 export const MARK = [
-  '..###.##',
-  '.#######',
+  '.####.##',
   '##...###',
   '##.#.###',
   '##...###',
-  '.#######',
-  '..###.##',
+  '.####.##',
+  '......##',
+  '......##',
   '......##',
 ]
 

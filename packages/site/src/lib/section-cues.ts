@@ -1,11 +1,11 @@
 import type { Element, ElementContent, Root } from 'hast'
 import { visitParents } from 'unist-util-visit-parents'
 import type { VFile } from 'vfile'
-import { formatDuration, secondsFor, trackNumber } from './duration'
+import { secondsFor, trackNumber } from './duration'
 
-// Rehype step: every ## section opens with a cue, its number and the reading
-// time elapsed to reach it:
-// <h2 data-t="70"><span class="cue">…</span><span class="heading">…</span></h2>.
+// Rehype step: every ## section opens with a cue, its number, and carries the
+// reading time elapsed to reach it (the timeline places its tick there):
+// <h2 data-t="70"><span class="cue">[01]</span><span class="heading">…</span></h2>.
 // It runs after the heading ids are set, so a cue never leaks into an id.
 // The post's whole length lands in its frontmatter as `seconds`, which
 // render() hands back as remarkPluginFrontmatter. A figure placeholder is a
@@ -25,7 +25,7 @@ export function rehypeSectionCues() {
       node.properties = { ...node.properties, dataT: seconds }
       words += countWords(textOf(node))
       node.children = [
-        cue(trackNumber(section), formatDuration(seconds)),
+        cue(trackNumber(section)),
         { type: 'element', tagName: 'span', properties: { className: ['heading'] }, children: node.children },
       ]
       // The heading is counted; the cue's own text must not be.
@@ -53,17 +53,12 @@ function isPlaceholder(node: { type: string }): boolean {
   return tagName === 'figure' && Array.isArray(className) && className.includes('placeholder')
 }
 
-function cue(number: string, elapsed: string): Element {
-  const span = (className: string, text: string): ElementContent => ({
-    type: 'element',
-    tagName: 'span',
-    properties: { className: [className] },
-    children: [{ type: 'text', value: text }],
-  })
+// The brackets are CSS, so only the digits are text: they are what decodes.
+function cue(number: string): Element {
   return {
     type: 'element',
     tagName: 'span',
     properties: { className: ['cue'], ariaHidden: 'true' },
-    children: [span('cue-n', number), span('cue-t', elapsed)],
+    children: [{ type: 'text', value: number }],
   }
 }

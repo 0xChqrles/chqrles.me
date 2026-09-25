@@ -45,9 +45,11 @@ const day = date.toISOString().slice(0, 10)
           <span class="track-no" aria-hidden="true">{trackNumber(number)}</span>
           <h1>{typeset(title, lang)}</h1>
         </div>
-        <ul class="plate micro">
+        {/* The sleeve's credits. The length is the sum of the sections, so it
+            carries the ledger's double rule. */}
+        <ul class="credits micro">
           <li><time datetime={day}>{formatDate(date, lang)}</time></li>
-          <li class="value">{formatDuration(seconds)}</li>
+          <li><span class="sum">{formatDuration(seconds)}</span></li>
           <li>{lang}</li>
         </ul>
         {image && imageAlt && <Sleeve src={image} alt={imageAlt} />}
@@ -55,9 +57,9 @@ const day = date.toISOString().slice(0, 10)
       <div class="prose" data-total={seconds}>
         <Content />
       </div>
+      {/* The run-out: the centre label, and the way back. */}
       <footer class="runout">
         <a href="/" aria-label={SITE_NAME}><Mark /></a>
-        <span class="micro"><span class="sum">{formatDuration(seconds)}</span></span>
       </footer>
     </article>
   </main>

@@ -12,7 +12,7 @@
   --line-strong: #6f6a62; /* crop marks, rules that must be seen */
   --muted: #999489; /* secondary text, 6.24:1 on the ground */
   --ink: #e4e2dc; /* everything else, 14.56:1 */
-  --cue: #ff5a1f; /* vermilion: the playhead, 6.05:1 */
+  --cue: #ff5a1f; /* vermilion: where you are, 6.05:1 */
 
   --face-text: 'Newsreader Variable', Georgia, serif;
   --face-mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -260,19 +260,23 @@ a.track-row:focus-visible {
     margin-left: calc(-1 * (var(--margin-col) + var(--margin-gap)));
     row-gap: 8px;
   }
-  .track-no {
+  .track-row > .track-no {
     justify-self: end;
-    font-size: var(--pixel-2x);
-    line-height: var(--pixel-2x);
   }
   .track-title {
     font-size: 26px;
   }
 }
 
-/* A missing page: a track with no title and no length, on one line. */
+/* A missing page: a track with no title and no length, on one line. Its
+   number is the page's only content, so it alone is set at 2×. */
 .track-row.lost {
   grid-template-areas: 'no meta';
+}
+
+.lost .track-no {
+  font-size: var(--pixel-2x);
+  line-height: var(--pixel-2x);
 }
 
 .lost .track-title {
@@ -289,7 +293,7 @@ a.track-row:focus-visible {
   display: grid;
   grid-template-areas:
     'sleeve'
-    'plate'
+    'credits'
     'title';
   margin-bottom: 56px;
 }
@@ -306,49 +310,46 @@ a.track-row:focus-visible {
   display: contents;
 }
 
-.sleeve img,
-.sleeve canvas {
+.sleeve img {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.sleeve img {
   object-fit: cover;
-  /* One ink until the dot screen is printed over it. */
-  filter: grayscale(1);
+  /* Printed in one ink on the black card: the photo's black lands on the
+     ground and its white on the ink (18,18,18 and 228,225,220, against
+     #121110 and #e4e2dc), so its shadows are the page itself. Grayscale with
+     a little more contrast; brightness sets the white, sepia warms it to the
+     ink, and a contrast under 1 lifts the black onto the ground. */
+  filter: grayscale(1) contrast(1.08) brightness(0.93) sepia(0.09) contrast(0.859);
 }
 
-.sleeve canvas {
-  visibility: hidden;
-  image-rendering: pixelated;
-}
-
-.sleeve.is-screened canvas {
-  visibility: visible;
-}
-
-.sleeve.is-screened img {
-  visibility: hidden;
-}
-
-/* Printer's crop marks, one hairline pair at each corner, outside the trim. */
+/* Printer's crop marks, one hairline pair at each corner, outside the trim.
+   On a phone they are shorter, so they end 4px inside the screen's edge. */
 .crop::after {
   content: '';
   position: absolute;
-  inset: -16px;
-  border: 16px solid transparent;
-  border-image: url('./crop.svg') 16;
+  inset: -12px;
+  border: 12px solid transparent;
+  border-image: url('./crop-small.svg') 12;
   pointer-events: none;
 }
 
-.plate {
-  grid-area: plate;
+@media (min-width: 641px) {
+  .crop::after {
+    inset: -16px;
+    border-width: 16px;
+    border-image: url('./crop.svg') 16;
+  }
+}
+
+/* The sleeve's credits: the date, the length, the language. */
+.credits {
+  grid-area: credits;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 20px;
+  gap: 8px 20px;
   margin: 20px 0 0;
   padding: 0;
   list-style: none;
@@ -356,13 +357,8 @@ a.track-row:focus-visible {
   font-weight: 400;
 }
 
-.plate li {
+.credits li {
   margin: 0;
-}
-
-.plate .value {
-  color: var(--ink);
-  font-weight: 500;
 }
 
 .title-row {
@@ -372,6 +368,7 @@ a.track-row:focus-visible {
 
 .title-row .track-no {
   display: block;
+  color: var(--muted);
 }
 
 .sleeve-head h1 {
@@ -383,23 +380,38 @@ a.track-row:focus-visible {
   text-wrap: balance;
 }
 
+/* From a tablet up, the sleeve is a 420px square with its credits beside it,
+   bottom-aligned, as on the back of a record. */
+@media (min-width: 641px) {
+  .sleeve-head {
+    grid-template-columns: 420px minmax(0, 1fr);
+    grid-template-areas:
+      'sleeve credits'
+      'title title';
+    column-gap: 32px;
+    margin-bottom: 72px;
+  }
+  .credits {
+    flex-direction: column;
+    align-self: end;
+    gap: 10px;
+    margin: 0;
+  }
+  .title-row {
+    margin-top: 48px;
+  }
+  .sleeve-head h1 {
+    font-size: 44px;
+    line-height: 1.08;
+  }
+}
+
 @media (min-width: 1040px) {
   .record {
     padding-top: 96px;
   }
   .sleeve-head {
-    grid-template-columns: 420px minmax(0, 1fr);
-    grid-template-areas:
-      'sleeve plate'
-      'title title';
-    column-gap: 32px;
     margin-bottom: 80px;
-  }
-  .plate {
-    flex-direction: column;
-    align-self: end;
-    gap: 6px;
-    margin: 0;
   }
   /* The number hangs in the margin, on the title's first baseline. */
   .title-row {
@@ -411,8 +423,6 @@ a.track-row:focus-visible {
   }
   .title-row .track-no {
     justify-self: end;
-    font-size: var(--pixel-2x);
-    line-height: var(--pixel-2x);
   }
   .sleeve-head h1 {
     margin: 0;
@@ -459,11 +469,13 @@ a.track-row:focus-visible {
   text-decoration-color: var(--cue);
 }
 
-/* A section opens on a hairline, the gap between two tracks, with its cue. */
+/* A section opens on a hairline, the gap between two tracks, with its cue.
+   The hairline spans the column only, like the run-out's; the cue hangs
+   below it, in the margin on a wide screen. */
 .prose h2 {
+  position: relative;
   margin: 2.6em 0 0.7em;
   padding-top: 28px;
-  border-top: 1px solid var(--line);
   font-size: 27px;
   line-height: 1.2;
   font-weight: 540;
@@ -472,12 +484,22 @@ a.track-row:focus-visible {
   hyphens: manual;
 }
 
+.prose h2::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* A subsection is said in weight, upright: italic is for emphasis and
+   quotations only. */
 .prose h3 {
-  margin: 2em 0 0.5em;
+  margin: 2em 0 0.4em;
   font-size: 22px;
   line-height: 1.25;
-  font-weight: 500;
-  font-style: italic;
+  font-weight: 620;
   text-wrap: balance;
   hyphens: manual;
 }
@@ -487,18 +509,25 @@ a.track-row:focus-visible {
 }
 
 .cue {
-  display: flex;
-  gap: 14px;
+  display: block;
   margin-bottom: 14px;
   font-family: var(--face-mono);
   font-size: 11px;
   line-height: 16px;
-  font-weight: 400;
+  font-weight: 600;
   letter-spacing: 0.12em;
   font-style: normal;
   font-variant-numeric: tabular-nums;
   font-variant-ligatures: none;
-  color: var(--muted);
+  color: var(--ink);
+}
+
+.cue::before {
+  content: '[';
+}
+
+.cue::after {
+  content: ']';
 }
 
 /* With the script, a cue waits unseen until it decodes in the reading zone. */
@@ -512,19 +541,6 @@ a.track-row:focus-visible {
   }
 }
 
-.cue-n {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.cue-n::before {
-  content: '[';
-}
-
-.cue-n::after {
-  content: ']';
-}
-
 @media (min-width: 1040px) {
   .prose h2 {
     display: grid;
@@ -533,10 +549,11 @@ a.track-row:focus-visible {
     align-items: first baseline;
     margin-left: calc(-1 * (var(--margin-col) + var(--margin-gap)));
   }
+  .prose h2::before {
+    left: calc(var(--margin-col) + var(--margin-gap));
+  }
   .cue {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
+    justify-self: end;
     margin: 0;
   }
 }
@@ -569,11 +586,16 @@ a.track-row:focus-visible {
   color: var(--muted);
 }
 
-/* Inline code: the mono, matched to the text's x-height. */
+/* Inline code: the mono, matched to the text's x-height. A token is never
+   broken across two lines (-ard must not split at its hyphen). */
 .prose code {
   font-family: var(--face-mono);
   font-size: 0.8em;
   font-variant-ligatures: none;
+}
+
+.prose :not(pre) > code {
+  white-space: nowrap;
 }
 
 .prose pre {
@@ -596,8 +618,8 @@ a.track-row:focus-visible {
   font-size: inherit;
 }
 
-/* A figure that is not printed yet: the plate, its crop marks, its number,
-   and the note that says what will be there. */
+/* A figure that is not drawn yet: one step of value, its number, and the
+   note that says what will be there. */
 .prose {
   counter-reset: figure;
 }
@@ -626,15 +648,6 @@ a.track-row:focus-visible {
   color: var(--ink);
 }
 
-.prose figure.placeholder::after {
-  content: '';
-  position: absolute;
-  inset: -16px;
-  border: 16px solid transparent;
-  border-image: url('./crop.svg') 16;
-  pointer-events: none;
-}
-
 .prose figure.placeholder pre {
   margin: 0;
   padding: 0;
@@ -653,7 +666,7 @@ a.track-row:focus-visible {
     font-size: 30px;
   }
   .prose h3 {
-    font-size: 23px;
+    font-size: 24px;
   }
   .prose pre {
     font-size: 15px;
@@ -661,12 +674,10 @@ a.track-row:focus-visible {
   }
 }
 
-/* ── The end of the record: its total, and the way back ───────────────── */
+/* ── The run-out: the centre label, and the way back ──────────────────── */
 
 .runout {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-top: 64px;
   padding-top: 24px;
   border-top: 1px solid var(--line);
@@ -695,45 +706,6 @@ a.track-row:focus-visible {
     z-index: 5;
     pointer-events: none;
   }
-}
-
-/* The print control strip: the site's inks, bottom left, as on a proof. */
-.strip {
-  position: absolute;
-  left: 32px;
-  bottom: 32px;
-  display: flex;
-  gap: 2px;
-}
-
-.strip i {
-  display: block;
-  width: 8px;
-  height: 8px;
-}
-
-.strip i:nth-child(1) {
-  outline: 1px solid var(--line);
-  outline-offset: -1px;
-  background: var(--ground);
-}
-.strip i:nth-child(2) {
-  background: var(--raise);
-}
-.strip i:nth-child(3) {
-  background: var(--line);
-}
-.strip i:nth-child(4) {
-  background: var(--line-strong);
-}
-.strip i:nth-child(5) {
-  background: var(--muted);
-}
-.strip i:nth-child(6) {
-  background: var(--ink);
-}
-.strip i:nth-child(7) {
-  background: var(--cue);
 }
 
 /* The playhead. On a phone or a tablet: a vermilion hairline along the top
