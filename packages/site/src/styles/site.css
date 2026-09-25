@@ -794,14 +794,14 @@ a.track-row:focus-visible {
   fill: var(--muted);
 }
 
-/* The accent, in a figure: the one thing its caption points at, and only
-   where it helps reading (the nearest pair, the winning arc, the mean). */
-.plane-link.is-nearest line {
+/* The accent, in a figure: one specific thing the figure is about (this
+   distance, this arc, the mean), never a concept shown in general. */
+.plane-link.is-accent line {
   stroke: var(--cue);
   stroke-width: 1.5px;
 }
 
-.plane-link.is-nearest .plane-distance {
+.plane-link.is-accent .plane-distance {
   fill: var(--cue);
 }
 
