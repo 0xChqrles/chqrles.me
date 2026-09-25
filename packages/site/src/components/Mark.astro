@@ -1,0 +1,13 @@
+---
+import { MARK_CELLS, markPath } from '../lib/mark'
+
+// The pixel mark, at a whole number of CSS pixels per cell (set in CSS).
+interface Props {
+  class?: string
+}
+const { class: className } = Astro.props
+---
+
+<svg class:list={['mark', className]} viewBox={`0 0 ${MARK_CELLS} ${MARK_CELLS}`} shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+  <path d={markPath()} fill="currentColor"></path>
+</svg>

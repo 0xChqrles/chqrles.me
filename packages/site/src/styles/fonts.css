@@ -1,0 +1,22 @@
+/* Every face is self-hosted: the build bundles the files under /_astro.
+   latin-ext is declared with latin so an uppercase Ÿ never falls back; its
+   unicode-range means it only downloads when a page needs it. */
+
+/* TEXT: the article's own voice, and every title. Variable weight and
+   optical size, so the title is cut for display and the body for reading. */
+@import '@fontsource-variable/newsreader/opsz.css';
+@import '@fontsource-variable/newsreader/opsz-italic.css';
+
+/* MONO: the chrome (cues, datelines, durations, captions) and code. */
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-600.css';
+
+/* PIXEL: track numbers only. Its grid is 50 units on a 1350 em, so at 27px
+   one design pixel is one CSS pixel. It is only ever set at 27px (1×) or 54px
+   (2×), never scaled, never animated. Ascent and descent add up to the em,
+   so with a line height equal to its size the baseline lands on a whole pixel. */
+@import '@fontsource/jersey-15/latin-400.css';

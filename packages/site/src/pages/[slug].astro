@@ -1,21 +1,25 @@
 ---
-import { getImage, Picture } from 'astro:assets'
+import { getImage } from 'astro:assets'
 import { render } from 'astro:content'
+import Mark from '../components/Mark.astro'
+import Sleeve from '../components/Sleeve.astro'
 import Base from '../layouts/Base.astro'
-import { formatDate, getPosts, typeset, type Post } from '../lib/posts'
+import { formatDuration, trackNumber } from '../lib/duration'
+import { formatDate, getTracks, typeset, type Track } from '../lib/posts'
 import { assertShareable, SHARE_HEIGHT, SHARE_WIDTH } from '../lib/share-image'
 import { postPath } from '../lib/urls'
+import { SITE_NAME } from '../site'
 
 export async function getStaticPaths() {
-  const posts = await getPosts()
-  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }))
+  const tracks = await getTracks()
+  return tracks.map((track) => ({ params: { slug: track.post.id }, props: { track } }))
 }
 
 interface Props {
-  post: Post
+  track: Track
 }
 
-const { post } = Astro.props
+const { post, number, seconds } = Astro.props.track
 const { title, description, date, image, imageAlt, lang } = post.data
 const { Content } = await render(post)
 if (image) assertShareable(post.id, image)
@@ -23,6 +27,7 @@ const share =
   image && imageAlt
     ? { src: (await getImage({ src: image, width: SHARE_WIDTH, height: SHARE_HEIGHT, fit: 'cover', format: 'jpg' })).src, alt: imageAlt }
     : undefined
+const day = date.toISOString().slice(0, 10)
 ---
 
 <Base
@@ -33,25 +38,27 @@ const share =
   article={{ published: date }}
   share={share}
 >
-  <main>
+  <main class="record column">
     <article>
-      <header>
-        <h1>{typeset(title, lang)}</h1>
-        <time datetime={date.toISOString().slice(0, 10)}>{formatDate(date, lang)}</time>
+      <header class="sleeve-head">
+        <div class="title-row">
+          <span class="track-no" aria-hidden="true">{trackNumber(number)}</span>
+          <h1>{typeset(title, lang)}</h1>
+        </div>
+        <ul class="plate micro">
+          <li><time datetime={day}>{formatDate(date, lang)}</time></li>
+          <li class="value">{formatDuration(seconds)}</li>
+          <li>{lang}</li>
+        </ul>
+        {image && imageAlt && <Sleeve src={image} alt={imageAlt} />}
       </header>
-      {
-        image && imageAlt && (
-          <Picture
-            src={image}
-            alt={imageAlt}
-            formats={['avif', 'webp']}
-            widths={[640, 960, 1280, 1920]}
-            sizes="(min-width: 60rem) 60rem, 100vw"
-            priority
-          />
-        )
-      }
-      <Content />
+      <div class="prose" data-total={seconds}>
+        <Content />
+      </div>
+      <footer class="runout">
+        <a href="/" aria-label={SITE_NAME}><Mark /></a>
+        <span class="micro"><span class="sum">{formatDuration(seconds)}</span></span>
+      </footer>
     </article>
   </main>
 </Base>

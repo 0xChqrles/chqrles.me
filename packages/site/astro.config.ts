@@ -1,10 +1,11 @@
-import { unified } from '@astrojs/markdown-remark'
+import { rehypeHeadingIds, unified } from '@astrojs/markdown-remark'
 import mdx from '@astrojs/mdx'
 import sitemap from '@astrojs/sitemap'
 import { defineConfig } from 'astro/config'
 import rehypeRaw from 'rehype-raw'
 import { remarkFigurePlaceholders } from './src/lib/figure-placeholders'
 import { rehypeFrenchSpacing } from './src/lib/french-spacing'
+import { rehypeSectionCues } from './src/lib/section-cues'
 
 export default defineConfig({
   site: 'https://chqrles.me',
@@ -27,6 +28,10 @@ export default defineConfig({
         // written as HTML is skipped too. MDX's own nodes pass through.
         [rehypeRaw, { passThrough: ['mdxFlowExpression', 'mdxJsxFlowElement', 'mdxJsxTextElement', 'mdxTextExpression', 'mdxjsEsm'] }],
         rehypeFrenchSpacing,
+        // Heading ids come from the heading's own words, before a cue joins it.
+        rehypeHeadingIds,
+        // Each ## section opens with its number and the reading time to reach it.
+        rehypeSectionCues,
       ],
     }),
     syntaxHighlight: false,

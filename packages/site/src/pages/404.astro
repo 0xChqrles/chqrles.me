@@ -1,11 +1,21 @@
 ---
 import Base from '../layouts/Base.astro'
-import { SITE_DESCRIPTION, SITE_NAME } from '../site'
+import { formatDuration } from '../lib/duration'
+import { SITE_DESCRIPTION } from '../site'
+
+// A missing page is a track with nothing on it: no title, no length. The mark
+// (top left) is the way back.
 ---
 
 <Base title="404" description={SITE_DESCRIPTION} lang="fr">
-  <main>
-    <h1>404</h1>
-    <a href="/">{SITE_NAME}</a>
+  <main class="tracklist column">
+    <div class="track-row lost">
+      <h1 class="track-no">404</h1>
+      <span class="track-title"></span>
+      <span class="track-meta micro">
+        <span class="leader" aria-hidden="true"></span>
+        <span class="track-len">{formatDuration(0)}</span>
+      </span>
+    </div>
   </main>
 </Base>

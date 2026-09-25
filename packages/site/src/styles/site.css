@@ -1,0 +1,817 @@
+/* FACE B — the blog as a record sleeve and its liner notes.
+   One flat near-black ground, one near-white ink, one vermilion that means
+   "where you are" (the playhead, the cued track, focus, selection). Depth is
+   one step of value. Corners stay under 4px. Lines are hairlines. */
+
+:root {
+  color-scheme: dark;
+
+  --ground: #121110; /* the sleeve's black card */
+  --raise: #1b1a18; /* one step up: code, a figure not printed yet */
+  --line: #2c2a27; /* the quiet hairline: a gap between tracks */
+  --line-strong: #6f6a62; /* crop marks, rules that must be seen */
+  --muted: #999489; /* secondary text, 6.24:1 on the ground */
+  --ink: #e4e2dc; /* everything else, 14.56:1 */
+  --cue: #ff5a1f; /* vermilion: the playhead, 6.05:1 */
+
+  --face-text: 'Newsreader Variable', Georgia, serif;
+  --face-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --face-pixel: 'Jersey 15', var(--face-mono);
+
+  /* The pixel face at a whole multiple of its 27px grid. */
+  --pixel-1x: 27px;
+  --pixel-2x: 54px;
+
+  --gutter: 16px;
+  --column: 600px;
+  /* On a wide screen the cues and track numbers hang in this margin. */
+  --margin-col: 136px;
+  --margin-gap: 32px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ground);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--face-text);
+  font-synthesis: none;
+  font-optical-sizing: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--cue);
+  color: var(--ground);
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 1px solid var(--cue);
+  outline-offset: 4px;
+  border-radius: 0;
+}
+
+/* The mono chrome voice: one size, uppercase, tracked. Hierarchy is said in
+   weight: 400 for what is only information, 500 for values, 600 for the one
+   figure a line is about. */
+.micro {
+  font-family: var(--face-mono);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
+}
+
+/* ── The mark ─────────────────────────────────────────────────────────── */
+
+.mark {
+  display: block;
+  width: 24px; /* 8 cells × 3px */
+  height: 24px;
+  color: var(--ink);
+}
+
+.masthead {
+  position: absolute;
+  top: 20px;
+  left: var(--gutter);
+  z-index: 10;
+}
+
+.masthead a {
+  display: block;
+}
+
+.masthead a:hover .mark {
+  color: var(--cue);
+}
+
+@media (min-width: 1040px) {
+  /* On a wide screen the mark stays put: the way back is always one click. */
+  .masthead {
+    position: fixed;
+    top: 32px;
+    left: 32px;
+  }
+  .mark {
+    width: 32px; /* 8 cells × 4px */
+    height: 32px;
+  }
+}
+
+/* ── The column ───────────────────────────────────────────────────────── */
+
+.column {
+  width: min(100% - 2 * var(--gutter), var(--column));
+  margin-inline: auto;
+}
+
+/* ── Index: the tracklist ─────────────────────────────────────────────── */
+
+.tracklist {
+  padding: 120px 0 96px;
+}
+
+.tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.track + .track {
+  margin-top: 28px;
+}
+
+.track-row {
+  display: grid;
+  grid-template-columns: minmax(32px, max-content) minmax(0, 1fr);
+  grid-template-areas:
+    'no title'
+    '. meta';
+  column-gap: 12px;
+  row-gap: 8px;
+  align-items: first baseline;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.track-no {
+  margin: 0;
+  font-family: var(--face-pixel);
+  font-weight: 400;
+  font-size: var(--pixel-1x);
+  line-height: var(--pixel-1x);
+  color: var(--ink);
+}
+
+.track-row > .track-no {
+  grid-area: no;
+}
+
+.track-title {
+  grid-area: title;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 450;
+  letter-spacing: -0.003em;
+  text-wrap: pretty;
+}
+
+/* The mono line: the date, a leader of dots, the length. One face, so one
+   baseline. */
+.track-meta {
+  grid-area: meta;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.leader {
+  flex: 1;
+  min-width: 24px;
+  overflow: clip;
+  white-space: nowrap;
+  color: var(--line-strong);
+}
+
+.leader::before {
+  content: '. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .' / '';
+}
+
+.track-len {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+a.track-row:hover .track-no,
+a.track-row:hover .track-len,
+a.track-row:hover .leader,
+a.track-row:focus-visible .track-no,
+a.track-row:focus-visible .track-len,
+a.track-row:focus-visible .leader {
+  color: var(--cue);
+}
+
+a.track-row:focus-visible {
+  outline-offset: 8px;
+}
+
+/* The sum of the tracks, as a ledger writes a total: under a double rule. */
+.total {
+  display: flex;
+  justify-content: flex-end;
+  margin: 40px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+/* ── The one emphasis gesture: the ledger's double rule ───────────────────
+   Two hairlines under a figure, flush to its ink: this is the sum. Drawn,
+   never laid out, so nothing moves when it appears. */
+.sum {
+  position: relative;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.sum::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0.12em; /* the tracking after the last glyph is not ink */
+  bottom: -5px;
+  height: 4px;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+@media (min-width: 1040px) {
+  .tracklist {
+    padding-top: clamp(160px, 30vh, 280px);
+  }
+  .track + .track {
+    margin-top: 32px;
+  }
+  /* The number hangs in the margin, like the cues in an article. */
+  .track-row {
+    grid-template-columns: var(--margin-col) minmax(0, 1fr);
+    column-gap: var(--margin-gap);
+    margin-left: calc(-1 * (var(--margin-col) + var(--margin-gap)));
+    row-gap: 8px;
+  }
+  .track-no {
+    justify-self: end;
+    font-size: var(--pixel-2x);
+    line-height: var(--pixel-2x);
+  }
+  .track-title {
+    font-size: 26px;
+  }
+}
+
+/* A missing page: a track with no title and no length, on one line. */
+.track-row.lost {
+  grid-template-areas: 'no meta';
+}
+
+.lost .track-title {
+  display: none;
+}
+
+/* ── Article: the sleeve ──────────────────────────────────────────────── */
+
+.record {
+  padding: 72px 0 96px;
+}
+
+.sleeve-head {
+  display: grid;
+  grid-template-areas:
+    'sleeve'
+    'plate'
+    'title';
+  margin-bottom: 56px;
+}
+
+.sleeve {
+  grid-area: sleeve;
+  position: relative;
+  margin: 0;
+  aspect-ratio: 1;
+  background: var(--raise);
+}
+
+.sleeve picture {
+  display: contents;
+}
+
+.sleeve img,
+.sleeve canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sleeve img {
+  object-fit: cover;
+  /* One ink until the dot screen is printed over it. */
+  filter: grayscale(1);
+}
+
+.sleeve canvas {
+  visibility: hidden;
+  image-rendering: pixelated;
+}
+
+.sleeve.is-screened canvas {
+  visibility: visible;
+}
+
+.sleeve.is-screened img {
+  visibility: hidden;
+}
+
+/* Printer's crop marks, one hairline pair at each corner, outside the trim. */
+.crop::after {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border: 16px solid transparent;
+  border-image: url('./crop.svg') 16;
+  pointer-events: none;
+}
+
+.plate {
+  grid-area: plate;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.plate li {
+  margin: 0;
+}
+
+.plate .value {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.title-row {
+  grid-area: title;
+  margin-top: 40px;
+}
+
+.title-row .track-no {
+  display: block;
+}
+
+.sleeve-head h1 {
+  margin: 12px 0 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+
+@media (min-width: 1040px) {
+  .record {
+    padding-top: 96px;
+  }
+  .sleeve-head {
+    grid-template-columns: 420px minmax(0, 1fr);
+    grid-template-areas:
+      'sleeve plate'
+      'title title';
+    column-gap: 32px;
+    margin-bottom: 80px;
+  }
+  .plate {
+    flex-direction: column;
+    align-self: end;
+    gap: 6px;
+    margin: 0;
+  }
+  /* The number hangs in the margin, on the title's first baseline. */
+  .title-row {
+    display: grid;
+    grid-template-columns: var(--margin-col) minmax(0, 1fr);
+    column-gap: var(--margin-gap);
+    align-items: first baseline;
+    margin: 56px 0 0 calc(-1 * (var(--margin-col) + var(--margin-gap)));
+  }
+  .title-row .track-no {
+    justify-self: end;
+    font-size: var(--pixel-2x);
+    line-height: var(--pixel-2x);
+  }
+  .sleeve-head h1 {
+    margin: 0;
+    font-size: 52px;
+    line-height: 1.06;
+  }
+}
+
+/* ── Article: the liner notes ─────────────────────────────────────────── */
+
+.prose {
+  font-size: 19px;
+  line-height: 1.58;
+  font-weight: 400;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  hyphenate-limit-chars: 8 4 4;
+  overflow-wrap: break-word;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose p,
+.prose ol,
+.prose ul {
+  margin: 0 0 1em;
+}
+
+.prose strong {
+  font-weight: 640;
+}
+
+.prose a {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-strong);
+}
+
+.prose a:hover {
+  color: var(--cue);
+  text-decoration-color: var(--cue);
+}
+
+/* A section opens on a hairline, the gap between two tracks, with its cue. */
+.prose h2 {
+  margin: 2.6em 0 0.7em;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+  font-size: 27px;
+  line-height: 1.2;
+  font-weight: 540;
+  letter-spacing: -0.008em;
+  text-wrap: balance;
+  hyphens: manual;
+}
+
+.prose h3 {
+  margin: 2em 0 0.5em;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 500;
+  font-style: italic;
+  text-wrap: balance;
+  hyphens: manual;
+}
+
+.prose h2 + h3 {
+  margin-top: 0.9em;
+}
+
+.cue {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 14px;
+  font-family: var(--face-mono);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
+  color: var(--muted);
+}
+
+/* With the script, a cue waits unseen until it decodes in the reading zone. */
+.cues-wait .cue:not(.is-read) {
+  visibility: hidden;
+}
+
+@media print {
+  .cues-wait .cue:not(.is-read) {
+    visibility: visible;
+  }
+}
+
+.cue-n {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cue-n::before {
+  content: '[';
+}
+
+.cue-n::after {
+  content: ']';
+}
+
+@media (min-width: 1040px) {
+  .prose h2 {
+    display: grid;
+    grid-template-columns: var(--margin-col) minmax(0, 1fr);
+    column-gap: var(--margin-gap);
+    align-items: first baseline;
+    margin-left: calc(-1 * (var(--margin-col) + var(--margin-gap)));
+  }
+  .cue {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    margin: 0;
+  }
+}
+
+.prose blockquote {
+  margin: 1.5em 0;
+  padding: 0 0 0 22px;
+  border-left: 1px solid var(--line-strong);
+  font-style: italic;
+}
+
+.prose blockquote p {
+  margin: 0;
+}
+
+.prose ol,
+.prose ul {
+  padding-left: 1.6em;
+}
+
+.prose li {
+  margin: 0 0 0.5em;
+  padding-left: 0.3em;
+}
+
+.prose li::marker {
+  font-family: var(--face-mono);
+  font-size: 0.72em;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Inline code: the mono, matched to the text's x-height. */
+.prose code {
+  font-family: var(--face-mono);
+  font-size: 0.8em;
+  font-variant-ligatures: none;
+}
+
+.prose pre {
+  margin: 1.5em 0;
+  padding: 16px 18px;
+  background: var(--raise);
+  border-radius: 2px;
+  font-family: var(--face-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  hyphens: none;
+  tab-size: 2;
+  color: var(--ink);
+}
+
+.prose pre code {
+  font-size: inherit;
+}
+
+/* A figure that is not printed yet: the plate, its crop marks, its number,
+   and the note that says what will be there. */
+.prose {
+  counter-reset: figure;
+}
+
+.prose figure.placeholder {
+  position: relative;
+  counter-increment: figure;
+  display: grid;
+  align-content: start;
+  min-height: 200px;
+  margin: 2.2em 0;
+  padding: 44px 24px 28px;
+  background: var(--raise);
+}
+
+.prose figure.placeholder::before {
+  content: 'FIG. ' counter(figure, decimal-leading-zero);
+  position: absolute;
+  top: 16px;
+  left: 24px;
+  font-family: var(--face-mono);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+.prose figure.placeholder::after {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border: 16px solid transparent;
+  border-image: url('./crop.svg') 16;
+  pointer-events: none;
+}
+
+.prose figure.placeholder pre {
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+}
+
+@media (min-width: 641px) {
+  .prose {
+    font-size: 21px;
+    line-height: 1.6;
+    hyphens: manual;
+    -webkit-hyphens: manual;
+  }
+  .prose h2 {
+    font-size: 30px;
+  }
+  .prose h3 {
+    font-size: 23px;
+  }
+  .prose pre {
+    font-size: 15px;
+    padding: 18px 22px;
+  }
+}
+
+/* ── The end of the record: its total, and the way back ───────────────── */
+
+.runout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.runout a {
+  display: block;
+}
+
+.runout a:hover .mark {
+  color: var(--cue);
+}
+
+/* ── Furniture: the viewport as an instrument ─────────────────────────────
+   Only where the margins can hold it: hidden on phones and tablets. */
+
+.furniture {
+  display: none;
+}
+
+@media (min-width: 1040px) {
+  .furniture {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+  }
+}
+
+/* The print control strip: the site's inks, bottom left, as on a proof. */
+.strip {
+  position: absolute;
+  left: 32px;
+  bottom: 32px;
+  display: flex;
+  gap: 2px;
+}
+
+.strip i {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+
+.strip i:nth-child(1) {
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+  background: var(--ground);
+}
+.strip i:nth-child(2) {
+  background: var(--raise);
+}
+.strip i:nth-child(3) {
+  background: var(--line);
+}
+.strip i:nth-child(4) {
+  background: var(--line-strong);
+}
+.strip i:nth-child(5) {
+  background: var(--muted);
+}
+.strip i:nth-child(6) {
+  background: var(--ink);
+}
+.strip i:nth-child(7) {
+  background: var(--cue);
+}
+
+/* The playhead. On a phone or a tablet: a vermilion hairline along the top
+   edge. On a wide screen: a timeline down the right edge, a tick at each
+   section, the time you have read. Both need the script, and stay hidden
+   without it. */
+.playhead {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 20;
+  background: var(--cue);
+  transform-origin: 0 0;
+  transform: scaleX(0);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.is-live .playhead {
+  visibility: visible;
+}
+
+.timeline {
+  position: absolute;
+  top: 96px;
+  bottom: 96px;
+  right: 32px;
+  width: 1px;
+  background: var(--line);
+  visibility: hidden;
+}
+
+.timeline .tick {
+  position: absolute;
+  right: 0;
+  width: 7px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.timeline .fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--cue);
+  transform-origin: 0 0;
+  transform: scaleY(0);
+}
+
+.timeline .head {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cue);
+  translate: 0 -50%;
+}
+
+.timeline .head::after {
+  content: '';
+  display: block;
+  width: 9px;
+  height: 1px;
+  background: var(--cue);
+}
+
+/* Where the margins can hold it, the timeline replaces the top hairline. */
+@media (min-width: 1040px) {
+  .is-live .playhead {
+    visibility: hidden;
+  }
+  .is-live .timeline {
+    visibility: visible;
+  }
+}

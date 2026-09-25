@@ -1,6 +1,10 @@
 ---
-import { SITE_NAME } from '../site'
+import Furniture from '../components/Furniture.astro'
+import Mark from '../components/Mark.astro'
 import type { Lang } from '../lib/posts'
+import { SITE_NAME } from '../site'
+import '../styles/fonts.css'
+import '../styles/site.css'
 
 interface Props {
   title: string
@@ -11,9 +15,11 @@ interface Props {
   article?: { published: Date }
   // The 1200×630 share image and its alt text.
   share?: { src: string; alt: string }
+  // The index: the mark is where you already are, so it is not a link.
+  home?: boolean
 }
 
-const { title, description, lang, path, article, share } = Astro.props
+const { title, description, lang, path, article, share, home = false } = Astro.props
 const canonical = path && new URL(path, Astro.site).href
 const shareUrl = share && new URL(share.src, Astro.site).href
 ---
@@ -26,6 +32,7 @@ const shareUrl = share && new URL(share.src, Astro.site).href
     <title>{title}</title>
     <meta name="description" content={description} />
     {canonical ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href="/rss.xml" />
     <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:type" content={article ? 'article' : 'website'} />
@@ -49,6 +56,21 @@ const shareUrl = share && new URL(share.src, Astro.site).href
     }
   </head>
   <body>
+    <header class="masthead">
+      {
+        home ? (
+          <Mark />
+        ) : (
+          <a href="/" aria-label={SITE_NAME}>
+            <Mark />
+          </a>
+        )
+      }
+    </header>
     <slot />
+    <Furniture />
+    <script>
+      import '../scripts/site'
+    </script>
   </body>
 </html>
