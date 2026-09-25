@@ -3,6 +3,7 @@ import mdx from '@astrojs/mdx'
 import sitemap from '@astrojs/sitemap'
 import { defineConfig } from 'astro/config'
 import rehypeRaw from 'rehype-raw'
+import { codeTheme, rehypeCodeClasses } from './src/lib/code-theme'
 import { remarkFigurePlaceholders } from './src/lib/figure-placeholders'
 import { rehypeFrenchSpacing } from './src/lib/french-spacing'
 import { rehypeSectionCues } from './src/lib/section-cues'
@@ -24,6 +25,8 @@ export default defineConfig({
     processor: unified({
       remarkPlugins: [remarkFigurePlaceholders],
       rehypePlugins: [
+        // Shiki runs before these; its inline colours become classes.
+        rehypeCodeClasses,
         // Raw HTML becomes elements before French spacing runs, so a <code>
         // written as HTML is skipped too. MDX's own nodes pass through.
         [rehypeRaw, { passThrough: ['mdxFlowExpression', 'mdxJsxFlowElement', 'mdxJsxTextElement', 'mdxTextExpression', 'mdxjsEsm'] }],
@@ -34,7 +37,7 @@ export default defineConfig({
         rehypeSectionCues,
       ],
     }),
-    syntaxHighlight: false,
+    shikiConfig: { theme: codeTheme },
   },
   integrations: [mdx(), sitemap()],
 })

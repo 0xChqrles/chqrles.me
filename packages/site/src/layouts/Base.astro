@@ -33,6 +33,7 @@ const shareUrl = share && new URL(share.src, Astro.site).href
     <meta name="description" content={description} />
     {canonical ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href="/rss.xml" />
     <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:type" content={article ? 'article' : 'website'} />

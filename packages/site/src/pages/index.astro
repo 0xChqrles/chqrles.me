@@ -8,9 +8,12 @@ import { SITE_DESCRIPTION, SITE_NAME } from '../site'
 // The index is the sleeve's tracklist, newest first.
 const tracks = await getTracks()
 const total = tracks.reduce((sum, { seconds }) => sum + seconds, 0)
+// The share image shows the newest post's sleeve (src/pages/share.png.ts).
+const newest = tracks[0]?.post.data
+const share = { src: '/share.png', alt: newest?.image && newest.imageAlt ? newest.imageAlt : SITE_NAME }
 ---
 
-<Base title={SITE_NAME} description={SITE_DESCRIPTION} lang="fr" path="/" home>
+<Base title={SITE_NAME} description={SITE_DESCRIPTION} lang="fr" path="/" share={share} home>
   <main class="tracklist column">
     <ol class="tracks">
       {

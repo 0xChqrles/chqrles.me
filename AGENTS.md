@@ -108,6 +108,48 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   renders as a visible placeholder, never as code
   (`packages/site/src/lib/figure-placeholders.ts`).
 
+## Design
+
+Chosen 2026-09-25: **Face B**, the blog as a record sleeve and its liner notes, with the
+dithered sleeve and the pixel q of the *Instrument* direction. It carries Whippin's DNA
+(one flat near-black ground, near-white ink, colour only where it means something, mono
+chrome, one pixel face spent once) without its parts. No light theme. No Whippin face,
+colour, icon or furniture is reused.
+
+- **Tokens** live in `:root` of `packages/site/src/styles/site.css`; the favicon and the
+  share image read the same values from `packages/site/src/lib/palette.ts` (keep both in
+  step). Ground `#121110`, raise `#1b1a18` (one step of value: code, placeholders, the
+  sleeve's card), hairlines `#2c2a27` and `#6f6a62`, muted `#999489`, ink `#e4e2dc`, and
+  **vermilion `#ff5a1f`, which only ever means "where you are"** (the playhead, hover, the
+  favicon). Every text colour is at least 4.5:1 on the ground.
+- **Three voices, strict roles** (`packages/site/src/styles/fonts.css`, all self-hosted):
+  Newsreader for every title and the body (21/33.6 on desktop, 19/30 on a phone, a 600px
+  column); IBM Plex Mono for the chrome (11px, uppercase, tracked 0.12em, hierarchy by
+  weight only) and code; Jersey 15, a pixel face, for track numbers only, at 27px (its
+  pixel grid) or 54px, never scaled otherwise.
+- **The index is a tracklist**: number, title, date, and the reading time as a duration
+  (220 words a minute, `packages/site/src/lib/duration.ts`), newest first.
+- **The header image is the sleeve** (`packages/site/src/components/Sleeve.astro`): a
+  square crop on the photo's subject, printer's crop marks at the corners, printed as a
+  one-bit 8×8 ordered dither in the ink that develops once on load
+  (`packages/site/src/lib/dither.ts`, `packages/site/src/scripts/plate.ts`). Without
+  JavaScript, the photo printed in one ink.
+- **The mark is a pixel q** (`packages/site/src/lib/mark.ts`), 5×7 cells at 3px (4px on a
+  wide screen): the only link home. The favicon is the same q in vermilion.
+- **One emphasis gesture**: the ledger double rule, under a sum (an article's length).
+- **Edge furniture**, from 1040px only: a timeline down the right edge, a tick per section
+  placed by reading time, with the vermilion playhead. Below that, the playhead is a
+  hairline along the top.
+- **Motion**: the sleeve develops, section numbers decode as they reach the reading line.
+  Reduced motion shows both settled. The page reads fully without JavaScript.
+- **Code** is highlighted from the palette by value, weight and slant, never by hue
+  (`packages/site/src/lib/code-theme.ts`); Shiki's inline colours become classes.
+- **Share images**: a post's is the 1200×630 crop of its header photo; the index's is
+  `/share.png`, drawn at build time from the mark and the newest post's dithered sleeve
+  (`packages/site/src/lib/share-card.ts`). No words: link previews print the title.
+- **Never**: textures, gradients, glows, shadows, a radius above 2px, a second accent, a
+  pixel face at a size that is not a whole multiple of its grid, helper copy.
+
 ## Infrastructure
 
 - **One CDK app in TypeScript** (`packages/infra/bin/app.ts`), two stacks, both in account
@@ -192,6 +234,7 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   but each one spends part of the 1,783-character CSP budget.
 - Don't give the deploy job's AWS token to more code than it needs.
 - Don't add a tagline, a welcome line or helper copy to the site.
+- Don't add a light theme or reuse anything of Whippin's (face, colour, icon, furniture).
 
 ## Commands
 
