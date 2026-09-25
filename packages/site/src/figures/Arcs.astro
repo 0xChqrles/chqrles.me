@@ -10,6 +10,8 @@ interface Target {
   token: number
   // 0 to 1: sets the arc's weight and is written under the token.
   weight?: number
+  // The one arc the caption is about, in the accent.
+  accent?: boolean
 }
 
 interface Props {
@@ -24,6 +26,7 @@ interface Props {
 const { tokens, from, to, mask, sum, caption } = Astro.props
 const lang = Astro.locals.lang ?? 'fr'
 const weights = new Map(to.map(({ token, weight }) => [token, weight]))
+const accented = new Set(to.filter(({ accent }) => accent).map(({ token }) => token))
 const total = to.reduce((s, { weight }) => s + (weight ?? 0), 0)
 
 // Each token owns a slot 100 units wide; an arc rises higher the farther it
@@ -51,12 +54,16 @@ const segments = [...to]
 <Figure caption={caption}>
   <div class="arcs">
     <svg class="arcs-lines" viewBox={`0 0 ${tokens.length * 100} 100`} preserveAspectRatio="none" aria-hidden="true">
-      {to.map(({ token, weight }) => <path d={arc(token)} stroke-width={weight === undefined ? 1.5 : 1 + 3 * weight} vector-effect="non-scaling-stroke" />)}
+      {
+        to.map(({ token, weight, accent }) => (
+          <path class:list={{ 'is-accent': accent }} d={arc(token)} stroke-width={weight === undefined ? 1.5 : 1 + 3 * weight} vector-effect="non-scaling-stroke" />
+        ))
+      }
     </svg>
     <ol class="arcs-tokens">
       {
         tokens.map((word, i) => (
-          <li class:list={['token', { 'is-from': i === from, 'is-to': weights.has(i), 'is-hidden': mask === 'causal' && i > from }]}>
+          <li class:list={['token', { 'is-from': i === from, 'is-to': weights.has(i), 'is-accent': accented.has(i), 'is-hidden': mask === 'causal' && i > from }]}>
             <span class="token-word">{word}</span>
             {weights.get(i) !== undefined && <span class="token-weight">{formatPercent(weights.get(i)! * 100, lang)}</span>}
           </li>
@@ -69,7 +76,7 @@ const segments = [...to]
           {segments.map(({ token, weight, x, width }) => (
             <>
               <rect class:list={['sum-part', { 'is-major': weight === Math.max(...segments.map((s) => s.weight)) }]} x={`${x}%`} width={`${width}%`} y="0" height="10" />
-              <text x={`${x + width / 2}%`} y="30" text-anchor="middle">
+              <text class:list={{ 'is-accent': accented.has(token) }} x={`${x + width / 2}%`} y="30" text-anchor="middle">
                 {tokens[token]}
               </text>
             </>
