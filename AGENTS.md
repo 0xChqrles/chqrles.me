@@ -124,13 +124,15 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 - **The components**, each in the figure frame (one step of value, then `FIG. 0N` and a
   caption; a caption may quote a word as `` `code` ``):
   - `<Plane>`: points on two axes. `points`, or `states` (arrangements of the same point
-    ids the reader switches between); `links` (with `distance` written live); `arrows`
-    (vectors from the origin); `coordinates`; `move` (drag, or arrow keys); `domain`;
-    `digits` (decimals written, 1 by default).
+    ids the reader switches between); `links` (with `distance` written live); `nearest`
+    (the shortest link in the accent, live); `arrows` (vectors from the origin); `mean`
+    (the points' mean as an accent vector, a string labels it); `ticks` (the grid's values
+    on the edges); `coordinates` (beside each point); `move` (drag, or arrow keys);
+    `domain`; `digits` (decimals written, 1 by default).
   - `<Bars>`: labelled values as bars, every value 0 or more (a negative one fails the
     build). `rows` (`label`, `value`, `mark`), `unit="%"`, `digits`.
   - `<Arcs>`: a sequence of tokens with weighted arcs from one to others, or to itself (a
-    small loop). `tokens`, `from`, `to` (`token`, `weight` 0 to 1), `mask="causal"` (what
+    small loop). `tokens`, `from`, `to` (`token`, `weight` 0 to 1, `accent`), `mask="causal"` (what
     comes after `from` is out of reach), `sum` (the weighted sum it ends up with). Too
     many tokens for the column: the figure scrolls sideways, never the page.
 - **A figure runs in the browser only when the reader can act on it** (a React island,
@@ -140,7 +142,8 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 - **Every figure**: a caption; keyboard-reachable when interactive; reduced motion lands
   at once; fits a 360px phone; drawn with the site's tokens and attributes only (no inline
   `style`, which the CSP forbids); numbers written in the post's language (`1,4`,
-  `90 %`). The cue colour marks only the point the reader is holding.
+  `90 %`). The accent marks the point the reader holds, and at most one thing the
+  caption points at, only in a figure that reads better for it.
 
 ## Design
 
@@ -154,8 +157,10 @@ colour, icon or furniture is reused.
   share image read the same values from `packages/site/src/lib/palette.ts` (keep both in
   step). Ground `#121110`, raise `#1b1a18` (one step of value: code, placeholders, the
   sleeve's card), hairlines `#2c2a27` and `#6f6a62`, muted `#999489`, ink `#e4e2dc`, and
-  **vermilion `#ff5a1f`, which only ever means "where you are"** (the playhead, hover, the
-  favicon). Every text colour is at least 4.5:1 on the ground.
+  **vermilion `#ff5a1f`, the one accent**: "where you are" (the playhead, hover, the
+  favicon, the point a reader holds), and in a figure, the one thing its caption points at
+  (the nearest pair, the winning arc, the mean), only where it helps reading, at most one
+  per figure. Every text colour is at least 4.5:1 on the ground.
 - **Three voices, strict roles** (`packages/site/src/styles/fonts.css`, all self-hosted):
   Newsreader for every title and the body (21/33.6 on desktop, 19/30 on a phone, a 600px
   column); IBM Plex Mono for the chrome (11px, uppercase, tracked 0.12em, hierarchy by

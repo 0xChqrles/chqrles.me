@@ -35,6 +35,13 @@ export interface PlaneProps {
   arrows?: boolean
   // Each labelled point shows its coordinates.
   coordinates?: boolean
+  // The grid's values written along the bottom and left edges.
+  ticks?: boolean
+  // The shortest link is drawn in the accent, live as points move.
+  nearest?: boolean
+  // The points' mean drawn in the accent as a vector from the origin (a string
+  // labels it). It shrinks to nothing when the points are centred.
+  mean?: boolean | string
   // The reader moves the points: drag one, or focus it and use the arrow keys.
   move?: boolean
   // The visible square; by default it fits every point with some room.
@@ -49,7 +56,7 @@ type Positions = Record<string, { x: number; y: number }>
 const TWEEN_FRAMES = 12
 const TWEEN_MS = 40
 
-export default function Plane({ points, states, links = [], arrows = false, coordinates = false, move = false, domain, digits = 1, lang = 'fr' }: PlaneProps) {
+export default function Plane({ points, states, links = [], arrows = false, coordinates = false, ticks: edges = false, nearest = false, mean, move = false, domain, digits = 1, lang = 'fr' }: PlaneProps) {
   const arrangements = states ?? [{ label: '', points: points ?? [] }]
   const all = arrangements.flatMap((a) => a.points)
   const box = domain ?? fit(all, arrows)
@@ -124,6 +131,19 @@ export default function Plane({ points, states, links = [], arrows = false, coor
   }
 
   const ticks = { x: steps(x0, x1), y: steps(y0, y1) }
+  const length = ({ from, to }: Link) => {
+    const a = at[from]
+    const b = at[to]
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : Infinity
+  }
+  const shortest = nearest && links.length ? links.reduce((best, link) => (length(link) < length(best) ? link : best)) : undefined
+  const centre = Object.values(at).reduce((sum, p, _, all) => ({ x: sum.x + p.x / all.length, y: sum.y + p.y / all.length }), { x: 0, y: 0 })
+  // The head of a vector, turned along it (the square keeps the proportions).
+  const head = (x: number, y: number) => (
+    <svg x={X(x)} y={Y(y)} overflow="visible">
+      <path d="M0 0L-8 -3.5L-8 3.5z" transform={`rotate(${(Math.atan2(-(y / (y1 - y0)), x / (x1 - x0)) * 180) / Math.PI})`} />
+    </svg>
+  )
 
   return (
     <div className={move ? 'plane plane-move' : 'plane'}>
@@ -146,6 +166,20 @@ export default function Plane({ points, states, links = [], arrows = false, coor
               <line key={`y${v}`} y1={Y(v)} y2={Y(v)} x1="0%" x2="100%" />
             ))}
           </g>
+          {edges && (
+            <g className="plane-ticks" aria-hidden="true">
+              {ticks.x.map((v) => (
+                <text key={`tx${v}`} x={X(v)} y="100%" dy="18" textAnchor="middle">
+                  {formatNumber(v, lang, 0)}
+                </text>
+              ))}
+              {ticks.y.map((v) => (
+                <text key={`ty${v}`} x="0" y={Y(v)} dx="-10" dy="4" textAnchor="end">
+                  {formatNumber(v, lang, 0)}
+                </text>
+              ))}
+            </g>
+          )}
           {arrows && (
             <g className="plane-axes" aria-hidden="true">
               <line x1={X(0)} x2={X(0)} y1="0%" y2="100%" />
@@ -166,7 +200,7 @@ export default function Plane({ points, states, links = [], arrows = false, coor
             const nx = (-uy / norm) * down
             const ny = (ux / norm) * down
             return (
-              <g key={`${from}-${to}`} className="plane-link">
+              <g key={`${from}-${to}`} className={shortest?.from === from && shortest.to === to ? 'plane-link is-nearest' : 'plane-link'}>
                 <line x1={X(a.x)} y1={Y(a.y)} x2={X(b.x)} y2={Y(b.y)} />
                 {distance && (
                   <svg x={X((a.x + b.x) / 2)} y={Y((a.y + b.y) / 2)} overflow="visible">
@@ -182,12 +216,22 @@ export default function Plane({ points, states, links = [], arrows = false, coor
             Object.entries(at).map(([id, p]) => (
               <g key={`v${id}`} className="plane-vector">
                 <line x1={X(0)} y1={Y(0)} x2={X(p.x)} y2={Y(p.y)} />
-                {/* The head, turned along the vector (the square keeps the proportions). */}
-                <svg x={X(p.x)} y={Y(p.y)} overflow="visible">
-                  <path d="M0 0L-8 -3.5L-8 3.5z" transform={`rotate(${(Math.atan2(-(p.y / (y1 - y0)), p.x / (x1 - x0)) * 180) / Math.PI})`} />
-                </svg>
+                {head(p.x, p.y)}
               </g>
             ))}
+          {mean && Math.hypot((centre.x / (x1 - x0)) * 100, (centre.y / (y1 - y0)) * 100) > 2 && (
+            <g className="plane-mean">
+              <line x1={X(0)} y1={Y(0)} x2={X(centre.x)} y2={Y(centre.y)} />
+              {head(centre.x, centre.y)}
+              {typeof mean === 'string' && (
+                <svg x={X(centre.x)} y={Y(centre.y)} overflow="visible">
+                  <text x="10" y="16">
+                    {mean}
+                  </text>
+                </svg>
+              )}
+            </g>
+          )}
           {Object.entries(at).map(([id, p]) => {
             const label = labels[id]
             if (arrows && !label && !move) return null

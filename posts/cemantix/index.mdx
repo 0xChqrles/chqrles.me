@@ -25,7 +25,8 @@ L’un d’entre eux s’appelle Cémantix. Chaque jour, un mot est tiré au has
     { from: 'chien', to: 'loup', distance: true },
     { from: 'chat', to: 'loup', distance: true },
   ]}
-  coordinates
+  ticks
+  nearest
   move
 />
 
@@ -147,7 +148,7 @@ Les autres mots possèdent de leur côté une **K (key)**, et pour déterminer l
   caption="La query de `vole` comparée aux keys de `Le` et de `pigeon` : `pigeon` l’emporte."
   tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
   from={2}
-  to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
+  to={[{ token: 1, weight: 0.9, accent: true }, { token: 0, weight: 0.1 }]}
 />
 
 Ces pourcentages servent à pondérer les **values** correspondantes, qui viennent enrichir le vecteur de `vole`.
@@ -156,7 +157,7 @@ Ces pourcentages servent à pondérer les **values** correspondantes, qui vienne
   caption="Ce que `vole` récupère : 90 % de la value de `pigeon`, 10 % de celle de `Le`."
   tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
   from={2}
-  to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
+  to={[{ token: 1, weight: 0.9, accent: true }, { token: 0, weight: 0.1 }]}
   sum
 />
 
@@ -272,6 +273,7 @@ On peut essayer d’en retirer une partie. Si tous les vecteurs ont tendance à 
 <Plane
   caption="Des hidden states qui pointent tous à peu près dans la même direction, puis les mêmes, une fois leur vecteur moyen retiré."
   arrows
+  mean="moyenne"
   domain={{ x: [-1.1, 1.1], y: [-1.1, 1.1] }}
   states={[
     {
