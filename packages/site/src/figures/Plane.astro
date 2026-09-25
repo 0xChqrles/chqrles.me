@@ -1,0 +1,32 @@
+---
+import Figure from './Figure.astro'
+import Drawing, { type PlaneProps } from './Plane.tsx'
+
+// A plane in the figure frame (src/figures/Plane.tsx). It runs in the browser
+// only when the reader can act on it (move points, switch arrangements), and
+// only once it scrolls into view; otherwise it is plain HTML.
+type Props = Omit<PlaneProps, 'lang'> & { caption: string }
+
+const { caption, ...plane } = Astro.props
+const lang = Astro.locals.lang ?? 'fr'
+const live = Boolean(plane.move || plane.states)
+---
+
+<Figure caption={caption}>
+  {live ? <Drawing client:visible {...plane} lang={lang} /> : <Drawing {...plane} lang={lang} />}
+  {
+    plane.states && (
+      <noscript>
+        {/* Without JavaScript, every arrangement, one under the other. */}
+        <div class="plane-still">
+          {plane.states.map((state) => (
+            <div>
+              <p class="plane-still-label">{state.label}</p>
+              <Drawing {...plane} states={undefined} points={state.points} move={false} lang={lang} />
+            </div>
+          ))}
+        </div>
+      </noscript>
+    )
+  }
+</Figure>

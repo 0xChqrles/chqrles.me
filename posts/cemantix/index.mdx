@@ -1,5 +1,5 @@
 ---
-title: "Comment j’ai amélioré Cemantix avec Jev là où les LLMs échouaient?"
+title: "Comment j’ai amélioré Cémantix avec Jev là où les LLM échouaient ?"
 date: 2026-09-25
 description: "Cémantix mesure la distance entre les mots sans jamais lire la phrase. Des embeddings aux entrailles des LLM, le récit d’une tentative pour lui apprendre le contexte, jusqu’à Jev."
 draft: true
@@ -8,37 +8,51 @@ J’existe principalement le dos courbé sur une chaise, agitant habilement mes 
 
 L’un d’entre eux s’appelle Cémantix. Chaque jour, un mot est tiré au hasard et il faut le deviner à l’aide d’un chaud-froid sémantique. Au début, on tape des mots aléatoires, puis on finit par avoir de la chance et tomber sur un mot plus proche que les autres. Alors on remonte la piste en testant des mots similaires jusqu’à retrouver le mot du jour. Le jeu est amusant mais répétitif, et trouver le bon mot demande parfois des centaines d’essais avec, à la clé, une récompense pas toujours à la hauteur de l’effort. « Bravo, vous avez trouvé le mot vestiaire en 245 essais, à demain. » J’étais censé me divertir et oublier ma condition de mortel. Au final, Cémantix a surtout amplifié ma perception du temps perdu et de la vacuité de mon existence. Merci Cémantix.
 
-À la manière de l’électron qui se trouve partout à la fois tant qu’on ne le mesure pas, un mot seul porte tous ses sens tant qu’on ne l’utilise pas. La valeur sémantique d’un mot seul ne suffit pas à comprendre ce qu’il exprime, c’est peut être ce qui manque à Cémantix. Reste à trouver comment mesurer la distance sémantique entre les mots en fonction de leur contexte.
+À la manière de l’électron qui se trouve partout à la fois tant qu’on ne le mesure pas, un mot seul porte tous ses sens tant qu’on ne l’utilise pas. La valeur sémantique d’un mot seul ne suffit pas à comprendre ce qu’il exprime, c’est peut-être ce qui manque à Cémantix. Reste à trouver comment mesurer la distance sémantique entre les mots en fonction de leur contexte.
 ## Embedding
 
 Étudions déjà comment Cémantix calcule la distance entre les mots. Une distance, c’est une valeur numérique, donc il faut réussir à exprimer le sens des mots sous une forme numérique également. En gros, exprimer des informations complexes sous forme de nombres, ça a un nom, ça s’appelle un **embedding**. On pourrait par exemple donner des coordonnées aux mots, ce qui permettrait ensuite de mesurer facilement à quel point deux mots sont proches.
 
-```figure
-<2D graph with chat, a chien and a loup>
-```
+<Plane
+  caption="`chat`, `chien` et `loup` sur un plan : deux coordonnées par mot, une distance par paire."
+  points={[
+    { id: 'chat', label: 'chat', x: 1.5, y: 3.2 },
+    { id: 'chien', label: 'chien', x: 3, y: 3.6 },
+    { id: 'loup', label: 'loup', x: 4.6, y: 1.6 },
+  ]}
+  links={[
+    { from: 'chat', to: 'chien', distance: true },
+    { from: 'chien', to: 'loup', distance: true },
+    { from: 'chat', to: 'loup', distance: true },
+  ]}
+  coordinates
+  move
+/>
 
 L’idée a l’air bonne, mais plus on ajoute de mots sur notre plan, plus il devient difficile de les répartir intelligemment, et deux dimensions ne suffiront pas longtemps. On va donc passer de 2 à, mettons, 300 dimensions. C’est beaucoup plus difficile à dessiner, mais nettement plus pratique pour ranger des centaines de milliers de mots. La vraie problématique se dessine enfin. Comment choisir les 300 coordonnées de chaque mot ?
 
 ### skip-gram / word2vec
 
-On commence par attribuer un vecteur aléatoire à chaque mot. À ce stade, nos coordonnées ne veulent absolument rien dire, et pour leur en donner un sens on va demander au réseau de faire quelque chose d’assez simple : à partir d’un mot, prédire ceux qui ont des chances d’apparaître autour. On lui donne `chat` et il attribue une probabilité à tous les mots qu’il connaît. Comme tout est encore plus ou moins aléatoire, ses premières réponses ressemblent à ça :
+On commence par attribuer un vecteur aléatoire à chaque mot. À ce stade, nos coordonnées ne veulent absolument rien dire, et pour leur donner un sens on va demander au réseau de faire quelque chose d’assez simple : à partir d’un mot, prédire ceux qui ont des chances d’apparaître autour. On lui donne `chat` et il attribue une probabilité à tous les mots qu’il connaît. Comme tout est encore plus ou moins aléatoire, ses premières réponses ressemblent à ça :
 
 
-```figure
-<fake colored list of absurd probabilities around cat>
-
-eg:
-
-5%   : verre
-4.8% : drôle
-4.6% : moteur
-...
-```
+<Bars
+  caption="Les premières prédictions du réseau autour de `chat`, quand ses vecteurs ne veulent encore rien dire."
+  unit="%"
+  rows={[
+    { label: 'verre', value: 5 },
+    { label: 'drôle', value: 4.8 },
+    { label: 'moteur', value: 4.6 },
+    { label: 'clavicule', value: 4.5 },
+    { label: 'septembre', value: 4.4 },
+    { label: 'gratin', value: 4.3 },
+  ]}
+/>
 
 Il faut maintenant trouver un moyen de lui expliquer qu’il raconte n’importe quoi. Pour ça, on constitue un grand corpus de référence à partir de textes soigneusement sélectionnés : des livres, des pages Wikipédia, des articles universitaires, par exemple.
 Maintenant prenons une phrase ambitieuse de notre corpus :
 
-```
+```text /chat/
 Le chat mange une souris
 ```
 
@@ -48,9 +62,9 @@ On sait maintenant mesurer le problème, mais pas encore le corriger. Le réseau
 
 > Si je modifie très légèrement cette coordonnée, est-ce que la *loss* augmente ou diminue, et de combien ?
 
-L’ensemble de ces variations forment le **gradient**, un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens.
+L’ensemble de ces variations forme le **gradient**, un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens.
 
-Chacune de ces variations forment un **gradient**. Un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens. On modifie légèrement les paramètres, on refait une prédiction, on recalcule l’erreur, puis on recommence. C’est la **descente de gradient**.
+Chacune de ces variations forme un **gradient**. Un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens. On modifie légèrement les paramètres, on refait une prédiction, on recalcule l’erreur, puis on recommence. C’est la **descente de gradient**.
 
 ```
 prédiction -> comparaison avec le vrai contexte -> calcul de la loss -> calcul des gradients -> légère modification des vecteurs -> nouvelle prédiction -> …
@@ -58,7 +72,7 @@ prédiction -> comparaison avec le vrai contexte -> calcul de la loss -> calcul 
 
 Après seulement quelques milliards de répétitions, la loss commence à descendre sérieusement. Mais ce qui nous intéresse surtout, c’est ce que toutes ces corrections ont fait à nos vecteurs. Imaginons que le réseau rencontre régulièrement ce genre de phrases :
 
-```
+```text /chat/ /chien/
 Le chat dort sur le canapé
 Le chien dort sur le tapis
 
@@ -81,25 +95,25 @@ Sauf que notre embedding a un défaut de naissance, il est **statique** : il att
 
 Tant qu’on devine un mot sans contexte, ce flou n’est pas vraiment un problème, puisque le mot du jour n’a lui-même aucun sens précis. Mais prenons cette phrase :
 
-```
+```text /volent/
 Ne crains plus jamais le vide, c’est le refuge de ceux qui volent
 ```
 
 Ici, aucun cambrioleur. Pourtant, voici les voisins de volent selon l’embedding :
 
-```
+```text /tuer/ /planquer/ /perdre/ /détruire/ /écraser/ /attaquer/
 tournoyer, tuer, virevolter, tomber, survoler, planquer, perdre, détruire, écraser, attaquer
 ```
 
 La moitié de la liste dans le ciel, l’autre moitié dans la biographie de Xavier Dupont de Ligonnès. Mais prenons un autre exemple, plus subtil :
 
-```
+```text /traite/
 Phrase: On me traite avec une douceur d’infirmière
 
 Mots: aborder, documenter, consacrer, examiner, disséquer, disserter
 ```
 
-L’embedding a compris « traiter un sujet ». La phrase, elle, parle de traiter quelqu’un. Le joueur qui tape soigner ou ménager a parfaitement compris la phrase, pourtant le jeu lui répond qu’il en est loin. De cette injustice naît la frustration, et la frustration ça mène à la guerre. Alors donner une phrase au joueur ne suffit pas. Il faut que l’embedding, lui aussi, lise la phrase.
+L’embedding a compris « traiter un sujet ». La phrase, elle, parle de traiter quelqu’un. Le joueur qui tape soigner ou ménager a parfaitement compris la phrase, pourtant le jeu lui répond qu’il en est loin. De cette injustice naît la frustration, et la frustration, ça mène à la guerre. Alors donner une phrase au joueur ne suffit pas. Il faut que l’embedding, lui aussi, lise la phrase.
 
 ## Première idée brillante : lire dans les pensées de ChatGPT
 
@@ -119,7 +133,7 @@ V (value) : l’information que je transmets si on m’écoute
 
 Prenons la phrase suivante et intéressons-nous au mot `vole` :
 
-```
+```text /vole/
 Le pigeon vole dans le ciel
 ```
 
@@ -129,15 +143,22 @@ Le Transformer reçoit son vecteur et en calcule la **Q (query)**. On peut imagi
 
 Les autres mots possèdent de leur côté une **K (key)**, et pour déterminer lesquels sont intéressants, le Transformer compare la query de `vole` aux différentes keys grâce à un **produit scalaire**. Le produit scalaire dépend à la fois de la longueur des deux vecteurs et de l’angle qui les sépare. À longueur égale, plus ils pointent dans la même direction, plus le résultat est grand, perpendiculaires, on obtient zéro et dans des directions opposées, on passe dans le négatif. On peut donc l’utiliser comme un score de compatibilité entre une **Q (query)** et une **K (key)**, et ces scores sont ensuite ramenés à des pourcentages dont la somme fait 100 % (grâce à un softmax pour les experts).
 
-```figure
-<schéma du Transformer : la query de "vole" est comparée aux keys de "Le" et "pigeon". "pigeon" reçoit un poids élevé, par exemple 90 %, et "Le" un poids plus faible, par exemple 10 %.>
-```
+<Arcs
+  caption="La query de `vole` comparée aux keys de `Le` et de `pigeon` : `pigeon` l’emporte."
+  tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
+  from={2}
+  to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
+/>
 
 Ces pourcentages servent à pondérer les **values** correspondantes, qui viennent enrichir le vecteur de `vole`.
 
-```figure
-<schéma du Transformer : 90 % de la value de "pigeon" + 10 % de la value de "Le" viennent enrichir la représentation de "vole">
-```
+<Arcs
+  caption="Ce que `vole` récupère : 90 % de la value de `pigeon`, 10 % de celle de `Le`."
+  tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
+  from={2}
+  to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
+  sum
+/>
 
 `vole` vient ainsi d’intégrer beaucoup d’information provenant de `pigeon`, sans que le modèle ait reçu une règle écrite à la main disant :
 
@@ -159,7 +180,7 @@ Rien, sauf OpenAI. ChatGPT ne laisse pas ouvrir son capot, il nous faut donc un 
 
 Reprenons notre phrase :
 
-```
+```text /vole/
 Le pigeon vole dans le ciel
 ```
 
@@ -171,7 +192,7 @@ tournoyer, tuer, virevolter, tomber, survoler, planquer, perdre, détruire, écr
 
 2. On écrit 10 000 versions de notre phrase en remplaçant `vole` par chacun de ces mots.
 
-```
+```text /tournoie/ /tue/ /virevolte/
 Le pigeon tournoie dans le ciel
 Le pigeon tue dans le ciel
 Le pigeon virevolte dans le ciel
@@ -194,15 +215,23 @@ Pourtant, l’article s’intitule **Comment j’ai amélioré Cémantix avec Je
 
 Premier détail passé sous silence. Pendant l’attention, un mot ne peut écouter que ce qui le précède. On appelle ça le **masque causal**, et c’est logique : le modèle est entraîné à deviner la suite, on ne va pas la lui montrer. Prenons une nouvelle phrase :
 
+```text /vole/ /argent/
+Le pigeon vole de l’argent
 ```
-Le pigeon vole de l'argent
-```
+
+<Arcs
+  caption="Quand le modèle calcule `vole`, `argent` n’est pas encore arrivé."
+  tokens={['Le', 'pigeon', 'vole', 'de', 'l’argent']}
+  from={2}
+  to={[{ token: 0 }, { token: 1 }]}
+  mask="causal"
+/>
 
 Quand le modèle calcule le **hidden state** de `vole`, il a entendu `Le` et `pigeon`, mais il n’a jamais entendu parler d’`argent`. La partie la plus utile de la phrase lui est invisible et le modèle ignore tout de la kleptomanie du pigeon. Pour qu’un mot ait lu toute la phrase, il faut donc le placer après elle :
 
-```
+```text /<CIBLE>/ /voler/
 Contexte :
-Le pigeon <CIBLE> de l'argent
+Le pigeon <CIBLE> de l’argent
 
 Lexème :
 voler
@@ -220,7 +249,7 @@ Depuis le début, je fais comme si un LLM lisait des mots. C’est faux. Il lit 
 
 Dans le cas de Qwen 3, par exemple, `cafard` est découpé en `caf-` et `-ard`. Voici ce qu’on retrouve alors parmi les plus proches voisins de son dernier token, `-ard` :
 
-```
+```text /ard/
 Phrase: on différencie de moins en moins le cafard de l’homme
 
 Mots: canard, nanard, conard, bagnard, binoclard, sauciflard
@@ -228,7 +257,7 @@ Mots: canard, nanard, conard, bagnard, binoclard, sauciflard
 
 Pas un seul insecte, alors que l’embedding statique proposait `cancrelat`, `blatte` et `cloporte`. On a juste transformé Cémantix en un dictionnaire de rimes.
 
-*À noter que le cloporte n’est pas un insecte mais un crustacé*
+*À noter que le cloporte n’est pas un insecte mais un crustacé.*
 
 ### Problème 3 : Les LLM prédisent des tokens, pas des distances
 
@@ -240,9 +269,35 @@ Dans un embedding idéal, les vecteurs seraient assez bien répartis dans toutes
 
 On peut essayer d’en retirer une partie. Si tous les vecteurs ont tendance à pointer vers le même endroit, on calcule leur vecteur moyen, puis on le soustrait à chacun d’entre eux. En gros, on retire à tous ce qu’ils avaient en commun avant de recommencer à mesurer leurs différences. Ça étale un peu mieux les candidats et rend leurs similarités plus discriminantes. Mais pas suffisamment.
 
+<Plane
+  caption="Des hidden states qui pointent tous à peu près dans la même direction, puis les mêmes, une fois leur vecteur moyen retiré."
+  arrows
+  domain={{ x: [-1.1, 1.1], y: [-1.1, 1.1] }}
+  states={[
+    {
+      label: 'bruts',
+      points: [
+        { id: 'h1', x: 0.54, y: 0.65 }, { id: 'h2', x: 0.79, y: 0.06 }, { id: 'h3', x: 0.3, y: 0.79 },
+        { id: 'h4', x: 0.7, y: 0.59 }, { id: 'h5', x: 0.76, y: 0.22 }, { id: 'h6', x: 0.4, y: 0.84 },
+        { id: 'h7', x: 0.68, y: 0.52 }, { id: 'h8', x: 0.85, y: 0.3 }, { id: 'h9', x: 0.61, y: 0.7 },
+        { id: 'h10', x: 0.35, y: 0.71 }, { id: 'h11', x: 0.6, y: 0.72 }, { id: 'h12', x: 0.79, y: 0.16 },
+      ],
+    },
+    {
+      label: 'centrés',
+      points: [
+        { id: 'h1', x: -0.07, y: 0.13 }, { id: 'h2', x: 0.18, y: -0.46 }, { id: 'h3', x: -0.31, y: 0.27 },
+        { id: 'h4', x: 0.09, y: 0.07 }, { id: 'h5', x: 0.15, y: -0.3 }, { id: 'h6', x: -0.21, y: 0.32 },
+        { id: 'h7', x: 0.07, y: 0.0 }, { id: 'h8', x: 0.24, y: -0.22 }, { id: 'h9', x: 0.0, y: 0.18 },
+        { id: 'h10', x: -0.26, y: 0.19 }, { id: 'h11', x: -0.01, y: 0.2 }, { id: 'h12', x: 0.18, y: -0.36 },
+      ],
+    },
+  ]}
+/>
+
 Second symptôme, dans les dernières couches, le modèle ne pense plus seulement au sens du mot. Il prépare surtout ce qui ferait sens à cet endroit de la phrase :
 
-```
+```text /retraite/
 Phrase: jusqu’à sa retraite
 
 Mots: rentrée, mariage, grève
@@ -250,13 +305,13 @@ Mots: rentrée, mariage, grève
 
 Des événements qui se placent très bien après « jusqu’à sa », mais qui n’ont que peu de rapport avec la `retraite`. Le modèle mesure en grande partie à quel point le candidat fonctionne bien avec ce qui l’entoure, alors que nous voulons mesurer à quel point son **sens** correspond à celui du mot caché. On voulait une distance sémantique, on a fabriqué un exercice à trous.
 
-Le projet semblait voué à l’échec, mais trifouiller dans les entrailles d’un LLM m’amusait toujours davantage que de retourner sur Cémantix la queue entre les jambes pour deviner le mot « bistouquette » en 328 essais. Alors j’ai continué à chercher et j’ai fini par trouver (un peu)
+Le projet semblait voué à l’échec, mais trifouiller dans les entrailles d’un LLM m’amusait toujours davantage que de retourner sur Cémantix la queue entre les jambes pour deviner le mot « bistouquette » en 328 essais. Alors j’ai continué à chercher et j’ai fini par trouver (un peu).
 
 ### Retourner le problème contre lui-même
 
 Puisque le modèle est obsédé par la suite de la phrase, autant retourner le problème contre lui et faire en sorte que la suite en question soit précisément la réponse qu’on cherche :
 
-```
+```text /:/2
 Contexte:
 Une michtoneuse un mec fauché, ça va pas ensemble
 
@@ -269,7 +324,7 @@ Cette fois, on ne récupère plus le vecteur de `fauché` mais celui des deux-po
 
 On ne mesure donc plus la représentation du mot lui-même, avec son orthographe et son éventuelle découpe en plusieurs tokens, mais l’état du modèle juste avant qu’il propose une réponse. Ça résout au passage notre problème avec les mots découpés comme `cafard` : peu importe qu’ils occupent un ou cinq tokens, en arrivant aux deux-points le modèle les a déjà tous lus. Et en regardant couche par couche, sur un modèle qui en compte 36, on voit même la réponse se préciser progressivement :
 
-```
+```text /sans-le-sou/ /désargenté/ /pauvre/ /impécunieux/ /indigent/ /démuni/
 couche 22 : fauchée, fauchage, faucheur, faucheux, fâché
 couche 28 : fauchée, faucheur, sans-le-sou, désargenté, pauvre
 couche 33 : désargenté, sans-le-sou, impécunieux, indigent, démuni
@@ -277,14 +332,14 @@ couche 33 : désargenté, sans-le-sou, impécunieux, indigent, démuni
 
 Au milieu du réseau, la représentation reste encore très sensible à la forme de fauché. Quelques couches plus tard, les voisins orthographiques disparaissent progressivement au profit de mots liés à son sens dans la phrase. Le modèle a fini par comprendre qu’on parlait d’un type sans argent, et quelques autres exemples choisis précisément pour leur ambiguïté commencent alors à fonctionner correctement :
 
-```
+```text /volent/
 Phrase: Ne crains plus jamais le vide, c’est le refuge de ceux qui volent
 
 Mots: envoler, voltiger, planer
 ```
 
-```
-Phrase: On me traite avec une douceur d'infirmière
+```text /traite/
+Phrase: On me traite avec une douceur d’infirmière
 
 Mots: manier, dorloter, soigner
 ```
@@ -303,7 +358,7 @@ J’ai d’abord testé **Qwen 3**, qui utilise l’architecture Transformer cla
 
 ### Qwen 3.5
 
-**Qwen 3.5** utilise une architecture plus récente : dans trois couches sur quatre, l’attention classique est remplacée par un mécanisme de mémoire linéaire moins coûteux, (Gated DeltaNet pour les experts encore). Ça n’a rien changé à notre problème. `cafard` continue à rimer, et sur six mots ambigus ce modèle s’est même montré moins efficace que sa génération précédente. Détail savoureux, pour `volent`, la version à 4 milliards de paramètres a compris le ciel, et celle à 9 milliards les portefeuilles. En faisant grossir le modèle, j’avais perdu en pertinence. Mon approche n’était clairement pas la bonne.
+**Qwen 3.5** utilise une architecture plus récente : dans trois couches sur quatre, l’attention classique est remplacée par un mécanisme de mémoire linéaire moins coûteux (Gated DeltaNet pour les experts encore). Ça n’a rien changé à notre problème. `cafard` continue à rimer, et sur six mots ambigus ce modèle s’est même montré moins efficace que sa génération précédente. Détail savoureux, pour `volent`, la version à 4 milliards de paramètres a compris le ciel, et celle à 9 milliards les portefeuilles. En faisant grossir le modèle, j’avais perdu en pertinence. Mon approche n’était clairement pas la bonne.
 
 ### Qwen 3 - Embedding
 
@@ -311,13 +366,13 @@ Il existe justement des LLM réentraînés pour fabriquer de bons vecteurs. Cett
 
 ### Qwen 3 - Reranker
 
-Qwen distribue aussi **Qwen3-Reranker**, peut-être le candidat le plus prometteur sur le papier. Quand on fait une recherche sur Google, le moteur ramasse d'abord des milliers de pages potentiellement pertinentes, puis il les reclasse pour mettre les meilleures en tête. Ce second tri, c'est le travail d'un reranker, un modèle qui relit la recherche avec chaque page et juge si elle y répond. Ça ressemble à notre problème, formulé différemet. La phrase, avec son mot caché, c’est notre recherche Google, et l'embedding de Cémantix qui nous fournit 10 000 mots potentiellement pertinents, c’est le résultats à reclasser. Cette fois, pas de distance à calculer ni d'entrailles de Transformer à trifouiller, on demande simplement au reranker de faire son travail.
+Qwen distribue aussi **Qwen3-Reranker**, peut-être le candidat le plus prometteur sur le papier. Quand on fait une recherche sur Google, le moteur ramasse d’abord des milliers de pages potentiellement pertinentes, puis il les reclasse pour mettre les meilleures en tête. Ce second tri, c’est le travail d’un reranker, un modèle qui relit la recherche avec chaque page et juge si elle y répond. Ça ressemble à notre problème, formulé différemment. La phrase, avec son mot caché, c’est notre recherche Google, et l’embedding de Cémantix qui nous fournit 10 000 mots potentiellement pertinents, ce sont les résultats à reclasser. Cette fois, pas de distance à calculer ni d’entrailles de Transformer à trifouiller, on demande simplement au reranker de faire son travail.
 
 Il comprend bien `fauché` et `cafard` comme la phrase l’entend, mais un reranker est d’abord conçu pour juger la pertinence d’un résultat par rapport à une recherche. Il fait donc remonter les mots qui vont bien avec la recherche, pas nécessairement ceux qui veulent dire la même chose, `chômeur` arrive deuxième pour `fauché`. Ce qui a du sens, mais c’est pas exactement ce qu’on cherche à obtenir ici.
 
-Dans mes tests, il avait aussi une fâcheuse tendance à prendre la consigne pour un bout de la recherche. Même en lui indiquant explicitement que `étouffer` ne devait pas être considéré comme proche d’`émotions`, il continuait à le classer parmi les tout premiers. Un peu comme si j’avais tapé « recette sans cacahuètes » dans Google et que le moteur de recherche s’était focalisé sur `recette` et `cacahuète`.
+Dans mes tests, il avait aussi une fâcheuse tendance à prendre la consigne pour un bout de la recherche. Même en lui indiquant explicitement qu’`étouffer` ne devait pas être considéré comme proche d’`émotions`, il continuait à le classer parmi les tout premiers. Un peu comme si j’avais tapé « recette sans cacahuètes » dans Google et que le moteur de recherche s’était focalisé sur `recette` et `cacahuète`.
 
-Alors c’est tout? Je ne suis qu’un bidouilleur de pacotille incapable d’améliorer l’horrible Cémantix et mon destin est de continuer à me faire torturer quotidiennement par des mots de plus en plus absurdes?
+Alors c’est tout ? Je ne suis qu’un bidouilleur de pacotille incapable d’améliorer l’horrible Cémantix et mon destin est de continuer à me faire torturer quotidiennement par des mots de plus en plus absurdes ?
 
 ## La solution : arrêter de mesurer, poser la question
 
@@ -331,7 +386,7 @@ Un modèle de décision peut utiliser une représentation du même genre, mais t
 
 En simplifiant énormément, ça donne quelque chose comme :
 
-```
+```text /question/ /classifier/
 LLM:
 texte → représentation → probabilités sur tous les prochains tokens → texte
 
@@ -366,7 +421,7 @@ Jev  : nervosité, excitabilité, nerveux, énervement, irritable
 
 Jev a compris qu’on parlait de tempérament et pas de neurologie. Quant aux rimes et aux voisins orthographiques, ils ont disparu pour de bon. Au début, Jev faisait pourtant lui aussi des erreurs :
 
-```
+```text /étouffer/
 Phrase: la force d’étouffer mes émotions
 
 Mot 28: étouffer
@@ -382,7 +437,7 @@ Tout ne se règle pas avec des mots pour autant. J’avais aussi écrit qu’un 
 
 ### Un tournoi pour départager les vainqueurs
 
-Jev n’est pas non plus parfaitement stable. Si je lui demande plusieurs fois de noter le même candidat, sa réponse peut varier d’environ 0,1 point. Au fond du classement, ça ne change pas grand-chose. Le 7400e mot peut devenir le 7500e, ça ne bouleversera pas le jeu. En haut du classement, c’est différent. C’est là que l’ordre compte le plus, et si les mots classés 50e et 150e ont des notes presque identiques, une telle variation suffit à les rendre interchangeables. Jev sait donc assez bien quels mots méritent d’entrer dans les 200 premiers, mais beaucoup moins bien dans quel ordre les ranger.
+Jev n’est pas non plus parfaitement stable. Si je lui demande plusieurs fois de noter le même candidat, sa réponse peut varier d’environ 0,1 point. Au fond du classement, ça ne change pas grand-chose. Le 7 400e mot peut devenir le 7 500e, ça ne bouleversera pas le jeu. En haut du classement, c’est différent. C’est là que l’ordre compte le plus, et si les mots classés 50e et 150e ont des notes presque identiques, une telle variation suffit à les rendre interchangeables. Jev sait donc assez bien quels mots méritent d’entrer dans les 200 premiers, mais beaucoup moins bien dans quel ordre les ranger.
 
 Alors on va organiser un tournoi. Les 200 meilleurs candidats s’affrontent tous deux à deux, soit 19 900 duels, avec une seule question :
 

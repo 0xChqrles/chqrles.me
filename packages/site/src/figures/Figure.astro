@@ -1,0 +1,20 @@
+---
+import { typeset } from '../lib/posts'
+
+// A figure's frame: its drawing, then its number and caption. Figures and
+// placeholders share one count, in reading order (site.css). A caption may
+// quote a word as `code`.
+interface Props {
+  caption: string
+}
+
+const { caption } = Astro.props
+const lang = Astro.locals.lang ?? 'fr'
+// French spacing applies to the words, never to the quoted code.
+const parts = caption.split('`')
+---
+
+<figure class="fig">
+  <div class="fig-body"><slot /></div>
+  <figcaption>{parts.map((part, i) => (i % 2 ? <code>{part}</code> : typeset(part, lang)))}</figcaption>
+</figure>

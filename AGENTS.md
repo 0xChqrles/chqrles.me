@@ -39,9 +39,11 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   memory: versions move.
 - **Keep checks proportional.** One decisive check per change (the build, the relevant
   tests, one screenshot), not a battery.
-- **Never edit the author's prose.** Not a typo, not a repeated passage, not a broken
-  sentence: list them for the author instead. Structural changes (frontmatter, heading
-  levels, figure markup) are fine.
+- **Never edit the author's prose, except to fix typos when the author asks** (spelling,
+  agreement, elision, punctuation, typography), and then report every fix. Anything more
+  (a repeated passage, a broken sentence, a style choice) is listed for the author, never
+  rewritten. Structural changes (frontmatter, heading levels, figures, code-block marks)
+  are fine.
 - **Never switch the git checkout back to `main` on your own.** Branch from whatever is
   checked out.
 - **Show, don't tell.** The site explains nothing: no tagline, no welcome line, no helper copy.
@@ -107,6 +109,38 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 - **A fenced block with the language `figure`** is a figure that is not built yet. It
   renders as a visible placeholder, never as code
   (`packages/site/src/lib/figure-placeholders.ts`).
+- **Words in a code block are marked from its info string**
+  (`packages/site/src/lib/code-theme.ts`): ```` ```text /chat/ ```` marks every `chat`,
+  ```` ```text /:/2 ```` only the second `:`, and marks combine (`/a/ /b/1,3`). The text
+  stays the author's own. Mark what the prose points at: the word under study, the one
+  that changes, the one the model reads.
+
+### Figures
+
+- **A figure is a general-purpose component in `packages/site/src/figures/`, never a
+  drawing made for one article.** A post passes it data, with no import (the article
+  page hands the components to the post); the figure's code never lives in the post. A
+  post with a figure is `index.mdx`.
+- **The components**, each in the figure frame (one step of value, then `FIG. 0N` and a
+  caption; a caption may quote a word as `` `code` ``):
+  - `<Plane>`: points on two axes. `points`, or `states` (arrangements of the same point
+    ids the reader switches between); `links` (with `distance` written live); `arrows`
+    (vectors from the origin); `coordinates`; `move` (drag, or arrow keys); `domain`;
+    `digits` (decimals written, 1 by default).
+  - `<Bars>`: labelled values as bars, every value 0 or more (a negative one fails the
+    build). `rows` (`label`, `value`, `mark`), `unit="%"`, `digits`.
+  - `<Arcs>`: a sequence of tokens with weighted arcs from one to others, or to itself (a
+    small loop). `tokens`, `from`, `to` (`token`, `weight` 0 to 1), `mask="causal"` (what
+    comes after `from` is out of reach), `sum` (the weighted sum it ends up with). Too
+    many tokens for the column: the figure scrolls sideways, never the page.
+- **A figure runs in the browser only when the reader can act on it** (a React island,
+  `client:visible`, so only once it scrolls into view); every other figure is plain HTML
+  and SVG. Rendered on the server first, each one reads fully without JavaScript: a
+  `<Plane>` with `states` then draws every arrangement, one under the other.
+- **Every figure**: a caption; keyboard-reachable when interactive; reduced motion lands
+  at once; fits a 360px phone; drawn with the site's tokens and attributes only (no inline
+  `style`, which the CSP forbids); numbers written in the post's language (`1,4`,
+  `90 %`). The cue colour marks only the point the reader is holding.
 
 ## Design
 
@@ -186,7 +220,9 @@ colour, icon or furniture is reused.
   script or style; `base-uri`, `form-action` and `frame-ancestors` `'none'`. An inline
   `style=""` or `on…=""` attribute fails the synth, and so does a policy longer than
   CloudFront's 1,783 characters. So pages carry no inline style attributes, and the build
-  keeps every script and stylesheet in a file (`packages/site/astro.config.ts`).
+  keeps every script and stylesheet in a file (`packages/site/astro.config.ts`), except the
+  island loader Astro inlines on a page with an interactive figure (two scripts and one
+  style, the same on every page, allowed by hash).
 - **Uploads**: two passes over one asset. `_astro/*` (hashed) is cached a year,
   `immutable`, never pruned. Everything else is `no-cache`, published last, pruned (a
   deleted post disappears), and purges CloudFront (`/*`). `.DS_Store` never leaves the
@@ -214,7 +250,7 @@ colour, icon or furniture is reused.
 
 ## Testing
 
-- **Test contracts, never cosmetics.** The contracts are the frontmatter schema, the URL
+- **Test contracts, never cosmetics** (figures and code marks are cosmetic). The contracts are the frontmatter schema, the URL
   functions (the site's slug rule and the CloudFront Function), the infra assertions
   (including the CSP builder and cdk-nag) and the French-spacing transform. Assert against
   the rules in this file, not the implementation.

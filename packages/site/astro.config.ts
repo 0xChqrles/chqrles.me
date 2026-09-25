@@ -1,9 +1,10 @@
 import { rehypeHeadingIds, unified } from '@astrojs/markdown-remark'
 import mdx from '@astrojs/mdx'
+import react from '@astrojs/react'
 import sitemap from '@astrojs/sitemap'
 import { defineConfig } from 'astro/config'
 import rehypeRaw from 'rehype-raw'
-import { codeTheme, rehypeCodeClasses } from './src/lib/code-theme'
+import { codeTheme, rehypeCodeClasses, transformerMarkWords } from './src/lib/code-theme'
 import { remarkFigurePlaceholders } from './src/lib/figure-placeholders'
 import { rehypeFrenchSpacing } from './src/lib/french-spacing'
 import { rehypeSectionCues } from './src/lib/section-cues'
@@ -17,7 +18,8 @@ export default defineConfig({
   prerenderConflictBehavior: 'error',
   build: {
     format: 'directory',
-    // Every stylesheet and script is a file, so the CSP needs no inline hashes.
+    // Every stylesheet and script is a file, so the CSP needs no inline hashes,
+    // except Astro's island loader on a page with an interactive figure.
     inlineStylesheets: 'never',
   },
   vite: { build: { assetsInlineLimit: 0 } },
@@ -37,7 +39,7 @@ export default defineConfig({
         rehypeSectionCues,
       ],
     }),
-    shikiConfig: { theme: codeTheme },
+    shikiConfig: { theme: codeTheme, transformers: [transformerMarkWords()] },
   },
-  integrations: [mdx(), sitemap()],
+  integrations: [mdx(), react(), sitemap()],
 })
