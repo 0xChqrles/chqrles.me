@@ -6,7 +6,9 @@
 // pass through untouched.
 function handler(event) {
   var request = event.request;
-  var uri = request.uri;
+  // Runs of slashes collapse to one: a redirect to //host/… would leave the site.
+  var uri = request.uri.replace(/[\/\\]{2,}/g, '/');
+  request.uri = uri;
 
   if (uri.endsWith('/index.html')) {
     return redirect(uri.slice(0, -'index.html'.length));

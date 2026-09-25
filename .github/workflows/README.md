@@ -1,17 +1,26 @@
 # CI/CD
 
 - **`ci.yml`** runs on every pull request and on pushes to `main`: install, typecheck,
-  tests, the production build, and `cdk synth`. The build is the content check: a post
-  with bad frontmatter fails it. cdk-nag findings fail the synth.
-- **`deploy.yml`** runs on pushes to `main` and on demand. It runs the same checks, builds,
-  then deploys the site stack (`ChqrlesMeSite`) with `cdk deploy`. It assumes an AWS role
-  through GitHub's OIDC provider: no long-lived keys. Runs queue; they never cancel each
-  other.
+  tests, the production build, and `cdk synth`. A post with bad frontmatter fails it.
+  cdk-nag findings fail the synth. A newer run cancels the one it supersedes.
+- **`deploy.yml`** runs on pushes to `main` and on demand. A first job runs the same checks
+  and builds, with no AWS access. A second job, on `main` only, installs just the CDK app,
+  assumes the AWS role through GitHub's OIDC provider (no long-lived keys) and runs
+  `cdk deploy ChqrlesMeSite`. Runs wait in order; none is ever cancelled.
+
+## What the deploy role can do
+
+Its own policy only assumes the CDK bootstrap roles (`cdk-hnb659fds-*`) and reads stacks.
+But CDK deploys through `cdk-hnb659fds-cfn-exec-role`, which has AdministratorAccess. So
+code running in the deploy job could change any stack in the account, Whippin's and this
+role's included. Three things keep that in check: only a push to `main` of this repo can
+assume the role; `deploy.yml` deploys `ChqrlesMeSite` and nothing else; and only the last
+job, with the CDK app's dependencies alone, holds the token. Narrowing it further would
+mean re-bootstrapping the account, which Whippin shares.
 
 ## One-time setup (done on 2026-09-25)
 
-1. **Deploy the CI role**, by hand, with account credentials. The role can only assume
-   the CDK bootstrap roles and read stacks, so CI can never deploy or widen it.
+1. **Deploy the CI role**, by hand, with account credentials. `deploy.yml` never deploys it.
 
    ```bash
    pnpm build                                        # the app's synth needs the site build

@@ -1,4 +1,4 @@
-import { Template } from 'aws-cdk-lib/assertions'
+import { Match, Template } from 'aws-cdk-lib/assertions'
 import { AwsSolutionsChecks } from 'cdk-nag'
 import { describe, expect, it } from 'vitest'
 import { DeployRoleStack } from './deploy-role-stack'
@@ -49,6 +49,7 @@ describe('the deploy-role stack', () => {
       ],
     })
     expect(template.findResources('AWS::IAM::Policy')).toEqual({})
+    expect(template.findResources('AWS::IAM::Role', { Properties: { ManagedPolicyArns: Match.anyValue() } })).toEqual({})
   })
 
   it('passes cdk-nag', () => {

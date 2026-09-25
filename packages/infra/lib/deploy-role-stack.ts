@@ -12,8 +12,9 @@ export interface DeployRoleStackProps extends StackProps {
 }
 
 // The role deploy.yml assumes through GitHub's OIDC provider: no long-lived keys.
-// Deployed ONCE, by hand, never by CI: the role cannot touch IAM, so a
-// pipeline cannot widen its own rights.
+// Deployed ONCE, by hand; deploy.yml never deploys it. Its own policy only
+// assumes the CDK bootstrap roles, but those deploy with administrator rights,
+// so whatever runs with this role can change any stack in the account.
 export class DeployRoleStack extends Stack {
   constructor(scope: Construct, id: string, props: DeployRoleStackProps) {
     super(scope, id, props)

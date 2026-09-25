@@ -32,6 +32,13 @@ describe('directory URLs', () => {
     expect(run('/index.html')).toEqual(redirectTo('/'))
   })
 
+  it('never redirects off the site', () => {
+    expect(run('//evil.example/login')).toEqual(redirectTo('/evil.example/login/'))
+    expect(run('//evil.example/index.html')).toEqual(redirectTo('/evil.example/'))
+    expect(run('/\\evil.example/login')).toEqual(redirectTo('/evil.example/login/'))
+    expect(run('//evil.example/')).toMatchObject({ uri: '/evil.example/index.html' })
+  })
+
   it('passes files through untouched', () => {
     for (const uri of ['/rss.xml', '/sitemap-index.xml', '/404.html', '/_astro/page.B1a2c3.css', '/robots.txt']) {
       expect(run(uri)).toMatchObject({ uri })

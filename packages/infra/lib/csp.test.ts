@@ -36,6 +36,18 @@ describe('contentSecurityPolicy', () => {
     expect(policy).not.toContain(sha('{"a":1}'))
   })
 
+  it('hashes every inline script a browser would run, whatever its type', () => {
+    const policy = contentSecurityPolicy(
+      site({ 'index.html': '<script type="importmap">{}</script><script type="MODULE">m()</script><script type="speculationrules">{}</script>' }),
+    )
+    for (const text of ['{}', 'm()']) expect(policy).toContain(sha(text))
+  })
+
+  it('checks what a <noscript> holds', () => {
+    expect(() => contentSecurityPolicy(site({ 'index.html': '<noscript><p style="color:red">x</p></noscript>' }))).toThrow('<p style')
+    expect(contentSecurityPolicy(site({ 'index.html': '<noscript><style>p{}</style></noscript>' }))).toContain(sha('p{}'))
+  })
+
   it('fails on an inline style or event attribute, naming the page', () => {
     expect(() => contentSecurityPolicy(site({ 'a/index.html': '<pre style="color:red">x</pre>' }))).toThrow('a/index.html: <pre style')
     expect(() => contentSecurityPolicy(site({ 'index.html': '<img src="x.png" onload="go()">' }))).toThrow('index.html: <img onload')

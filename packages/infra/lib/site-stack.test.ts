@@ -70,7 +70,13 @@ describe('the site stack', () => {
       PriceClass: 'PriceClass_100',
       ViewerCertificate: { MinimumProtocolVersion: 'TLSv1.2_2021', SslSupportMethod: 'sni-only' },
     })
-    template.hasResourceProperties('AWS::CertificateManager::Certificate', { DomainName: DOMAIN, ValidationMethod: 'DNS' })
+    // The zone is looked up, never created: a new zone would get new nameservers.
+    template.resourceCountIs('AWS::Route53::HostedZone', 0)
+    template.hasResourceProperties('AWS::CertificateManager::Certificate', {
+      DomainName: DOMAIN,
+      ValidationMethod: 'DNS',
+      DomainValidationOptions: [{ DomainName: DOMAIN, HostedZoneId: 'ZTEST' }],
+    })
     for (const Type of ['A', 'AAAA']) {
       template.hasResourceProperties('AWS::Route53::RecordSet', { Type, Name: `${DOMAIN}.`, AliasTarget: Match.objectLike({}) })
     }
@@ -90,6 +96,14 @@ describe('the site stack', () => {
       { ErrorCode: 403, ResponseCode: 404, ResponsePagePath: '/404.html' },
       { ErrorCode: 404, ResponseCode: 404, ResponsePagePath: '/404.html' },
     ])
+  })
+
+  it('allows no third party in the CSP', () => {
+    const [policy] = Object.values(template.findResources('AWS::CloudFront::ResponseHeadersPolicy'))
+    const csp: string = policy?.Properties.ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy
+    const sources = csp.split(';').flatMap((directive) => directive.trim().split(/\s+/).slice(1))
+    expect(sources.filter((source) => !["'self'", "'none'"].includes(source) && !source.startsWith("'sha256-"))).toEqual([])
+    expect(csp).toMatch(/^default-src 'none';/)
   })
 
   it('sends the security headers, with the CSP read off the build', () => {

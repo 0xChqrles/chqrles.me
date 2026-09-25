@@ -7,18 +7,19 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Deploys never overlap: a new run waits for the one in progress, never cancels it.
+# Deploys never overlap and never cancel each other: runs wait in order.
 concurrency:
   group: deploy
   cancel-in-progress: false
+  queue: max
 
 permissions:
-  id-token: write # the OIDC token that assumes the AWS deploy role
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy
+  # The checks and the build run without any AWS access.
+  build:
+    name: Check and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -42,6 +43,39 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: packages/site/dist
+          if-no-files-found: error
+
+  # Only this job can assume the AWS role, and it installs only the CDK app's
+  # dependencies: the less code runs with the token, the better.
+  deploy:
+    name: Deploy
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # the OIDC token that assumes the AWS deploy role
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --filter @chqrles/infra
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: site
+          path: packages/site/dist
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:

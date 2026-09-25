@@ -18,7 +18,8 @@ export function contentSecurityPolicy(siteDir: string): string {
   const styles = new Set<string>()
 
   for (const file of htmlFiles(siteDir)) {
-    walk(parse(readFileSync(file, 'utf8')), (element) => {
+    // Parsed with scripting off, so what a <noscript> holds is checked too.
+    walk(parse(readFileSync(file, 'utf8'), { scriptingEnabled: false }), (element) => {
       for (const { name } of element.attrs) {
         if (name === 'style' || /^on[a-z]+$/.test(name)) {
           throw new Error(
@@ -66,10 +67,12 @@ function attribute(element: Element, name: string) {
   return element.attrs.find((attr) => attr.name === name)?.value
 }
 
-// JSON data blocks (application/ld+json…) never run, so the CSP ignores them.
+// Only JSON data blocks (application/json, application/ld+json…) never run.
+// Every other inline script (classic, module, importmap, speculationrules, in
+// any case) falls under script-src, so it gets a hash.
 function isJavaScript(element: Element) {
-  const type = attribute(element, 'type')
-  return !type || type === 'module' || type.includes('javascript')
+  const type = (attribute(element, 'type') ?? '').trim().toLowerCase()
+  return !/(^|[/+])json$/.test(type)
 }
 
 function hash(element: Element) {

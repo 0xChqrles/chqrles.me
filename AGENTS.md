@@ -133,7 +133,8 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 - **Directory URLs** (`packages/infra/functions/directory-urls.js`, a CloudFront Function
   on viewer request): `/<slug>/` serves `<slug>/index.html`; `/<slug>` and
   `/<slug>/index.html` redirect (301) to `/<slug>/`; a path whose last segment has a dot
-  is a file and passes through.
+  is a file and passes through. Repeated slashes collapse first, so a redirect never
+  leaves the site.
 - **A missing path is a real 404**: the bucket's 403 and 404 both map to `/404.html` with
   status 404. Not a single-page app.
 - **Security headers**: HSTS for a year with subdomains and without preload, the CSP,
@@ -152,6 +153,8 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   a push to `main` of this repo, in GitHub's immutable form (repos created after mid-2026):
   `repo:0xChqrles@19663399/chqrles.me@1387573502:ref:refs/heads/main`. It may only assume
   the CDK bootstrap roles (`cdk-hnb659fds-*`) and call `cloudformation:DescribeStacks`.
+  Those bootstrap roles deploy with administrator rights, so the deploy job can change any
+  stack in the account: only `main` reaches it, and only the last deploy job holds it.
 - **A local deploy refuses** unless `ALLOW_LOCAL_DEPLOY=1` is set
   (`packages/infra/scripts/guard-local-deploy.mjs`).
 
@@ -159,9 +162,10 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 
 - **`ci.yml`** runs on pull requests and pushes to `main`: install, typecheck (`astro check`,
   `tsc`), tests, the production build, `cdk synth`. A newer run cancels the one it supersedes.
-- **`deploy.yml`** runs on pushes to `main` and on demand: the same checks, the build, then
-  `cdk deploy ChqrlesMeSite` with OIDC credentials. Runs queue, never cancel. It never
-  deploys `ChqrlesMeDeployRole`.
+- **`deploy.yml`** runs on pushes to `main` and on demand: a job runs the same checks and
+  the build without AWS access; a second job, on `main` only, installs just the CDK app and
+  runs `cdk deploy ChqrlesMeSite` with OIDC credentials. Runs wait in order
+  (`queue: max`), never cancel. It never deploys `ChqrlesMeDeployRole`.
 - **One-time steps, by hand** (done 2026-09-25; see `.github/workflows/README.md`): deploy
   `ChqrlesMeDeployRole`, store its ARN in the secret `AWS_DEPLOY_ROLE_ARN`, make the `Check`
   job a required status check on `main`.
@@ -183,7 +187,10 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 - Don't deploy the site from a laptop. The one by-hand deploy is `ChqrlesMeDeployRole`.
 - Don't create a Route 53 zone or a GitHub OIDC provider: both already exist.
 - Don't let CI deploy `ChqrlesMeDeployRole`.
-- Don't put an inline style attribute or inline script in a page: the CSP forbids it.
+- Don't put an inline `style=""` or `on…=""` attribute in a page: the CSP cannot allow it,
+  and the synth fails. An inline `<script>` or `<style>` element is allowed by its hash,
+  but each one spends part of the 1,783-character CSP budget.
+- Don't give the deploy job's AWS token to more code than it needs.
 - Don't add a tagline, a welcome line or helper copy to the site.
 
 ## Commands
