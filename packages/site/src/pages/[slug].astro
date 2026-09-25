@@ -3,6 +3,7 @@ import { getImage } from 'astro:assets'
 import { render } from 'astro:content'
 import Mark from '../components/Mark.astro'
 import Sleeve from '../components/Sleeve.astro'
+import { figures } from '../figures'
 import Base from '../layouts/Base.astro'
 import { formatDuration, trackNumber } from '../lib/duration'
 import { formatDate, getTracks, typeset, type Track } from '../lib/posts'
@@ -22,6 +23,8 @@ interface Props {
 const { post, number, seconds } = Astro.props.track
 const { title, description, date, image, imageAlt, lang } = post.data
 const { Content } = await render(post)
+// The post's figures write numbers in its language.
+Astro.locals.lang = lang
 if (image) assertShareable(post.id, image)
 const share =
   image && imageAlt
@@ -55,7 +58,7 @@ const day = date.toISOString().slice(0, 10)
         {image && imageAlt && <Sleeve src={image} alt={imageAlt} />}
       </header>
       <div class="prose" data-total={seconds}>
-        <Content />
+        <Content components={figures} />
       </div>
       {/* The run-out: the centre label, and the way back. */}
       <footer class="runout">

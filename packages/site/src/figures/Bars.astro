@@ -1,0 +1,41 @@
+---
+import Figure from './Figure.astro'
+import { formatNumber, formatPercent } from './format'
+
+// Values as bars, one row each, longest first as given. A marked row is the
+// one the text is about. Plain HTML: nothing runs in the browser.
+interface Row {
+  label: string
+  value: number
+  mark?: boolean
+}
+
+interface Props {
+  rows: Row[]
+  // Values are percentages (4.8 is written 4,8 %).
+  unit?: '%'
+  digits?: number
+  caption: string
+}
+
+const { rows, unit, digits = 1, caption } = Astro.props
+const lang = Astro.locals.lang ?? 'fr'
+const max = Math.max(...rows.map((row) => row.value))
+const written = (value: number) => (unit === '%' ? formatPercent(value, lang, digits) : formatNumber(value, lang, digits))
+---
+
+<Figure caption={caption}>
+  <ol class="bars">
+    {
+      rows.map((row) => (
+        <li class:list={['bar', { 'is-marked': row.mark }]}>
+          <span class="bar-label">{row.label}</span>
+          <svg class="bar-track" width="100%" height="8" aria-hidden="true">
+            <rect width={`${(row.value / max) * 100}%`} height="8" />
+          </svg>
+          <span class="bar-value">{written(row.value)}</span>
+        </li>
+      ))
+    }
+  </ol>
+</Figure>

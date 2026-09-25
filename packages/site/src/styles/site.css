@@ -628,6 +628,7 @@ a.track-row:focus-visible {
 }
 
 .prose pre {
+  isolation: isolate;
   margin: 1.5em 0;
   padding: 16px 18px;
   background: var(--raise);
@@ -662,6 +663,24 @@ a.track-row:focus-visible {
 }
 .code-italic {
   font-style: italic;
+}
+/* A word marked in a code block (```text /word/): one step of value up. The
+   padding is drawn behind the word, never laid out, so no character moves. */
+.code-mark {
+  position: relative;
+}
+.code-mark::before {
+  content: '';
+  position: absolute;
+  inset: -1px -3px;
+  z-index: -1;
+  background: var(--line);
+  border-radius: 2px;
+}
+.code-mark,
+.code-mark span {
+  color: var(--ink);
+  font-weight: 600;
 }
 
 /* A figure that is not drawn yet: one step of value, its number, and the
@@ -699,6 +718,321 @@ a.track-row:focus-visible {
   padding: 0;
   background: none;
   color: var(--muted);
+}
+
+/* ── Figures (src/figures) ─────────────────────────────────────────────
+   One step of value holds the drawing; the number and caption follow it.
+   Drawings wear the palette: hairlines, the ink, the muted ink, and the cue
+   only for the point the reader is holding. */
+
+.prose figure.fig {
+  counter-increment: figure;
+  margin: 2.2em 0;
+}
+
+.fig-body {
+  padding: 20px 16px;
+  background: var(--raise);
+  border-radius: 2px;
+}
+
+.prose figure.fig figcaption {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.prose figure.fig figcaption::before {
+  content: 'FIG. ' counter(figure, decimal-leading-zero);
+  margin-right: 12px;
+  font-family: var(--face-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+.fig svg text {
+  font-family: var(--face-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Plane: a square, as wide as it can be up to 440px. */
+.plane {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.plane-square {
+  width: min(100%, 440px);
+  aspect-ratio: 1;
+}
+
+.plane-svg {
+  display: block;
+  overflow: visible;
+}
+
+.plane-grid line {
+  stroke: var(--line);
+  shape-rendering: crispEdges;
+}
+
+.plane-axes line {
+  stroke: var(--line-strong);
+  shape-rendering: crispEdges;
+}
+
+.plane-link line {
+  stroke: var(--line-strong);
+}
+
+.plane-distance {
+  font-size: 12px;
+  fill: var(--ink);
+  paint-order: stroke;
+  stroke: var(--raise);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+}
+
+.plane-vector {
+  stroke: var(--ink);
+  stroke-width: 1.5px;
+}
+
+.plane-head {
+  fill: var(--ink);
+}
+
+.plane-point rect {
+  fill: var(--ink);
+  shape-rendering: crispEdges;
+}
+
+.plane-point .plane-hit {
+  fill: transparent;
+}
+
+.plane-label {
+  font-size: 13px;
+  font-weight: 500;
+  fill: var(--ink);
+}
+
+.plane-coords {
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+.plane-move .plane-point {
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.plane-move .plane-point:active {
+  cursor: grabbing;
+}
+
+.plane-point.is-active rect:not(.plane-hit) {
+  fill: var(--cue);
+}
+
+.plane-point.is-active .plane-label {
+  fill: var(--cue);
+}
+
+.plane-states {
+  display: flex;
+  gap: 20px;
+}
+
+.plane-states button {
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: none;
+  font-family: var(--face-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.plane-states button[aria-pressed='true'] {
+  border-bottom-color: var(--ink);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.plane-states button:hover {
+  color: var(--ink);
+}
+
+.plane-states button:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* Bars: label, bar, value. */
+.bars {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 10px 14px;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--face-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  display: contents;
+}
+
+.bar-label {
+  color: var(--ink);
+}
+
+.bar-track {
+  display: block;
+}
+
+.bar-track rect {
+  fill: var(--muted);
+  shape-rendering: crispEdges;
+}
+
+.bar-value {
+  justify-self: end;
+  color: var(--muted);
+}
+
+.bar.is-marked .bar-label,
+.bar.is-marked .bar-value {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.bar.is-marked .bar-track rect {
+  fill: var(--ink);
+}
+
+/* Arcs: the arcs above the tokens, the weights under them, then the sum. */
+.arcs {
+  display: grid;
+}
+
+.arcs-lines {
+  display: block;
+  width: 100%;
+  height: 56px;
+  overflow: visible;
+}
+
+.arcs-lines path {
+  fill: none;
+  stroke: var(--ink);
+}
+
+.arcs-tokens {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--face-mono);
+  font-size: 13px;
+  text-align: center;
+}
+
+.token {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.token-word {
+  justify-self: center;
+  white-space: nowrap;
+}
+
+.token.is-to {
+  color: var(--ink);
+}
+
+.token.is-from .token-word {
+  position: relative;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* The token that looks: the code mark's step of value, drawn behind it. */
+.token.is-from .token-word::before {
+  content: '';
+  position: absolute;
+  inset: -2px -5px;
+  z-index: -1;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.token.is-hidden {
+  color: var(--line-strong);
+}
+
+.token-weight {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.arcs-sum {
+  display: block;
+  margin-top: 20px;
+  overflow: visible;
+}
+
+.sum-part {
+  fill: var(--muted);
+  stroke: var(--raise);
+  stroke-width: 2px;
+  shape-rendering: crispEdges;
+}
+
+.sum-part.is-major {
+  fill: var(--ink);
+}
+
+.arcs-sum text {
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+.arcs {
+  isolation: isolate;
+}
+
+@media (min-width: 641px) {
+  .fig-body {
+    padding: 24px;
+  }
+  .arcs-lines {
+    height: 72px;
+  }
+  .arcs-tokens {
+    font-size: 14px;
+  }
 }
 
 @media (min-width: 641px) {

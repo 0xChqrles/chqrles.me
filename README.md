@@ -27,6 +27,24 @@ The source of https://chqrles.me.
 
 A post with a missing or misspelled field fails the build, with a message that names the field.
 
+## Figures and marks
+
+A post with a figure is `index.mdx`. It uses a figure by name and passes it data:
+
+```mdx
+<Plane
+  caption="`chat`, `chien` et `loup` sur un plan."
+  points={[{ id: 'chat', label: 'chat', x: 1.5, y: 3.2 }, { id: 'chien', label: 'chien', x: 3, y: 3.6 }]}
+  links={[{ from: 'chat', to: 'chien', distance: true }]}
+  move
+/>
+```
+
+The figures are `<Plane>`, `<Bars>` and `<Arcs>`; AGENTS.md lists what each takes.
+
+To mark words in a code block, name them after its language: ```` ```text /chat/ ````
+marks every `chat`, ```` ```text /:/2 ```` only the second colon.
+
 ## Commands
 
 ```bash

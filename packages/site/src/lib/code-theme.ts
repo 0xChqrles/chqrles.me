@@ -61,3 +61,29 @@ function addClass(node: Element, name: string) {
   delete node.properties.class
   node.properties.className = [...list, name]
 }
+
+// Marks words in a code block, from its info string: ```text /chat/ marks every
+// `chat`; ```text /chat/2 marks only the second; ```text /a/ /b/1,3 combines.
+// The words stay the author's own text: a marked word is a class (code-mark).
+const MARK = /\/((?:\\.|[^/])+)\/((?:\d+,)*\d+)?/g
+
+type ShikiTransformer = NonNullable<ShikiConfig['transformers']>[number]
+
+export function transformerMarkWords(): ShikiTransformer {
+  return {
+    name: 'chqrles:mark-words',
+    preprocess(code, options) {
+      const meta = this.options.meta?.__raw
+      if (!meta) return
+      options.decorations ||= []
+      for (const [, raw, only] of meta.matchAll(MARK)) {
+        const word = raw!.replace(/\\(.)/g, '$1')
+        const wanted = only?.split(',').map(Number)
+        let index = code.indexOf(word)
+        for (let n = 1; index !== -1; n++, index = code.indexOf(word, index + word.length)) {
+          if (!wanted || wanted.includes(n)) options.decorations.push({ start: index, end: index + word.length, properties: { class: 'code-mark' } })
+        }
+      }
+    },
+  }
+}
