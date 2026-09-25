@@ -1,0 +1,26 @@
+{
+  "name": "@chqrles/infra",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "node scripts/guard-local-deploy.mjs && cdk deploy ChqrlesMeSite",
+    "deploy:role": "cdk deploy ChqrlesMeDeployRole",
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.270.0",
+    "cdk-nag": "3.0.2",
+    "constructs": "^10.8.1",
+    "parse5": "^8.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "aws-cdk": "2.1143.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "~5.0.1"
+  }
+}

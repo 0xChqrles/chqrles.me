@@ -1,8 +1,8 @@
 # AGENTS.md — chqrles.me
 
 > The source of https://chqrles.me: a static blog that holds articles and nothing else.
-> Posts are Markdown files; CI checks them and builds the site. `CLAUDE.md` is a symlink
-> to this file: edit **AGENTS.md**.
+> Posts are Markdown files; CI builds the site and deploys it to AWS. `CLAUDE.md` is a
+> symlink to this file: edit **AGENTS.md**.
 >
 > This file records DECISIONS: the rule, its constants and where they live, and one line
 > of why. The **code is ground truth**: if a rule here contradicts the code, trust the code
@@ -11,6 +11,8 @@
 ```
 posts/<slug>/       one folder per post: index.md (or index.mdx) and its images
 packages/site/      the Astro site: content schema, pages, feed, sitemap
+packages/infra/     the AWS CDK app: the site stack and CI's deploy role
+.github/workflows/  ci.yml (checks) and deploy.yml (checks, then deploy)
 ```
 
 ## Maintaining these files
@@ -106,11 +108,74 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   renders as a visible placeholder, never as code
   (`packages/site/src/lib/figure-placeholders.ts`).
 
+## Infrastructure
+
+- **One CDK app in TypeScript** (`packages/infra/bin/app.ts`), two stacks, both in account
+  `879381243389` and `us-east-1`, where CloudFront needs its certificate:
+  `ChqrlesMeSite` (the site) and `ChqrlesMeDeployRole` (CI's role). The account is pinned,
+  so CI synthesizes without credentials from the committed `cdk.context.json`.
+- **The account also runs Whippin.** IAM role and CloudFront policy names are account-wide:
+  never reuse Whippin's (`Whippin*Stack`, `whippin-github-deploy`,
+  `WhippinSiteSecurityHeaders`, `WhippinCardHeaders`). Stacks here start with `ChqrlesMe`;
+  CloudFormation generates the other names.
+- **The Route 53 zone `chqrles.me` already exists** (`Z0042204385C8H6YBG2CC`; the domain is
+  registered at Hostinger, pointing at its nameservers). It is looked up with
+  `HostedZone.fromLookup`, never created: a new zone gets new nameservers and silently
+  breaks the domain.
+- **The GitHub OIDC provider already exists** in the account: imported, never created.
+- **cdk-nag's AWS Solutions checks run on every synth.** A finding without a written reason
+  (`Validations.of(construct).acknowledge`, cdk-nag 3) fails it.
+- **Everything is tagged** `Project=chqrles.me`, `ManagedBy=cdk` (stack tags).
+- **The site stack** (`packages/infra/lib/site-stack.ts`): a private bucket (public access
+  blocked, TLS only, S3-managed encryption, destroyed with the stack); CloudFront with
+  Origin Access Control, HTTP/2 and HTTP/3, TLS 1.2_2021, price class 100; a
+  DNS-validated certificate for the apex; A and AAAA aliases at the apex. No `www`.
+- **Directory URLs** (`packages/infra/functions/directory-urls.js`, a CloudFront Function
+  on viewer request): `/<slug>/` serves `<slug>/index.html`; `/<slug>` and
+  `/<slug>/index.html` redirect (301) to `/<slug>/`; a path whose last segment has a dot
+  is a file and passes through. Repeated slashes collapse first, so a redirect never
+  leaves the site.
+- **A missing path is a real 404**: the bucket's 403 and 404 both map to `/404.html` with
+  status 404. Not a single-page app.
+- **Security headers**: HSTS for a year with subdomains and without preload, the CSP,
+  `nosniff`, frames denied, `strict-origin-when-cross-origin`.
+- **The CSP is read off the build** (`packages/infra/lib/csp.ts`): `default-src 'none'`;
+  scripts, styles, images and fonts from the site itself, plus the hash of each inline
+  script or style; `base-uri`, `form-action` and `frame-ancestors` `'none'`. An inline
+  `style=""` or `on…=""` attribute fails the synth, and so does a policy longer than
+  CloudFront's 1,783 characters. So pages carry no inline style attributes, and the build
+  keeps every script and stylesheet in a file (`packages/site/astro.config.ts`).
+- **Uploads**: two passes over one asset. `_astro/*` (hashed) is cached a year,
+  `immutable`, never pruned. Everything else is `no-cache`, published last, pruned (a
+  deleted post disappears), and purges CloudFront (`/*`). `.DS_Store` never leaves the
+  laptop. The upload Lambda has 1,024 MB and 2 GiB of disk.
+- **The deploy role** (`packages/infra/lib/deploy-role-stack.ts`) trusts one OIDC subject,
+  a push to `main` of this repo, in GitHub's immutable form (repos created after mid-2026):
+  `repo:0xChqrles@19663399/chqrles.me@1387573502:ref:refs/heads/main`. It may only assume
+  the CDK bootstrap roles (`cdk-hnb659fds-*`) and call `cloudformation:DescribeStacks`.
+  Those bootstrap roles deploy with administrator rights, so the deploy job can change any
+  stack in the account: only `main` reaches it, and only the last deploy job holds it.
+- **A local deploy refuses** unless `ALLOW_LOCAL_DEPLOY=1` is set
+  (`packages/infra/scripts/guard-local-deploy.mjs`).
+
+## CI/CD
+
+- **`ci.yml`** runs on pull requests and pushes to `main`: install, typecheck (`astro check`,
+  `tsc`), tests, the production build, `cdk synth`. A newer run cancels the one it supersedes.
+- **`deploy.yml`** runs on pushes to `main` and on demand: a job runs the same checks and
+  the build without AWS access; a second job, on `main` only, installs just the CDK app and
+  runs `cdk deploy ChqrlesMeSite` with OIDC credentials. Runs wait in order
+  (`queue: max`), never cancel. It never deploys `ChqrlesMeDeployRole`.
+- **One-time steps, by hand** (done 2026-09-25; see `.github/workflows/README.md`): deploy
+  `ChqrlesMeDeployRole`, store its ARN in the secret `AWS_DEPLOY_ROLE_ARN`, make the `Check`
+  job a required status check on `main`.
+
 ## Testing
 
 - **Test contracts, never cosmetics.** The contracts are the frontmatter schema, the URL
-  function and the French-spacing transform. Assert against the rules in this file, not
-  the implementation.
+  functions (the site's slug rule and the CloudFront Function), the infra assertions
+  (including the CSP builder and cdk-nag) and the French-spacing transform. Assert against
+  the rules in this file, not the implementation.
 - **A failing contract test is a real regression**: fix the code, never weaken the test.
 - **The build is the content check.** A post with bad frontmatter fails `pnpm typecheck`
   and `pnpm build`; a missing or undersized image fails `pnpm build`.
@@ -119,7 +184,13 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 
 - Don't edit the author's prose, not even to fix a typo.
 - Don't rename a published post's folder: its URL is permanent.
-- Don't deploy from a laptop.
+- Don't deploy the site from a laptop. The one by-hand deploy is `ChqrlesMeDeployRole`.
+- Don't create a Route 53 zone or a GitHub OIDC provider: both already exist.
+- Don't let CI deploy `ChqrlesMeDeployRole`.
+- Don't put an inline `style=""` or `on…=""` attribute in a page: the CSP cannot allow it,
+  and the synth fails. An inline `<script>` or `<style>` element is allowed by its hash,
+  but each one spends part of the 1,783-character CSP budget.
+- Don't give the deploy job's AWS token to more code than it needs.
 - Don't add a tagline, a welcome line or helper copy to the site.
 
 ## Commands
@@ -131,8 +202,10 @@ pnpm install     # all packages
 pnpm dev         # the site, drafts included, at http://localhost:4321
 pnpm build       # the production site in packages/site/dist, drafts excluded
 pnpm preview     # serve that build
-pnpm typecheck   # astro check
+pnpm typecheck   # astro check and tsc
 pnpm test        # the contract tests (Vitest)
+pnpm synth       # cdk synth (needs pnpm build first)
+pnpm --filter @chqrles/infra run deploy:role   # by hand, once: CI's deploy role
 ```
 
 `pnpm-workspace.yaml` approves `esbuild`'s build script (`allowBuilds`); pnpm blocks the

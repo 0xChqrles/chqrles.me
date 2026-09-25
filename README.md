@@ -23,7 +23,7 @@ The source of https://chqrles.me.
    ```
 
 3. Drop the header image in the same folder.
-4. Push to `main`. CI checks the post and builds the site. (The deploy comes with the infrastructure.)
+4. Push to `main`. CI checks the post, builds the site and deploys it.
 
 A post with a missing or misspelled field fails the build, with a message that names the field.
 
