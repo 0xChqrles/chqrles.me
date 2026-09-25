@@ -18,7 +18,8 @@ export default defineConfig({
   prerenderConflictBehavior: 'error',
   build: {
     format: 'directory',
-    // Every stylesheet and script is a file, so the CSP needs no inline hashes.
+    // Every stylesheet and script is a file, so the CSP needs no inline hashes,
+    // except Astro's island loader on a page with an interactive figure.
     inlineStylesheets: 'never',
   },
   vite: { build: { assetsInlineLimit: 0 } },

@@ -26,11 +26,14 @@ const lang = Astro.locals.lang ?? 'fr'
 const weights = new Map(to.map(({ token, weight }) => [token, weight]))
 const total = to.reduce((s, { weight }) => s + (weight ?? 0), 0)
 
-// Each token owns a slot 100 units wide; an arc rises higher the farther it goes.
+// Each token owns a slot 100 units wide; an arc rises higher the farther it
+// goes, the longest possible one to the top. A token attending to itself gets
+// a small loop that leaves and lands on it.
 const arc = (target: number) => {
   const a = from * 100 + 50
   const b = target * 100 + 50
-  const top = Math.max(8, 92 - 22 * Math.abs(from - target))
+  if (target === from) return `M${a - 12} 100 C${a - 40} 45 ${a + 40} 45 ${a + 12} 100`
+  const top = 88 - 80 * (Math.abs(from - target) / Math.max(1, tokens.length - 1))
   return `M${a} 100 C${a} ${top} ${b} ${top} ${b} 100`
 }
 

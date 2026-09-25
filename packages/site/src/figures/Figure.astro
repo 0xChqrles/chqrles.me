@@ -10,10 +10,11 @@ interface Props {
 
 const { caption } = Astro.props
 const lang = Astro.locals.lang ?? 'fr'
-const parts = typeset(caption, lang).split('`')
+// French spacing applies to the words, never to the quoted code.
+const parts = caption.split('`')
 ---
 
 <figure class="fig">
   <div class="fig-body"><slot /></div>
-  <figcaption>{parts.map((part, i) => (i % 2 ? <code>{part}</code> : part))}</figcaption>
+  <figcaption>{parts.map((part, i) => (i % 2 ? <code>{part}</code> : typeset(part, lang)))}</figcaption>
 </figure>

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { formatNumber, type Lang } from './format'
 
 // A plane: points on two axes, optionally linked, drawn as vectors, moved by
@@ -39,6 +39,8 @@ export interface PlaneProps {
   move?: boolean
   // The visible square; by default it fits every point with some room.
   domain?: { x: [number, number]; y: [number, number] }
+  // Decimals written for coordinates and distances.
+  digits?: number
   lang?: Lang
 }
 
@@ -47,7 +49,7 @@ type Positions = Record<string, { x: number; y: number }>
 const TWEEN_FRAMES = 12
 const TWEEN_MS = 40
 
-export default function Plane({ points, states, links = [], arrows = false, coordinates = false, move = false, domain, lang = 'fr' }: PlaneProps) {
+export default function Plane({ points, states, links = [], arrows = false, coordinates = false, move = false, domain, digits = 1, lang = 'fr' }: PlaneProps) {
   const arrangements = states ?? [{ label: '', points: points ?? [] }]
   const all = arrangements.flatMap((a) => a.points)
   const box = domain ?? fit(all, arrows)
@@ -62,14 +64,27 @@ export default function Plane({ points, states, links = [], arrows = false, coor
   const dragging = useRef<string | null>(null)
   const svg = useRef<SVGSVGElement>(null)
   const timer = useRef<number | undefined>(undefined)
-  const arrowhead = useId()
+  // Points become controls once the island runs; before, they are a drawing.
+  const [live, setLive] = useState(false)
+  useEffect(() => setLive(true), [])
   useEffect(() => () => window.clearInterval(timer.current), [])
+  // Chromium ignores touch-action on SVG children, so a finger on a point would
+  // scroll the page: a touch that starts on a point is kept for the drag.
+  useEffect(() => {
+    const el = svg.current
+    if (!move || !el) return
+    const hold = (e: TouchEvent) => {
+      if (e.target instanceof Element && e.target.closest('.plane-point')) e.preventDefault()
+    }
+    el.addEventListener('touchstart', hold, { passive: false })
+    return () => el.removeEventListener('touchstart', hold)
+  }, [move])
 
   const X = (x: number) => `${((x - x0) / (x1 - x0)) * 100}%`
   const Y = (y: number) => `${((y1 - y) / (y1 - y0)) * 100}%`
   const clamp = (v: number, [lo, hi]: [number, number]) => Math.min(hi, Math.max(lo, v))
   const place = (id: string, x: number, y: number) => setAt((now) => ({ ...now, [id]: { x: clamp(x, box.x), y: clamp(y, box.y) } }))
-  const fmt = (v: number) => formatNumber(v, lang)
+  const fmt = (v: number) => formatNumber(v, lang, digits)
 
   // Switching arrangements travels, stepped and eased out; reduced motion lands at once.
   const show = (next: number) => {
@@ -85,6 +100,12 @@ export default function Plane({ points, states, links = [], arrows = false, coor
       setAt(Object.fromEntries(Object.entries(target).map(([id, t]) => [id, { x: lerp(from[id]?.x ?? t.x, t.x, k), y: lerp(from[id]?.y ?? t.y, t.y, k) }])))
       if (frame >= TWEEN_FRAMES) window.clearInterval(timer.current)
     }, TWEEN_MS)
+  }
+
+  // Letting go ends the drag; the cue stays only while the point has keyboard focus.
+  const release = (e: PointerEvent<SVGGElement>) => {
+    dragging.current = null
+    if (document.activeElement !== e.currentTarget) setActive(null)
   }
 
   const drag = (e: PointerEvent<SVGGElement>, id: string) => {
@@ -109,7 +130,7 @@ export default function Plane({ points, states, links = [], arrows = false, coor
       {states && (
         <div className="plane-states" role="group">
           {states.map((s, i) => (
-            <button key={s.label} type="button" aria-pressed={i === state} onClick={() => show(i)}>
+            <button key={s.label} type="button" aria-pressed={i === state} disabled={!live} onClick={() => show(i)}>
               {s.label}
             </button>
           ))}
@@ -117,13 +138,6 @@ export default function Plane({ points, states, links = [], arrows = false, coor
       )}
       <div className="plane-square">
         <svg ref={svg} className="plane-svg" width="100%" height="100%" overflow="visible">
-          {arrows && (
-            <defs>
-              <marker id={arrowhead} viewBox="0 0 6 6" refX="5" refY="3" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path className="plane-head" d="M0 0L6 3L0 6z" />
-              </marker>
-            </defs>
-          )}
           <g className="plane-grid" aria-hidden="true">
             {ticks.x.map((v) => (
               <line key={`x${v}`} x1={X(v)} x2={X(v)} y1="0%" y2="100%" />
@@ -142,12 +156,21 @@ export default function Plane({ points, states, links = [], arrows = false, coor
             const a = at[from]
             const b = at[to]
             if (!a || !b) return null
+            // The distance sits beside the link, on its lower side: a point's
+            // words are written above it. The square keeps the domain's
+            // proportions, so the offset comes from the data alone.
+            const ux = (b.x - a.x) / (x1 - x0)
+            const uy = (a.y - b.y) / (y1 - y0)
+            const norm = Math.hypot(ux, uy) || 1
+            const down = ux >= 0 ? 1 : -1
+            const nx = (-uy / norm) * down
+            const ny = (ux / norm) * down
             return (
               <g key={`${from}-${to}`} className="plane-link">
                 <line x1={X(a.x)} y1={Y(a.y)} x2={X(b.x)} y2={Y(b.y)} />
                 {distance && (
                   <svg x={X((a.x + b.x) / 2)} y={Y((a.y + b.y) / 2)} overflow="visible">
-                    <text className="plane-distance" textAnchor="middle" dy="0.35em">
+                    <text className="plane-distance" textAnchor="middle" dx={nx * 12} dy={ny * 12 + 4}>
                       {fmt(Math.hypot(a.x - b.x, a.y - b.y))}
                     </text>
                   </svg>
@@ -157,11 +180,17 @@ export default function Plane({ points, states, links = [], arrows = false, coor
           })}
           {arrows &&
             Object.entries(at).map(([id, p]) => (
-              <line key={`v${id}`} className="plane-vector" x1={X(0)} y1={Y(0)} x2={X(p.x)} y2={Y(p.y)} markerEnd={`url(#${arrowhead})`} />
+              <g key={`v${id}`} className="plane-vector">
+                <line x1={X(0)} y1={Y(0)} x2={X(p.x)} y2={Y(p.y)} />
+                {/* The head, turned along the vector (the square keeps the proportions). */}
+                <svg x={X(p.x)} y={Y(p.y)} overflow="visible">
+                  <path d="M0 0L-8 -3.5L-8 3.5z" transform={`rotate(${(Math.atan2(-(p.y / (y1 - y0)), p.x / (x1 - x0)) * 180) / Math.PI})`} />
+                </svg>
+              </g>
             ))}
           {Object.entries(at).map(([id, p]) => {
             const label = labels[id]
-            if (arrows && !label) return null
+            if (arrows && !label && !move) return null
             // Near the right edge, the words go to the point's left.
             const left = (p.x - x0) / (x1 - x0) > 0.62
             const side = { x: left ? -10 : 10, textAnchor: left ? 'end' : 'start' } as const
@@ -169,10 +198,10 @@ export default function Plane({ points, states, links = [], arrows = false, coor
               <svg key={id} x={X(p.x)} y={Y(p.y)} overflow="visible">
                 <g
                   className={active === id ? 'plane-point is-active' : 'plane-point'}
-                  tabIndex={move ? 0 : undefined}
-                  role={move ? 'button' : undefined}
-                  aria-roledescription={move ? 'point' : undefined}
-                  aria-label={label ? `${label}, x ${fmt(p.x)}, y ${fmt(p.y)}` : undefined}
+                  tabIndex={move && live ? 0 : undefined}
+                  role={move && live ? 'button' : undefined}
+                  aria-roledescription={move && live ? 'point' : undefined}
+                  aria-label={label || move ? `${label ?? id}, x ${fmt(p.x)}, y ${fmt(p.y)}` : undefined}
                   onPointerDown={(e) => {
                     if (!move) return
                     // A drag moves the point; it never selects the label.
@@ -182,7 +211,9 @@ export default function Plane({ points, states, links = [], arrows = false, coor
                     setActive(id)
                   }}
                   onPointerMove={(e) => drag(e, id)}
-                  onPointerUp={() => (dragging.current = null)}
+                  onPointerUp={release}
+                  onPointerCancel={release}
+                  onLostPointerCapture={release}
                   onFocus={() => setActive(id)}
                   onBlur={() => setActive(null)}
                   onKeyDown={(e) => move && nudge(e, id)}

@@ -125,14 +125,18 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   caption; a caption may quote a word as `` `code` ``):
   - `<Plane>`: points on two axes. `points`, or `states` (arrangements of the same point
     ids the reader switches between); `links` (with `distance` written live); `arrows`
-    (vectors from the origin); `coordinates`; `move` (drag, or arrow keys); `domain`.
-  - `<Bars>`: labelled values as bars. `rows` (`label`, `value`, `mark`), `unit="%"`.
-  - `<Arcs>`: a sequence of tokens with weighted arcs from one to others. `tokens`,
-    `from`, `to` (`token`, `weight` 0 to 1), `mask="causal"` (what comes after `from` is
-    out of reach), `sum` (the weighted sum it ends up with).
+    (vectors from the origin); `coordinates`; `move` (drag, or arrow keys); `domain`;
+    `digits` (decimals written, 1 by default).
+  - `<Bars>`: labelled values as bars, every value 0 or more (a negative one fails the
+    build). `rows` (`label`, `value`, `mark`), `unit="%"`, `digits`.
+  - `<Arcs>`: a sequence of tokens with weighted arcs from one to others, or to itself (a
+    small loop). `tokens`, `from`, `to` (`token`, `weight` 0 to 1), `mask="causal"` (what
+    comes after `from` is out of reach), `sum` (the weighted sum it ends up with). Too
+    many tokens for the column: the figure scrolls sideways, never the page.
 - **A figure runs in the browser only when the reader can act on it** (a React island,
   `client:visible`, so only once it scrolls into view); every other figure is plain HTML
-  and SVG. Rendered on the server first, each one reads fully without JavaScript.
+  and SVG. Rendered on the server first, each one reads fully without JavaScript: a
+  `<Plane>` with `states` then draws every arrangement, one under the other.
 - **Every figure**: a caption; keyboard-reachable when interactive; reduced motion lands
   at once; fits a 360px phone; drawn with the site's tokens and attributes only (no inline
   `style`, which the CSP forbids); numbers written in the post's language (`1,4`,
@@ -216,7 +220,9 @@ colour, icon or furniture is reused.
   script or style; `base-uri`, `form-action` and `frame-ancestors` `'none'`. An inline
   `style=""` or `on…=""` attribute fails the synth, and so does a policy longer than
   CloudFront's 1,783 characters. So pages carry no inline style attributes, and the build
-  keeps every script and stylesheet in a file (`packages/site/astro.config.ts`).
+  keeps every script and stylesheet in a file (`packages/site/astro.config.ts`), except the
+  island loader Astro inlines on a page with an interactive figure (two scripts and one
+  style, the same on every page, allowed by hash).
 - **Uploads**: two passes over one asset. `_astro/*` (hashed) is cached a year,
   `immutable`, never pruned. Everything else is `no-cache`, published last, pruned (a
   deleted post disappears), and purges CloudFront (`/*`). `.DS_Store` never leaves the

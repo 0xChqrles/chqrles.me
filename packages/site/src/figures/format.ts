@@ -3,7 +3,7 @@
 export type Lang = 'fr' | 'en'
 
 export function formatNumber(value: number, lang: Lang, digits = 1): string {
-  return new Intl.NumberFormat(lang, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value)
+  return new Intl.NumberFormat(lang, { minimumFractionDigits: digits, maximumFractionDigits: digits, signDisplay: 'negative' }).format(value)
 }
 
 export function formatPercent(value: number, lang: Lang, digits = 0): string {

@@ -798,12 +798,12 @@ a.track-row:focus-visible {
   stroke-linejoin: round;
 }
 
-.plane-vector {
+.plane-vector line {
   stroke: var(--ink);
   stroke-width: 1.5px;
 }
 
-.plane-head {
+.plane-vector path {
   fill: var(--ink);
 }
 
@@ -820,6 +820,15 @@ a.track-row:focus-visible {
   font-size: 13px;
   font-weight: 500;
   fill: var(--ink);
+}
+
+/* A point's words sit on a halo of the figure's ground: no link runs through them. */
+.plane-label,
+.plane-coords {
+  paint-order: stroke;
+  stroke: var(--raise);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .plane-coords {
@@ -881,10 +890,34 @@ a.track-row:focus-visible {
   outline-offset: 3px;
 }
 
-/* Bars: label, bar, value. */
-.bars {
+/* Without JavaScript the toggle cannot work: every arrangement is drawn
+   instead, one under the other (Plane.astro's <noscript>). */
+@media (scripting: none) {
+  .plane:has(.plane-states) {
+    display: none;
+  }
+}
+
+.plane-still {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 24px;
+}
+
+.plane-still-label {
+  margin: 0 0 8px;
+  text-align: center;
+  font-family: var(--face-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+/* Bars: label, bar, value. */
+.prose .bars {
+  display: grid;
+  grid-template-columns: fit-content(45%) minmax(0, 1fr) max-content;
   gap: 10px 14px;
   align-items: center;
   margin: 0;
@@ -900,6 +933,7 @@ a.track-row:focus-visible {
 }
 
 .bar-label {
+  overflow-wrap: anywhere;
   color: var(--ink);
 }
 
@@ -928,12 +962,20 @@ a.track-row:focus-visible {
 }
 
 /* Arcs: the arcs above the tokens, the weights under them, then the sum. */
+/* More tokens than the column holds: the figure scrolls, never the page. */
+.fig-body:has(> .arcs) {
+  overflow-x: auto;
+}
+
 .arcs {
   display: grid;
+  width: max-content;
+  min-width: 100%;
 }
 
 .arcs-lines {
   display: block;
+  contain: inline-size;
   width: 100%;
   height: 56px;
   overflow: visible;
@@ -944,16 +986,31 @@ a.track-row:focus-visible {
   stroke: var(--ink);
 }
 
-.arcs-tokens {
+/* Equal columns, never narrower than the widest word, so the arcs land on
+   every word's centre. */
+.prose .arcs-tokens {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-columns: 1fr;
+  column-gap: 4px;
   margin: 6px 0 0;
   padding: 0;
   list-style: none;
   font-family: var(--face-mono);
-  font-size: 13px;
+  font-size: 12px;
   text-align: center;
+}
+
+/* On a phone the tokens take the frame's width. */
+@media (max-width: 640px) {
+  .fig-body:has(> .arcs) {
+    padding-inline: 8px;
+  }
+}
+
+.prose .token {
+  margin: 0;
+  padding: 0;
 }
 
 .token {
@@ -988,8 +1045,9 @@ a.track-row:focus-visible {
   border-radius: 2px;
 }
 
-.token.is-hidden {
-  color: var(--line-strong);
+/* Out of reach (a causal mask), still readable: muted, and struck. */
+.token.is-hidden .token-word {
+  text-decoration: line-through 1px var(--line-strong);
 }
 
 .token-weight {
@@ -999,6 +1057,7 @@ a.track-row:focus-visible {
 
 .arcs-sum {
   display: block;
+  contain: inline-size;
   margin-top: 20px;
   overflow: visible;
 }
@@ -1030,7 +1089,8 @@ a.track-row:focus-visible {
   .arcs-lines {
     height: 72px;
   }
-  .arcs-tokens {
+  .prose .arcs-tokens {
+    column-gap: 12px;
     font-size: 14px;
   }
 }

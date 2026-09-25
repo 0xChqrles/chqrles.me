@@ -20,7 +20,11 @@ interface Props {
 
 const { rows, unit, digits = 1, caption } = Astro.props
 const lang = Astro.locals.lang ?? 'fr'
-const max = Math.max(...rows.map((row) => row.value))
+// Bars are sizes: a negative value has no bar to draw, so it fails the build.
+const negative = rows.find((row) => !(row.value >= 0))
+if (negative) throw new Error(`<Bars caption="${caption}">: "${negative.label}" is ${negative.value}; every value must be 0 or more.`)
+const max = Math.max(0, ...rows.map((row) => row.value))
+const width = (value: number) => (max === 0 ? 0 : (value / max) * 100)
 const written = (value: number) => (unit === '%' ? formatPercent(value, lang, digits) : formatNumber(value, lang, digits))
 ---
 
@@ -31,7 +35,7 @@ const written = (value: number) => (unit === '%' ? formatPercent(value, lang, di
         <li class:list={['bar', { 'is-marked': row.mark }]}>
           <span class="bar-label">{row.label}</span>
           <svg class="bar-track" width="100%" height="8" aria-hidden="true">
-            <rect width={`${(row.value / max) * 100}%`} height="8" />
+            <rect width={`${width(row.value)}%`} height="8" />
           </svg>
           <span class="bar-value">{written(row.value)}</span>
         </li>

@@ -14,4 +14,19 @@ const live = Boolean(plane.move || plane.states)
 
 <Figure caption={caption}>
   {live ? <Drawing client:visible {...plane} lang={lang} /> : <Drawing {...plane} lang={lang} />}
+  {
+    plane.states && (
+      <noscript>
+        {/* Without JavaScript, every arrangement, one under the other. */}
+        <div class="plane-still">
+          {plane.states.map((state) => (
+            <div>
+              <p class="plane-still-label">{state.label}</p>
+              <Drawing {...plane} states={undefined} points={state.points} move={false} lang={lang} />
+            </div>
+          ))}
+        </div>
+      </noscript>
+    )
+  }
 </Figure>

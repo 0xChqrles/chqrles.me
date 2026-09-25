@@ -144,11 +144,10 @@ Le Transformer reçoit son vecteur et en calcule la **Q (query)**. On peut imagi
 Les autres mots possèdent de leur côté une **K (key)**, et pour déterminer lesquels sont intéressants, le Transformer compare la query de `vole` aux différentes keys grâce à un **produit scalaire**. Le produit scalaire dépend à la fois de la longueur des deux vecteurs et de l’angle qui les sépare. À longueur égale, plus ils pointent dans la même direction, plus le résultat est grand, perpendiculaires, on obtient zéro et dans des directions opposées, on passe dans le négatif. On peut donc l’utiliser comme un score de compatibilité entre une **Q (query)** et une **K (key)**, et ces scores sont ensuite ramenés à des pourcentages dont la somme fait 100 % (grâce à un softmax pour les experts).
 
 <Arcs
-  caption="La query de `vole` comparée aux keys des mots qui le précèdent : `pigeon` l’emporte."
+  caption="La query de `vole` comparée aux keys de `Le` et de `pigeon` : `pigeon` l’emporte."
   tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
   from={2}
   to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
-  mask="causal"
 />
 
 Ces pourcentages servent à pondérer les **values** correspondantes, qui viennent enrichir le vecteur de `vole`.
@@ -158,7 +157,6 @@ Ces pourcentages servent à pondérer les **values** correspondantes, qui vienne
   tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
   from={2}
   to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
-  mask="causal"
   sum
 />
 
@@ -259,7 +257,7 @@ Mots: canard, nanard, conard, bagnard, binoclard, sauciflard
 
 Pas un seul insecte, alors que l’embedding statique proposait `cancrelat`, `blatte` et `cloporte`. On a juste transformé Cémantix en un dictionnaire de rimes.
 
-*À noter que le cloporte n’est pas un insecte mais un crustacé*
+*À noter que le cloporte n’est pas un insecte mais un crustacé.*
 
 ### Problème 3 : Les LLM prédisent des tokens, pas des distances
 
@@ -288,10 +286,10 @@ On peut essayer d’en retirer une partie. Si tous les vecteurs ont tendance à 
     {
       label: 'centrés',
       points: [
-        { id: 'h1', x: -0.41, y: 0.74 }, { id: 'h2', x: 0.27, y: -0.74 }, { id: 'h3', x: -0.64, y: 0.54 },
-        { id: 'h4', x: 0.72, y: 0.57 }, { id: 'h5', x: 0.34, y: -0.71 }, { id: 'h6', x: -0.52, y: 0.77 },
-        { id: 'h7', x: 0.86, y: 0.02 }, { id: 'h8', x: 0.65, y: -0.62 }, { id: 'h9', x: -0.02, y: 0.93 },
-        { id: 'h10', x: -0.65, y: 0.45 }, { id: 'h11', x: -0.05, y: 0.94 }, { id: 'h12', x: 0.35, y: -0.73 },
+        { id: 'h1', x: -0.07, y: 0.13 }, { id: 'h2', x: 0.18, y: -0.46 }, { id: 'h3', x: -0.31, y: 0.27 },
+        { id: 'h4', x: 0.09, y: 0.07 }, { id: 'h5', x: 0.15, y: -0.3 }, { id: 'h6', x: -0.21, y: 0.32 },
+        { id: 'h7', x: 0.07, y: 0.0 }, { id: 'h8', x: 0.24, y: -0.22 }, { id: 'h9', x: 0.0, y: 0.18 },
+        { id: 'h10', x: -0.26, y: 0.19 }, { id: 'h11', x: -0.01, y: 0.2 }, { id: 'h12', x: 0.18, y: -0.36 },
       ],
     },
   ]}
