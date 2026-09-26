@@ -47,8 +47,9 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
 - **Never switch the git checkout back to `main` on your own.** Branch from whatever is
   checked out.
 - **Show, don't tell.** The site explains nothing: no tagline, no welcome line, no helper copy.
-- **One branch and one PR per change.** No agent or tool branding in branch names or PR
-  titles. PR descriptions stay short: what changed, how to verify.
+- **One branch and one PR per change, and the owner reviews and merges every PR.** Never
+  merge one yourself. No agent or tool branding in branch names or PR titles. PR
+  descriptions stay short: what changed, how to verify.
 
 ## Posts
 
@@ -81,10 +82,10 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   not its images, not the feed, not the sitemap. A production build still validates it,
   then drops it (`packages/site/src/content.config.ts`). Only a draft may omit `image` and
   `imageAlt`.
-- **The header image** opens the article and is the share preview: the build crops it to
-  1200×630 for `og:image` and `twitter:image` (`summary_large_image`), by absolute URL.
-  The build never enlarges an image, so a smaller header fails the build
-  (`packages/site/src/lib/share-image.ts`). The header itself is served responsive, in AVIF
+- **The header image** opens the article and is the share preview: the build prints it on
+  the post's 1200×630 share card (see *Share images*) for `og:image` and `twitter:image`
+  (`summary_large_image`), by absolute URL. The build never enlarges an image, so a header
+  smaller than 1200×630 fails the build (`packages/site/src/lib/share-image.ts`). The header itself is served responsive, in AVIF
   and WebP, with its width and height set.
 - **Every page carries** its title and description, and its canonical URL, except the 404
   page: it answers any missing URL, so it has none and is marked `noindex`.
@@ -113,7 +114,8 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   (`packages/site/src/lib/code-theme.ts`): ```` ```text /chat/ ```` marks every `chat`,
   ```` ```text /:/2 ```` only the second `:`, and marks combine (`/a/ /b/1,3`). The text
   stays the author's own. Mark what the prose points at: the word under study, the one
-  that changes, the one the model reads.
+  that changes, the one the model reads. In a block with marks, the rest of the code steps
+  back to the muted ink; marked words stay in the ink, bold.
 
 ### Figures
 
@@ -124,9 +126,10 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 - **The components**, each in the figure frame (one step of value, then `FIG. 0N` and a
   caption; a caption may quote a word as `` `code` ``):
   - `<Plane>`: points on two axes. `points`, or `states` (arrangements of the same point
-    ids the reader switches between); `links` (with `distance` written live); `nearest`
-    (the shortest link in the accent, live); `arrows` (vectors from the origin); `mean`
-    (the points' mean as an accent vector, a string labels it); `ticks` (the grid's values
+    ids the reader switches between); `links` (with `distance` written live on the
+    link's middle, level, the line breaking around it, and `accent` for the one segment a figure
+    is about); `arrows` (vectors from the origin);
+    `mean` (the points' mean as an accent vector, a string labels it); `ticks` (the grid's values
     on the edges); `coordinates` (beside each point); `move` (drag, or arrow keys);
     `domain`; `digits` (decimals written, 1 by default).
   - `<Bars>`: labelled values as bars, every value 0 or more (a negative one fails the
@@ -142,13 +145,13 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 - **Every figure**: a caption; keyboard-reachable when interactive; reduced motion lands
   at once; fits a 360px phone; drawn with the site's tokens and attributes only (no inline
   `style`, which the CSP forbids); numbers written in the post's language (`1,4`,
-  `90 %`). The accent marks the point the reader holds, and at most one thing the
-  caption points at, only in a figure that reads better for it.
+  `90 %`). The accent marks the point the reader holds; beyond that, only a specific thing
+  the figure is about (see the palette).
 
 ## Design
 
 Chosen 2026-09-25: **Face B**, the blog as a record sleeve and its liner notes, with the
-dithered sleeve and the pixel q of the *Instrument* direction. It carries Whippin's DNA
+dither and the pixel q of the *Instrument* direction. It carries Whippin's DNA
 (one flat near-black ground, near-white ink, colour only where it means something, mono
 chrome, one pixel face spent once) without its parts. No light theme. No Whippin face,
 colour, icon or furniture is reused.
@@ -156,36 +159,56 @@ colour, icon or furniture is reused.
 - **Tokens** live in `:root` of `packages/site/src/styles/site.css`; the favicon and the
   share image read the same values from `packages/site/src/lib/palette.ts` (keep both in
   step). Ground `#121110`, raise `#1b1a18` (one step of value: code, placeholders, the
-  sleeve's card), hairlines `#2c2a27` and `#6f6a62`, muted `#999489`, ink `#e4e2dc`, and
+  sleeve's card), hairlines `#2c2a27` and `#6f6a62`, muted `#999489`, ink `#e4e2dc`, the
+  body text a step under it, `#d0ccc3` (titles and bold keep the ink), and
   **vermilion `#ff5a1f`, the one accent**: "where you are" (the playhead, hover, the
-  favicon, the point a reader holds), and in a figure, the one thing its caption points at
-  (the nearest pair, the winning arc, the mean), only where it helps reading, at most one
-  per figure. Every text colour is at least 4.5:1 on the ground.
+  favicon, the point a reader holds). A figure may also accent one specific thing it is
+  about (this distance, this arc, the mean), never a concept it shows in general: the
+  distance between words, how attention spreads, a set of vectors. Every text colour is at least 4.5:1 on the ground.
+- **Letters are drawn as designed**: `-webkit-font-smoothing: antialiased`, because macOS
+  otherwise thickens light text on a dark ground.
 - **Three voices, strict roles** (`packages/site/src/styles/fonts.css`, all self-hosted):
-  Newsreader for every title and the body (21/33.6 on desktop, 19/30 on a phone, a 600px
-  column); IBM Plex Mono for the chrome (11px, uppercase, tracked 0.12em, hierarchy by
+  Source Serif 4 for every title and the body (21/33.6 on desktop, 19/30 on a phone, a 660px
+  column), chosen for its taller lowercase: on a dark ground small letters cost the most;
+  IBM Plex Mono for the chrome (11px, uppercase, tracked 0.12em, hierarchy by
   weight only) and code; Jersey 15, a pixel face, for track numbers only, at 27px (its
   pixel grid) or 54px, never scaled otherwise.
 - **The index is a tracklist**: number, title, date, and the reading time as a duration
   (220 words a minute, `packages/site/src/lib/duration.ts`), newest first.
-- **The header image is the sleeve** (`packages/site/src/components/Sleeve.astro`): a
-  square crop on the photo's subject, printer's crop marks at the corners, printed as a
-  one-bit 8×8 ordered dither in the ink that develops once on load
-  (`packages/site/src/lib/dither.ts`, `packages/site/src/scripts/plate.ts`). Without
-  JavaScript, the photo printed in one ink.
+- **The header image is the sleeve** (`packages/site/src/components/Sleeve.astro`): the
+  photo in its own shape, held between 3:4 and 2:1 and cut on its subject past that
+  (`packages/site/src/lib/sleeve.ts`), printer's crop marks at the corners, printed in one
+  ink by a CSS filter: its shadows on the ground, its lights in the ink. It stays a photo
+  so it reads at any size; the dither is for the share images. The screen scales it
+  whole, never crops it: an empty SVG in its shape (the trim) holds that shape before the
+  photo loads, because the CSP forbids giving the ratio inline.
+- **The first screen stacks, at every width** (`packages/site/src/styles/site.css`): the
+  whole photo in the column, no taller than 60svh (a portrait narrows); the credits as a
+  caption line along its foot, the date at its left edge, the length and the language at
+  its right; then the track number and the title across the column, the number hanging in
+  the left margin from 1040px. The title keeps the column's width, so even a long one
+  stays at a few lines instead of a stack of short ones.
 - **The mark is a pixel q** (`packages/site/src/lib/mark.ts`), 5×7 cells at 3px (4px on a
   wide screen): the only link home. The favicon is the same q in vermilion.
-- **One emphasis gesture**: the ledger double rule, under a sum (an article's length).
+- **Totals** (an article's length, the index's runtime) are written in the ink, bold. No
+  double rule, no underline.
 - **Edge furniture**, from 1040px only: a timeline down the right edge, a tick per section
   placed by reading time, with the vermilion playhead. Below that, the playhead is a
   hairline along the top.
-- **Motion**: the sleeve develops, section numbers decode as they reach the reading line.
-  Reduced motion shows both settled. The page reads fully without JavaScript.
+- **Motion**: section numbers decode as they reach the reading line. Reduced motion shows
+  them settled. The page reads fully without JavaScript.
 - **Code** is highlighted from the palette by value, weight and slant, never by hue
   (`packages/site/src/lib/code-theme.ts`); Shiki's inline colours become classes.
-- **Share images**: a post's is the 1200×630 crop of its header photo; the index's is
-  `/share.png`, drawn at build time from the mark and the newest post's dithered sleeve
-  (`packages/site/src/lib/share-card.ts`). No words: link previews print the title.
+- **Share images** are drawn at build time (`packages/site/src/lib/share-card.ts`): the
+  post's photo cropped square on its centre (the subject-finding crop cut the pigeon's
+  knife), printed as a one-bit 8×8 ordered dither in the ink in 2px cells
+  (`packages/site/src/lib/dither.ts`), trimmed by crop marks; on its left, the mark and the
+  post's title, as on the page (Source Serif 4, weight 500, balanced lines), its last
+  baseline on the photo's foot, 52px or smaller to keep to six lines. The title is on the
+  card because some previews (X's) show the image alone. It is drawn as outlines with
+  fontkit, from the static weight-500 WOFF (fontkit cannot vary a WOFF2), so the build
+  needs no font installed. A post's is `/<slug>/share.png`; the index's is `/share.png`,
+  the newest post's photo beside the mark alone.
 - **Never**: textures, gradients, glows, shadows, a radius above 2px, a second accent, a
   pixel face at a size that is not a whole multiple of its grid, helper copy.
 

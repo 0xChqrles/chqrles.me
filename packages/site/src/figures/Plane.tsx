@@ -18,6 +18,9 @@ export interface Link {
   to: string
   // The distance between the two points, written at the link's middle.
   distance?: boolean
+  // This one segment in the accent: for a figure about this distance, not
+  // about distance in general.
+  accent?: boolean
 }
 
 export interface Arrangement {
@@ -37,10 +40,9 @@ export interface PlaneProps {
   coordinates?: boolean
   // The grid's values written along the bottom and left edges.
   ticks?: boolean
-  // The shortest link is drawn in the accent, live as points move.
-  nearest?: boolean
   // The points' mean drawn in the accent as a vector from the origin (a string
-  // labels it). It shrinks to nothing when the points are centred.
+  // labels it), for a figure about the mean. It shrinks to nothing when the
+  // points are centred.
   mean?: boolean | string
   // The reader moves the points: drag one, or focus it and use the arrow keys.
   move?: boolean
@@ -56,7 +58,7 @@ type Positions = Record<string, { x: number; y: number }>
 const TWEEN_FRAMES = 12
 const TWEEN_MS = 40
 
-export default function Plane({ points, states, links = [], arrows = false, coordinates = false, ticks: edges = false, nearest = false, mean, move = false, domain, digits = 1, lang = 'fr' }: PlaneProps) {
+export default function Plane({ points, states, links = [], arrows = false, coordinates = false, ticks: edges = false, mean, move = false, domain, digits = 1, lang = 'fr' }: PlaneProps) {
   const arrangements = states ?? [{ label: '', points: points ?? [] }]
   const all = arrangements.flatMap((a) => a.points)
   const box = domain ?? fit(all, arrows)
@@ -131,12 +133,6 @@ export default function Plane({ points, states, links = [], arrows = false, coor
   }
 
   const ticks = { x: steps(x0, x1), y: steps(y0, y1) }
-  const length = ({ from, to }: Link) => {
-    const a = at[from]
-    const b = at[to]
-    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : Infinity
-  }
-  const shortest = nearest && links.length ? links.reduce((best, link) => (length(link) < length(best) ? link : best)) : undefined
   const centre = Object.values(at).reduce((sum, p, _, all) => ({ x: sum.x + p.x / all.length, y: sum.y + p.y / all.length }), { x: 0, y: 0 })
   // The head of a vector, turned along it (the square keeps the proportions).
   const head = (x: number, y: number) => (
@@ -186,25 +182,18 @@ export default function Plane({ points, states, links = [], arrows = false, coor
               <line y1={Y(0)} y2={Y(0)} x1="0%" x2="100%" />
             </g>
           )}
-          {links.map(({ from, to, distance }) => {
+          {links.map(({ from, to, distance, accent }) => {
             const a = at[from]
             const b = at[to]
             if (!a || !b) return null
-            // The distance sits beside the link, on its lower side: a point's
-            // words are written above it. The square keeps the domain's
-            // proportions, so the offset comes from the data alone.
-            const ux = (b.x - a.x) / (x1 - x0)
-            const uy = (a.y - b.y) / (y1 - y0)
-            const norm = Math.hypot(ux, uy) || 1
-            const down = ux >= 0 ? 1 : -1
-            const nx = (-uy / norm) * down
-            const ny = (ux / norm) * down
+            // The distance is written on the link, at its middle, level, and the
+            // line breaks around it: a dimension, as on a drawing.
             return (
-              <g key={`${from}-${to}`} className={shortest?.from === from && shortest.to === to ? 'plane-link is-nearest' : 'plane-link'}>
+              <g key={`${from}-${to}`} className={accent ? 'plane-link is-accent' : 'plane-link'}>
                 <line x1={X(a.x)} y1={Y(a.y)} x2={X(b.x)} y2={Y(b.y)} />
                 {distance && (
                   <svg x={X((a.x + b.x) / 2)} y={Y((a.y + b.y) / 2)} overflow="visible">
-                    <text className="plane-distance" textAnchor="middle" dx={nx * 12} dy={ny * 12 + 4}>
+                    <text className="plane-distance" textAnchor="middle" dy="0.35em">
                       {fmt(Math.hypot(a.x - b.x, a.y - b.y))}
                     </text>
                   </svg>
@@ -235,9 +224,6 @@ export default function Plane({ points, states, links = [], arrows = false, coor
           {Object.entries(at).map(([id, p]) => {
             const label = labels[id]
             if (arrows && !label && !move) return null
-            // Near the right edge, the words go to the point's left.
-            const left = (p.x - x0) / (x1 - x0) > 0.62
-            const side = { x: left ? -10 : 10, textAnchor: left ? 'end' : 'start' } as const
             return (
               <svg key={id} x={X(p.x)} y={Y(p.y)} overflow="visible">
                 <g
@@ -265,12 +251,12 @@ export default function Plane({ points, states, links = [], arrows = false, coor
                   {!arrows && <rect x="-4" y="-4" width="8" height="8" />}
                   {move && <rect className="plane-hit" x="-16" y="-16" width="32" height="32" />}
                   {label && (
-                    <text className="plane-label" x={side.x} y="-9" textAnchor={side.textAnchor}>
+                    <text className="plane-label" y="-12" textAnchor="middle">
                       {label}
                     </text>
                   )}
                   {label && coordinates && (
-                    <text className="plane-coords" x={side.x} y="16" textAnchor={side.textAnchor}>
+                    <text className="plane-coords" y="22" textAnchor="middle">
                       {`${fmt(p.x)} ; ${fmt(p.y)}`}
                     </text>
                   )}

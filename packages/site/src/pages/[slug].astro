@@ -1,5 +1,4 @@
 ---
-import { getImage } from 'astro:assets'
 import { render } from 'astro:content'
 import Mark from '../components/Mark.astro'
 import Sleeve from '../components/Sleeve.astro'
@@ -7,7 +6,7 @@ import { figures } from '../figures'
 import Base from '../layouts/Base.astro'
 import { formatDuration, trackNumber } from '../lib/duration'
 import { formatDate, getTracks, typeset, type Track } from '../lib/posts'
-import { assertShareable, SHARE_HEIGHT, SHARE_WIDTH } from '../lib/share-image'
+import { assertShareable } from '../lib/share-image'
 import { postPath } from '../lib/urls'
 import { SITE_NAME } from '../site'
 
@@ -26,10 +25,8 @@ const { Content } = await render(post)
 // The post's figures write numbers in its language.
 Astro.locals.lang = lang
 if (image) assertShareable(post.id, image)
-const share =
-  image && imageAlt
-    ? { src: (await getImage({ src: image, width: SHARE_WIDTH, height: SHARE_HEIGHT, fit: 'cover', format: 'jpg' })).src, alt: imageAlt }
-    : undefined
+// The link preview is the post's share card (src/pages/[slug]/share.png.ts).
+const share = image && imageAlt ? { src: `${postPath(post.id)}share.png`, alt: imageAlt } : undefined
 const day = date.toISOString().slice(0, 10)
 ---
 
@@ -43,13 +40,13 @@ const day = date.toISOString().slice(0, 10)
 >
   <main class="record column">
     <article>
-      <header class="sleeve-head">
+      {/* Only a draft may have no photo: its header then stays in the column. */}
+      <header class:list={['sleeve-head', { 'has-sleeve': image && imageAlt }]}>
         <div class="title-row">
           <span class="track-no" aria-hidden="true">{trackNumber(number)}</span>
           <h1>{typeset(title, lang)}</h1>
         </div>
-        {/* The sleeve's credits. The length is the sum of the sections, so it
-            carries the ledger's double rule. */}
+        {/* The sleeve's credits: the date, the length (the sum of the sections), the language. */}
         <ul class="credits micro">
           <li><time datetime={day}>{formatDate(date, lang)}</time></li>
           <li><span class="sum">{formatDuration(seconds)}</span></li>

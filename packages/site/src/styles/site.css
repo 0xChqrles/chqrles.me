@@ -11,10 +11,11 @@
   --line: #2c2a27; /* the quiet hairline: a gap between tracks */
   --line-strong: #6f6a62; /* crop marks, rules that must be seen */
   --muted: #999489; /* secondary text, 6.24:1 on the ground */
-  --ink: #e4e2dc; /* everything else, 14.56:1 */
+  --ink: #e4e2dc; /* titles, bold, chrome: everything else, 14.56:1 */
+  --text: #d0ccc3; /* the body text, 11.8:1: a step under the ink */
   --cue: #ff5a1f; /* vermilion: where you are, 6.05:1 */
 
-  --face-text: 'Newsreader Variable', Georgia, serif;
+  --face-text: 'Source Serif 4 Variable', Georgia, serif;
   --face-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --face-pixel: 'Jersey 15', var(--face-mono);
 
@@ -23,7 +24,7 @@
   --pixel-2x: 54px;
 
   --gutter: 16px;
-  --column: 600px;
+  --column: 660px;
   /* On a wide screen the cues and track numbers hang in this margin. */
   --margin-col: 136px;
   --margin-gap: 32px;
@@ -49,6 +50,10 @@ body {
   font-family: var(--face-text);
   font-synthesis: none;
   font-optical-sizing: auto;
+  /* macOS thickens light text on a dark ground by default; this draws the
+     letters as designed. Nothing else reads it. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -217,7 +222,7 @@ a.track-row:focus-visible {
   outline-offset: 8px;
 }
 
-/* The sum of the tracks, as a ledger writes a total: under a double rule. */
+/* The sum of the tracks. */
 .total {
   display: flex;
   justify-content: flex-end;
@@ -226,24 +231,10 @@ a.track-row:focus-visible {
   border-top: 1px solid var(--line);
 }
 
-/* ── The one emphasis gesture: the ledger's double rule ───────────────────
-   Two hairlines under a figure, flush to its ink: this is the sum. Drawn,
-   never laid out, so nothing moves when it appears. */
+/* A total (an article's length, the index's runtime): the ink, bold. */
 .sum {
-  position: relative;
   color: var(--ink);
   font-weight: 600;
-}
-
-.sum::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0.12em; /* the tracking after the last glyph is not ink */
-  bottom: -5px;
-  height: 4px;
-  border-top: 1px solid var(--ink);
-  border-bottom: 1px solid var(--ink);
 }
 
 @media (min-width: 1040px) {
@@ -289,27 +280,54 @@ a.track-row:focus-visible {
   padding: 72px 0 96px;
 }
 
+/* Without a photo (a draft) the header is one column: the credits, then
+   the track number and the title. */
 .sleeve-head {
   display: grid;
   grid-template-areas:
-    'sleeve'
     'credits'
     'title';
   margin-bottom: 56px;
 }
 
+/* With one, the first screen stacks at every width: the whole photo, its
+   credits as a caption line along its foot, then the track number and the
+   title across the column. The first column is as wide as the photo, so the
+   caption keeps to its edges. The photo stands at most --tall high. */
+.has-sleeve {
+  --tall: 60svh;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'sleeve .'
+    'credits .'
+    'title title';
+}
+
 .sleeve {
   grid-area: sleeve;
+  justify-self: start;
   position: relative;
   margin: 0;
-  aspect-ratio: 1;
   background: var(--raise);
+}
+
+/* The sleeve's shape: the trim, at its largest size, scaled down whole to
+   the column and to --tall. A portrait narrows rather than losing its top
+   and bottom. Its size attributes would fix its width and height apart;
+   auto leaves both to its shape. */
+.trim {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: var(--tall);
 }
 
 .sleeve picture {
   display: contents;
 }
 
+/* The photo fills the trim, whose shape it already has. */
 .sleeve img {
   position: absolute;
   inset: 0;
@@ -323,35 +341,6 @@ a.track-row:focus-visible {
      a little more contrast; brightness sets the white, sepia warms it to the
      ink, and a contrast under 1 lifts the black onto the ground. */
   filter: grayscale(1) contrast(1.08) brightness(0.93) sepia(0.09) contrast(0.859);
-}
-/* The dither, one backing pixel per cell, scaled up by a whole number. */
-.sleeve canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  image-rendering: pixelated;
-  color: var(--ink);
-}
-@media (scripting: enabled) {
-  /* The script develops the sleeve. If it never runs, the photo shows after
-     a moment rather than never. */
-  .sleeve:not(.is-live) img {
-    opacity: 0;
-    animation: sleeve-fallback 1ms 3s forwards;
-  }
-  .sleeve.is-live img {
-    opacity: 0;
-  }
-  .sleeve.is-photo img {
-    opacity: 1;
-    animation: none;
-  }
-}
-@keyframes sleeve-fallback {
-  to {
-    opacity: 1;
-  }
 }
 
 /* Printer's crop marks, one hairline pair at each corner, outside the trim.
@@ -390,6 +379,18 @@ a.track-row:focus-visible {
   margin: 0;
 }
 
+/* Under a photo they are its caption: the date at its left edge, the rest
+   at its right edge, below the crop marks. The line takes the photo's width
+   and never widens it. */
+.has-sleeve .credits {
+  width: 0;
+  min-width: 100%;
+}
+
+.has-sleeve .credits li:first-child {
+  margin-right: auto;
+}
+
 .title-row {
   grid-area: title;
   margin-top: 40px;
@@ -409,22 +410,12 @@ a.track-row:focus-visible {
   text-wrap: balance;
 }
 
-/* From a tablet up, the sleeve is a 420px square with its credits beside it,
-   bottom-aligned, as on the back of a record. */
 @media (min-width: 641px) {
   .sleeve-head {
-    grid-template-columns: 420px minmax(0, 1fr);
-    grid-template-areas:
-      'sleeve credits'
-      'title title';
-    column-gap: 32px;
     margin-bottom: 72px;
   }
   .credits {
-    flex-direction: column;
-    align-self: end;
-    gap: 10px;
-    margin: 0;
+    margin-top: 24px;
   }
   .title-row {
     margin-top: 48px;
@@ -440,23 +431,25 @@ a.track-row:focus-visible {
     padding-top: 96px;
   }
   .sleeve-head {
-    margin-bottom: 80px;
+    margin-bottom: 96px;
   }
-  /* The number hangs in the margin, on the title's first baseline. */
+}
+
+/* On a wide screen the number hangs in the margin, on the title's first
+   baseline, like the index's and the section cues. */
+@media (min-width: 1040px) {
   .title-row {
     display: grid;
     grid-template-columns: var(--margin-col) minmax(0, 1fr);
     column-gap: var(--margin-gap);
     align-items: first baseline;
-    margin: 56px 0 0 calc(-1 * (var(--margin-col) + var(--margin-gap)));
+    margin-left: calc(-1 * (var(--margin-col) + var(--margin-gap)));
   }
   .title-row .track-no {
     justify-self: end;
   }
   .sleeve-head h1 {
     margin: 0;
-    font-size: 52px;
-    line-height: 1.06;
   }
 }
 
@@ -466,6 +459,7 @@ a.track-row:focus-visible {
   font-size: 19px;
   line-height: 1.58;
   font-weight: 400;
+  color: var(--text);
   hyphens: auto;
   -webkit-hyphens: auto;
   hyphenate-limit-chars: 8 4 4;
@@ -484,6 +478,10 @@ a.track-row:focus-visible {
 
 .prose strong {
   font-weight: 640;
+}
+
+.prose :is(h2, h3, strong) {
+  color: var(--ink);
 }
 
 .prose a {
@@ -677,8 +675,14 @@ a.track-row:focus-visible {
   background: var(--line);
   border-radius: 2px;
 }
-.code-mark,
-.code-mark span {
+/* In a block with marks, the rest of the code steps back to the muted ink,
+   so the marked words stand out by value as well as weight. */
+.prose pre:has(.code-mark),
+.prose pre:has(.code-mark) :is(.code-ink, .code-soft) {
+  color: var(--muted);
+}
+.prose pre:has(.code-mark) .code-mark,
+.prose pre:has(.code-mark) .code-mark span {
   color: var(--ink);
   font-weight: 600;
 }
@@ -794,14 +798,14 @@ a.track-row:focus-visible {
   fill: var(--muted);
 }
 
-/* The accent, in a figure: the one thing its caption points at, and only
-   where it helps reading (the nearest pair, the winning arc, the mean). */
-.plane-link.is-nearest line {
+/* The accent, in a figure: one specific thing the figure is about (this
+   distance, this arc, the mean), never a concept shown in general. */
+.plane-link.is-accent line {
   stroke: var(--cue);
   stroke-width: 1.5px;
 }
 
-.plane-link.is-nearest .plane-distance {
+.plane-link.is-accent .plane-distance {
   fill: var(--cue);
 }
 
@@ -824,12 +828,14 @@ a.track-row:focus-visible {
   stroke-linejoin: round;
 }
 
+/* A distance sits on its link; its wide halo of the figure's ground cuts the
+   line around it, like a dimension on a drawing. */
 .plane-distance {
   font-size: 12px;
   fill: var(--ink);
   paint-order: stroke;
   stroke: var(--raise);
-  stroke-width: 6px;
+  stroke-width: 12px;
   stroke-linejoin: round;
 }
 

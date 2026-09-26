@@ -1,8 +1,9 @@
 ---
-title: "Comment j’ai amélioré Cémantix avec Jev là où les LLM échouaient ?"
+title: "J’ai amélioré Cémantix avec une IA qui ne peut pas parler"
 date: 2026-09-25
 description: "Cémantix mesure la distance entre les mots sans jamais lire la phrase. Des embeddings aux entrailles des LLM, le récit d’une tentative pour lui apprendre le contexte, jusqu’à Jev."
-draft: true
+image: ./pigeon-knife.jpg
+imageAlt: "Un pigeon s’envole d’une table de café avec un couteau dans le bec"
 ---
 J’existe principalement le dos courbé sur une chaise, agitant habilement mes doigts sur un clavier QWERTY, les yeux rivés sur des millions de minuscules pixels lumineux. Dans cette position, je remplis diverses tâches, certaines sont lucratives, d’autres divertissantes. Je préfère les secondes, et parmi elles il y a les jeux **daily**.
 
@@ -26,7 +27,6 @@ L’un d’entre eux s’appelle Cémantix. Chaque jour, un mot est tiré au has
     { from: 'chat', to: 'loup', distance: true },
   ]}
   ticks
-  nearest
   move
 />
 
@@ -148,7 +148,7 @@ Les autres mots possèdent de leur côté une **K (key)**, et pour déterminer l
   caption="La query de `vole` comparée aux keys de `Le` et de `pigeon` : `pigeon` l’emporte."
   tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
   from={2}
-  to={[{ token: 1, weight: 0.9, accent: true }, { token: 0, weight: 0.1 }]}
+  to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
 />
 
 Ces pourcentages servent à pondérer les **values** correspondantes, qui viennent enrichir le vecteur de `vole`.
@@ -157,7 +157,7 @@ Ces pourcentages servent à pondérer les **values** correspondantes, qui vienne
   caption="Ce que `vole` récupère : 90 % de la value de `pigeon`, 10 % de celle de `Le`."
   tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
   from={2}
-  to={[{ token: 1, weight: 0.9, accent: true }, { token: 0, weight: 0.1 }]}
+  to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
   sum
 />
 
@@ -210,7 +210,7 @@ envoler, tournoyer, planer, virevolter, flotter
 
 On tient notre solution. On garde Cémantix pour trouver rapidement des candidats, puis on utilise un LLM pour éliminer ceux qui ont le mauvais sens. On ne compare plus `voler` et `tuer` dans le vide, on les laisse d’abord lire leur phrase respective, puis on compare ce qu’ils sont devenus. En théorie, l’idée est parfaite.
 
-Pourtant, l’article s’intitule **Comment j’ai amélioré Cémantix avec Jev là où les LLM échouaient ?** La théorie avait omis trois détails importants.
+Pourtant, l’article n'en est pas encore à sa moitié. La théorie avait omis trois détails importants.
 
 ### Problème 1 : Masque causal
 
@@ -273,7 +273,6 @@ On peut essayer d’en retirer une partie. Si tous les vecteurs ont tendance à 
 <Plane
   caption="Des hidden states qui pointent tous à peu près dans la même direction, puis les mêmes, une fois leur vecteur moyen retiré."
   arrows
-  mean="moyenne"
   domain={{ x: [-1.1, 1.1], y: [-1.1, 1.1] }}
   states={[
     {
