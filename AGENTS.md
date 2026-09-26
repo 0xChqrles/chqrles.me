@@ -200,11 +200,15 @@ colour, icon or furniture is reused.
 - **Code** is highlighted from the palette by value, weight and slant, never by hue
   (`packages/site/src/lib/code-theme.ts`); Shiki's inline colours become classes.
 - **Share images** are drawn at build time (`packages/site/src/lib/share-card.ts`): the
-  mark, and a post's photo in its own shape by the sleeve's ratio rule, printed as a
-  one-bit 8×8 ordered dither in the ink (`packages/site/src/lib/dither.ts`) and trimmed by
-  crop marks. Its cells are 3px, so the grain survives a preview shrinking the card to
-  300–600px. A post's is `/<slug>/share.png`; the index's is `/share.png`, from the newest
-  post. No words: link previews print the title.
+  post's photo cropped square on its centre (the subject-finding crop cut the pigeon's
+  knife), printed as a one-bit 8×8 ordered dither in the ink in 2px cells
+  (`packages/site/src/lib/dither.ts`), trimmed by crop marks; on its left, the mark and the
+  post's title, as on the page (Source Serif 4, weight 500, balanced lines), its last
+  baseline on the photo's foot, 52px or smaller to keep to six lines. The title is on the
+  card because some previews (X's) show the image alone. It is drawn as outlines with
+  fontkit, from the static weight-500 WOFF (fontkit cannot vary a WOFF2), so the build
+  needs no font installed. A post's is `/<slug>/share.png`; the index's is `/share.png`,
+  the newest post's photo beside the mark alone.
 - **Never**: textures, gradients, glows, shadows, a radius above 2px, a second accent, a
   pixel face at a size that is not a whole multiple of its grid, helper copy.
 
