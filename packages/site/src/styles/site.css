@@ -342,35 +342,6 @@ a.track-row:focus-visible {
      ink, and a contrast under 1 lifts the black onto the ground. */
   filter: grayscale(1) contrast(1.08) brightness(0.93) sepia(0.09) contrast(0.859);
 }
-/* The dither, one backing pixel per cell, one CSS pixel each. */
-.sleeve canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  image-rendering: pixelated;
-  color: var(--ink);
-}
-@media (scripting: enabled) {
-  /* The script develops the sleeve. If it never runs, the photo shows after
-     a moment rather than never. */
-  .sleeve:not(.is-live) img {
-    opacity: 0;
-    animation: sleeve-fallback 1ms 3s forwards;
-  }
-  .sleeve.is-live img {
-    opacity: 0;
-  }
-  .sleeve.is-photo img {
-    opacity: 1;
-    animation: none;
-  }
-}
-@keyframes sleeve-fallback {
-  to {
-    opacity: 1;
-  }
-}
 
 /* Printer's crop marks, one hairline pair at each corner, outside the trim.
    On a phone they are shorter, so they end 4px inside the screen's edge. */
