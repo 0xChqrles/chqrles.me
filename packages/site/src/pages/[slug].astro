@@ -1,5 +1,4 @@
 ---
-import { getImage } from 'astro:assets'
 import { render } from 'astro:content'
 import Mark from '../components/Mark.astro'
 import Sleeve from '../components/Sleeve.astro'
@@ -7,7 +6,7 @@ import { figures } from '../figures'
 import Base from '../layouts/Base.astro'
 import { formatDuration, trackNumber } from '../lib/duration'
 import { formatDate, getTracks, typeset, type Track } from '../lib/posts'
-import { assertShareable, SHARE_HEIGHT, SHARE_WIDTH } from '../lib/share-image'
+import { assertShareable } from '../lib/share-image'
 import { postPath } from '../lib/urls'
 import { SITE_NAME } from '../site'
 
@@ -26,14 +25,8 @@ const { Content } = await render(post)
 // The post's figures write numbers in its language.
 Astro.locals.lang = lang
 if (image) assertShareable(post.id, image)
-// The link preview is cut on the photo's subject, as the sleeve is.
-const share =
-  image && imageAlt
-    ? {
-        src: (await getImage({ src: image, width: SHARE_WIDTH, height: SHARE_HEIGHT, fit: 'cover', position: 'attention', format: 'jpg' })).src,
-        alt: imageAlt,
-      }
-    : undefined
+// The link preview is the post's share card (src/pages/[slug]/share.png.ts).
+const share = image && imageAlt ? { src: `${postPath(post.id)}share.png`, alt: imageAlt } : undefined
 const day = date.toISOString().slice(0, 10)
 ---
 

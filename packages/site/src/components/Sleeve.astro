@@ -4,9 +4,9 @@ import { Picture } from 'astro:assets'
 import { sleeveRatio } from '../lib/sleeve'
 
 // The header image as a record sleeve: the photo in its own shape, trimmed by
-// printer's crop marks, printed as a one-bit dither that develops on load
-// (src/scripts/plate.ts). Without the script the photo stays, printed in one
-// ink on the black card (its shadows the ground, its lights the ink).
+// printer's crop marks, printed in one ink on the black card (its shadows the
+// ground, its lights the ink). Its share image prints it as a one-bit dither
+// (src/lib/share-card.ts); here it stays a photo, legible at any size.
 interface Props {
   src: ImageMetadata
   alt: string
@@ -23,7 +23,7 @@ const widths = [480, 720, 960, 1200, 1440].filter((w) => w <= width)
 const sizes = `min(100vw - 32px, 660px, 60svh * ${ratio.toFixed(3)})`
 ---
 
-<figure class="sleeve crop" data-plate>
+<figure class="sleeve crop">
   {/* The trim: an empty SVG in the sleeve's shape, at its largest size, holds
       that shape before the photo loads, scaled down whole to fit
       (src/styles/site.css). */}
@@ -41,7 +41,3 @@ const sizes = `min(100vw - 32px, 660px, 60svh * ${ratio.toFixed(3)})`
     priority
   />
 </figure>
-
-<script>
-  import '../scripts/plate'
-</script>

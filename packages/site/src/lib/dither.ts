@@ -1,7 +1,6 @@
 // The header photo as a one-bit ordered dither: a cell is lit in the ink when
 // the photo is brighter there than an 8×8 Bayer matrix's threshold for that
-// cell. Shared by the page (src/scripts/plate.ts, which develops it on load)
-// and the build (the index share image), so both print the same picture.
+// cell. The share images print it (src/lib/share-card.ts).
 
 // Tone: levels stretched between these percentiles; local contrast lifted by
 // an unsharp mask about 6 cells wide, so a subject parts from a background of

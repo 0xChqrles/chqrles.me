@@ -82,10 +82,10 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   not its images, not the feed, not the sitemap. A production build still validates it,
   then drops it (`packages/site/src/content.config.ts`). Only a draft may omit `image` and
   `imageAlt`.
-- **The header image** opens the article and is the share preview: the build crops it to
-  1200×630 for `og:image` and `twitter:image` (`summary_large_image`), by absolute URL.
-  The build never enlarges an image, so a smaller header fails the build
-  (`packages/site/src/lib/share-image.ts`). The header itself is served responsive, in AVIF
+- **The header image** opens the article and is the share preview: the build prints it on
+  the post's 1200×630 share card (see *Share images*) for `og:image` and `twitter:image`
+  (`summary_large_image`), by absolute URL. The build never enlarges an image, so a header
+  smaller than 1200×630 fails the build (`packages/site/src/lib/share-image.ts`). The header itself is served responsive, in AVIF
   and WebP, with its width and height set.
 - **Every page carries** its title and description, and its canonical URL, except the 404
   page: it answers any missing URL, so it has none and is marked `noindex`.
@@ -151,7 +151,7 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
 ## Design
 
 Chosen 2026-09-25: **Face B**, the blog as a record sleeve and its liner notes, with the
-dithered sleeve and the pixel q of the *Instrument* direction. It carries Whippin's DNA
+dither and the pixel q of the *Instrument* direction. It carries Whippin's DNA
 (one flat near-black ground, near-white ink, colour only where it means something, mono
 chrome, one pixel face spent once) without its parts. No light theme. No Whippin face,
 colour, icon or furniture is reused.
@@ -177,12 +177,11 @@ colour, icon or furniture is reused.
   (220 words a minute, `packages/site/src/lib/duration.ts`), newest first.
 - **The header image is the sleeve** (`packages/site/src/components/Sleeve.astro`): the
   photo in its own shape, held between 3:4 and 2:1 and cut on its subject past that
-  (`packages/site/src/lib/sleeve.ts`), printer's crop marks at the corners, printed as a
-  one-bit 8×8 ordered dither in the ink that develops once on load
-  (`packages/site/src/lib/dither.ts`, `packages/site/src/scripts/plate.ts`). Without
-  JavaScript, the photo printed in one ink. The screen scales it whole, never crops it: an
-  empty SVG in its shape (the trim) holds that shape before the photo loads, script or
-  not, because the CSP forbids giving the ratio inline.
+  (`packages/site/src/lib/sleeve.ts`), printer's crop marks at the corners, printed in one
+  ink by a CSS filter: its shadows on the ground, its lights in the ink. It stays a photo
+  so it reads at any size; the dither is for the share images. The screen scales it
+  whole, never crops it: an empty SVG in its shape (the trim) holds that shape before the
+  photo loads, because the CSP forbids giving the ratio inline.
 - **The first screen stacks, at every width** (`packages/site/src/styles/site.css`): the
   whole photo in the column, no taller than 60svh (a portrait narrows); the credits as a
   caption line along its foot, the date at its left edge, the length and the language at
@@ -196,14 +195,16 @@ colour, icon or furniture is reused.
 - **Edge furniture**, from 1040px only: a timeline down the right edge, a tick per section
   placed by reading time, with the vermilion playhead. Below that, the playhead is a
   hairline along the top.
-- **Motion**: the sleeve develops, section numbers decode as they reach the reading line.
-  Reduced motion shows both settled. The page reads fully without JavaScript.
+- **Motion**: section numbers decode as they reach the reading line. Reduced motion shows
+  them settled. The page reads fully without JavaScript.
 - **Code** is highlighted from the palette by value, weight and slant, never by hue
   (`packages/site/src/lib/code-theme.ts`); Shiki's inline colours become classes.
-- **Share images**: a post's is the 1200×630 crop of its header photo, cut on its subject
-  like the sleeve; the index's is `/share.png`, drawn at build time from the mark and the
-  newest post's dithered sleeve in its own shape, by the sleeve's ratio rule
-  (`packages/site/src/lib/share-card.ts`). No words: link previews print the title.
+- **Share images** are drawn at build time (`packages/site/src/lib/share-card.ts`): the
+  mark, and a post's photo in its own shape by the sleeve's ratio rule, printed as a
+  one-bit 8×8 ordered dither in the ink (`packages/site/src/lib/dither.ts`) and trimmed by
+  crop marks. Its cells are 3px, so the grain survives a preview shrinking the card to
+  300–600px. A post's is `/<slug>/share.png`; the index's is `/share.png`, from the newest
+  post. No words: link previews print the title.
 - **Never**: textures, gradients, glows, shadows, a radius above 2px, a second accent, a
   pixel face at a size that is not a whole multiple of its grid, helper copy.
 
