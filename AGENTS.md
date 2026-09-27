@@ -211,8 +211,9 @@ colour, icon or furniture is reused.
   stays at a few lines instead of a stack of short ones.
 - **The mark is a pixel q** (`packages/site/src/lib/mark.ts`), 5×7 cells at 3px (4px on a
   wide screen): the only link home. The favicon is the same q in vermilion.
-- **Totals** (an article's length, the index's runtime) are written in the ink, bold. No
-  double rule, no underline.
+- **Totals** (an article's length, the index's runtime) are written in the ink, bold. In
+  an article's credits the length also stands on one ink hairline, as wide as its figures.
+  Never a double rule.
 - **Edge furniture**, from 1040px only: a timeline down the right edge, a tick per section
   placed by reading time, with the vermilion playhead. Below that, the playhead is a
   hairline along the top.

@@ -238,6 +238,21 @@ a.track-row:focus-visible {
   font-weight: 600;
 }
 
+/* An article's length, in its credits, stands on one ink hairline as wide as
+   its figures (the tracking's trailing space left out). Never a double rule. */
+.credits .sum {
+  position: relative;
+}
+
+.credits .sum::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0.12em;
+  bottom: -4px;
+  border-top: 1px solid var(--ink);
+}
+
 @media (min-width: 1040px) {
   .tracklist {
     padding-top: clamp(160px, 30vh, 280px);
