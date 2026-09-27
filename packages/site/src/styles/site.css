@@ -456,7 +456,10 @@ a.track-row:focus-visible {
 /* ── Article: the liner notes ─────────────────────────────────────────── */
 
 .prose {
-  font-size: 19px;
+  /* The text size, which the blocks set in a smaller mono (code, exhibits)
+     also space themselves by. */
+  --text-size: 19px;
+  font-size: var(--text-size);
   line-height: 1.58;
   font-weight: 400;
   color: var(--text);
@@ -596,6 +599,11 @@ a.track-row:focus-visible {
   margin: 0;
 }
 
+/* Emphasis in an italic quotation turns upright, or it would not show. */
+.prose blockquote em {
+  font-style: normal;
+}
+
 .prose ol,
 .prose ul {
   padding-left: 1.6em;
@@ -613,21 +621,31 @@ a.track-row:focus-visible {
   color: var(--muted);
 }
 
-/* Inline code: the mono, matched to the text's x-height. A token is never
-   broken across two lines (-ard must not split at its hyphen). */
+/* Inline code: a word held up as a word. It sits on the code mark's step of
+   value, in the ink, at regular weight: bold stays the mark's. The padding is
+   laid out, so spaces and apostrophes keep their place. Upright even in a
+   quotation: in code, slant means a comment. A token is never broken across
+   two lines (-ard must not split at its hyphen). */
 .prose code {
   font-family: var(--face-mono);
-  font-size: 0.8em;
+  font-size: 0.85em;
   font-variant-ligatures: none;
 }
 
 .prose :not(pre) > code {
+  padding: 1px 3px;
+  border-radius: 2px;
+  background: var(--line);
+  color: var(--ink);
+  font-style: normal;
   white-space: nowrap;
 }
 
+/* A code block spaces itself by the text, like a quotation, not by its own
+   smaller size. */
 .prose pre {
   isolation: isolate;
-  margin: 1.5em 0;
+  margin: calc(1.5 * var(--text-size)) 0;
   padding: 16px 18px;
   background: var(--raise);
   border-radius: 2px;
@@ -644,6 +662,15 @@ a.track-row:focus-visible {
 
 .prose pre code {
   font-size: inherit;
+}
+
+/* A line that wraps hangs under its first characters, so it never reads as a
+   new line. */
+.prose pre .line {
+  display: inline-block;
+  width: 100%;
+  padding-left: 2ch;
+  text-indent: -2ch;
 }
 
 /* Highlighted code (src/lib/code-theme.ts): value, weight and slant. */
@@ -666,6 +693,7 @@ a.track-row:focus-visible {
    padding is drawn behind the word, never laid out, so no character moves. */
 .code-mark {
   position: relative;
+  white-space: nowrap;
 }
 .code-mark::before {
   content: '';
@@ -1151,7 +1179,7 @@ a.track-row:focus-visible {
 
 @media (min-width: 641px) {
   .prose {
-    font-size: 21px;
+    --text-size: 21px;
     line-height: 1.6;
     hyphens: manual;
     -webkit-hyphens: manual;

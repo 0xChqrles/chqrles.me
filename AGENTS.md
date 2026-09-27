@@ -115,7 +115,12 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   ```` ```text /:/2 ```` only the second `:`, and marks combine (`/a/ /b/1,3`). The text
   stays the author's own. Mark what the prose points at: the word under study, the one
   that changes, the one the model reads. In a block with marks, the rest of the code steps
-  back to the muted ink; marked words stay in the ink, bold.
+  back to the muted ink; marked words stay in the ink, bold, and never break across two
+  lines. A code block's wrapped line hangs 2ch under its first characters.
+- **Inline code is a word held up as a word** (`packages/site/src/styles/site.css`): the
+  ink, regular weight, on the code mark's step of value (`--line`), its 1px × 3px padding
+  laid out so no space or apostrophe moves; upright even in a quotation, never broken
+  across two lines. Bold stays the code mark's.
 
 ### Figures
 
