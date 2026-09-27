@@ -40,7 +40,8 @@ A post with a figure is `index.mdx`. It uses a figure by name and passes it data
 />
 ```
 
-The figures are `<Plane>`, `<Bars>` and `<Arcs>`; AGENTS.md lists what each takes.
+The figures are `<Plane>`, `<Bars>` and `<Arcs>`, and the exhibits `<Words>` and `<Flow>`;
+AGENTS.md lists what each takes.
 
 To mark words in a code block, name them after its language: ```` ```text /chat/ ````
 marks every `chat`, ```` ```text /:/2 ```` only the second colon.

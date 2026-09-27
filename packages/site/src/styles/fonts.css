@@ -43,11 +43,28 @@
   src: url('./nnbsp.woff2') format('woff2');
   unicode-range: U+202F;
 }
-/* The same for the mono (figures write 90 % with it): half a cell wide. */
+/* The same for the mono (figures write 90 % with it): half a cell wide. One
+   face per weight imported above: a weight range here would outrank those
+   single-weight faces in Chromium, which then draws every upright mono
+   character in a system font. A new mono weight above needs its rule here. */
 @font-face {
   font-family: 'IBM Plex Mono';
   font-style: normal;
-  font-weight: 400 600;
+  font-weight: 400;
+  src: url('./nnbsp-mono.woff2') format('woff2');
+  unicode-range: U+202F;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  src: url('./nnbsp-mono.woff2') format('woff2');
+  unicode-range: U+202F;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
   src: url('./nnbsp-mono.woff2') format('woff2');
   unicode-range: U+202F;
 }

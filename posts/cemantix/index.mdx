@@ -32,7 +32,7 @@ Chaque jour, un mot est tiré au hasard et il faut le deviner à l’aide d’un
 
 L’idée a l’air bonne, mais plus on ajoute de mots sur notre plan, plus il devient difficile de les répartir intelligemment, et deux dimensions ne suffiront pas longtemps. On va donc passer de 2 à, mettons, 300 dimensions. C’est beaucoup plus difficile à dessiner, mais nettement plus pratique pour ranger des centaines de milliers de mots. La vraie problématique se dessine enfin. Comment choisir les 300 coordonnées de chaque mot ?
 
-### skip-gram / word2vec
+### Skip-gram / word2vec
 
 On commence par attribuer un vecteur aléatoire à chaque mot. À ce stade, nos coordonnées ne veulent absolument rien dire, et pour leur donner un sens on va demander au réseau de faire quelque chose d’assez simple : à partir d’un mot, prédire ceux qui ont des chances d’apparaître autour. On lui donne `chat` et il attribue une probabilité à tous les mots qu’il connaît. Comme tout est encore plus ou moins aléatoire, ses premières réponses ressemblent à ça :
 
@@ -67,9 +67,10 @@ L’ensemble de ces variations forme le **gradient**, un vecteur qui indique la 
 
 Chacune de ces variations forme un **gradient**. Un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens. On modifie légèrement les paramètres, on refait une prédiction, on recalcule l’erreur, puis on recommence. C’est la **descente de gradient**.
 
-```
-prédiction -> comparaison avec le vrai contexte -> calcul de la loss -> calcul des gradients -> légère modification des vecteurs -> nouvelle prédiction -> …
-```
+<Flow
+  steps={['prédiction', 'comparaison avec le vrai contexte', 'calcul de la loss', 'calcul des gradients', 'légère modification des vecteurs']}
+  loop
+/>
 
 Après seulement quelques milliards de répétitions, la loss commence à descendre sérieusement. Mais ce qui nous intéresse surtout, c’est ce que toutes ces corrections ont fait à nos vecteurs. Imaginons que le réseau rencontre régulièrement ce genre de phrases :
 
@@ -86,7 +87,7 @@ Le chien court dans le jardin
 
 `chat` et `chien` vivent manifestement des vies assez similaires. Ils `dorment`, `mangent`, `courent` donc ils apparaissent entourés de mots comparables. Pour réussir à prédire leurs contextes, le réseau finit donc par leur attribuer des représentations qui se ressemblent. Personne ne lui a expliqué qu’un chat et un chien étaient deux animaux domestiques relativement proches. D’ailleurs, il ne sait toujours pas ce qu’est un chat. Il a simplement constaté que `chat` traîne souvent avec les mêmes mots que `chien`, et ça suffit.
 
-À force de corriger ses prédictions, les vecteurs complètement aléatoires du départ finissent ainsi par s’organiser. Les mots utilisés dans des contextes similaires occupent des régions similaires de notre espace à 300 dimensions. À la fin de l’entraînement, on récupère ces vecteurs et on les utilise directement comme coordonnées sémantiques de nos mots : on vient de créer un **embedding** 🎉
+À force de corriger ses prédictions, les vecteurs complètement aléatoires du départ finissent ainsi par s’organiser. Les mots utilisés dans des contextes similaires occupent des régions similaires de notre espace à 300 dimensions. À la fin de l’entraînement, on récupère ces vecteurs et on les utilise directement comme coordonnées sémantiques de nos mots : on vient de créer un **embedding**.
 
 ## Un mot, un seul vecteur
 
@@ -100,19 +101,20 @@ Tant qu’on devine un mot sans contexte, ce flou n’est pas vraiment un probl�
 Ne crains plus jamais le vide, c’est le refuge de ceux qui volent
 ```
 
-Ici, aucun cambrioleur. Pourtant, voici les voisins de volent selon l’embedding :
+Ici, aucun cambrioleur. Pourtant, voici les voisins de `volent` selon l’embedding :
 
-```text /tuer/ /planquer/ /perdre/ /détruire/ /écraser/ /attaquer/
-tournoyer, tuer, virevolter, tomber, survoler, planquer, perdre, détruire, écraser, attaquer
-```
+<Words
+  lists={[{ words: ['tournoyer', 'tuer', 'virevolter', 'tomber', 'survoler', 'planquer', 'perdre', 'détruire', 'écraser', 'attaquer'] }]}
+  marks={['tuer', 'planquer', 'perdre', 'détruire', 'écraser', 'attaquer']}
+/>
 
 La moitié de la liste dans le ciel, l’autre moitié dans la biographie de Xavier Dupont de Ligonnès. Mais prenons un autre exemple, plus subtil :
 
-```text /traite/
-Phrase: On me traite avec une douceur d’infirmière
-
-Mots: aborder, documenter, consacrer, examiner, disséquer, disserter
-```
+<Words
+  sentence="On me traite avec une douceur d’infirmière"
+  lists={[{ words: ['aborder', 'documenter', 'consacrer', 'examiner', 'disséquer', 'disserter'] }]}
+  marks={['traite']}
+/>
 
 L’embedding a compris « traiter un sujet ». La phrase, elle, parle de traiter quelqu’un. Le joueur qui tape soigner ou ménager a parfaitement compris la phrase, pourtant le jeu lui répond qu’il en est loin. De cette injustice naît la frustration, et la frustration, ça mène à la guerre. Alors donner une phrase au joueur ne suffit pas. Il faut que l’embedding, lui aussi, lise la phrase.
 
@@ -153,12 +155,30 @@ Les autres mots possèdent de leur côté une **K (key)**, et pour déterminer l
 
 Ces pourcentages servent à pondérer les **values** correspondantes, qui viennent enrichir le vecteur de `vole`.
 
-<Arcs
-  caption="Ce que `vole` récupère : 90 % de la value de `pigeon`, 10 % de celle de `Le`."
-  tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
-  from={2}
-  to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
-  sum
+<Plane
+  caption="`vole` avant et après l’attention : la value de `pigeon` le rapproche de `planer` et l’éloigne de `dérober`."
+  states={[
+    {
+      label: 'avant',
+      points: [
+        { id: 'planer', label: 'planer', x: 1, y: 3.2 },
+        { id: 'dérober', label: 'dérober', x: 4.4, y: 1.2 },
+        { id: 'vole', label: 'vole', x: 2.75, y: 2.35 },
+      ],
+    },
+    {
+      label: 'après',
+      points: [
+        { id: 'planer', label: 'planer', x: 1, y: 3.2 },
+        { id: 'dérober', label: 'dérober', x: 4.4, y: 1.2 },
+        { id: 'vole', label: 'vole', x: 1.9, y: 3.2 },
+      ],
+    },
+  ]}
+  links={[
+    { from: 'vole', to: 'planer', distance: true },
+    { from: 'vole', to: 'dérober', distance: true },
+  ]}
 />
 
 `vole` vient ainsi d’intégrer beaucoup d’information provenant de `pigeon`, sans que le modèle ait reçu une règle écrite à la main disant :
@@ -187,9 +207,7 @@ Le pigeon vole dans le ciel
 
 1. On prend les 10 000 mots les plus proches de `vole` selon notre embedding classique à la Cémantix.
 
-```
-tournoyer, tuer, virevolter, tomber, survoler, planquer, perdre, détruire, écraser, attaquer
-```
+<Words lists={[{ words: ['tournoyer', 'tuer', 'virevolter', 'tomber', 'survoler', 'planquer', 'perdre', 'détruire', 'écraser', 'attaquer'] }]} />
 
 2. On écrit 10 000 versions de notre phrase en remplaçant `vole` par chacun de ces mots.
 
@@ -204,15 +222,13 @@ Le pigeon virevolte dans le ciel
 
 4. On trie à nouveau la liste, mais selon cette distance contextuelle.
 
-```
-envoler, tournoyer, planer, virevolter, flotter
-```
+<Words lists={[{ words: ['envoler', 'tournoyer', 'planer', 'virevolter', 'flotter'] }]} />
 
 On tient notre solution. On garde Cémantix pour trouver rapidement des candidats, puis on utilise un LLM pour éliminer ceux qui ont le mauvais sens. On ne compare plus `voler` et `tuer` dans le vide, on les laisse d’abord lire leur phrase respective, puis on compare ce qu’ils sont devenus. En théorie, l’idée est parfaite.
 
-Pourtant, l’article n'en est pas encore à sa moitié. La théorie avait omis trois détails importants.
+Pourtant, l’article n’en est pas encore à sa moitié. La théorie avait omis trois détails importants.
 
-### Problème 1 : Masque causal
+### Problème 1 : masque causal
 
 Premier détail passé sous silence. Pendant l’attention, un mot ne peut écouter que ce qui le précède. On appelle ça le **masque causal**, et c’est logique : le modèle est entraîné à deviner la suite, on ne va pas la lui montrer. Prenons une nouvelle phrase :
 
@@ -240,9 +256,7 @@ voler
 
 Cette fois, `voler` a tout lu. Malheureusement, rien ne le pousse vraiment à faire le lien avec la phrase du haut, et son vecteur retombe sur un sens assez général, proche de celui de l’embedding statique :
 
-```
-dérober, survoler, chiper, planer, chaparder, envoler, cambrioler
-```
+<Words lists={[{ words: ['dérober', 'survoler', 'chiper', 'planer', 'chaparder', 'envoler', 'cambrioler'] }]} />
 
 ### Problème 2 : mot ≠ token
 
@@ -250,47 +264,48 @@ Depuis le début, je fais comme si un LLM lisait des mots. C’est faux. Il lit 
 
 Dans le cas de Qwen 3, par exemple, `cafard` est découpé en `caf-` et `-ard`. Voici ce qu’on retrouve alors parmi les plus proches voisins de son dernier token, `-ard` :
 
-```text /ard/
-Phrase: on différencie de moins en moins le cafard de l’homme
-
-Mots: canard, nanard, conard, bagnard, binoclard, sauciflard
-```
+<Words
+  sentence="on différencie de moins en moins le cafard de l’homme"
+  lists={[{ words: ['canard', 'nanard', 'conard', 'bagnard', 'binoclard', 'sauciflard'] }]}
+  marks={['ard']}
+/>
 
 Pas un seul insecte, alors que l’embedding statique proposait `cancrelat`, `blatte` et `cloporte`. On a juste transformé Cémantix en un dictionnaire de rimes.
 
 *À noter que le cloporte n’est pas un insecte mais un crustacé.*
 
-### Problème 3 : Les LLM prédisent des tokens, pas des distances
+### Problème 3 : les LLM prédisent des tokens, pas des distances
 
 Troisième détail, et le plus profond. Notre embedding à la Cémantix a été entraîné de manière à ce que les mots employés dans des contextes similaires obtiennent des vecteurs proches. Un LLM, lui, est entraîné avec un autre objectif : prédire le token suivant. Rien ne garantit donc que la géométrie brute de ses hidden states constitue une bonne distance sémantique. Ces vecteurs sont avant tout des représentations intermédiaires, utiles au modèle pour poursuivre son calcul.
 
 Premier symptôme, les vecteurs se ressemblent beaucoup trop. Avec notre embedding statique, on mesurait la proximité entre deux mots avec la **similarité cosinus**, un produit scalaire entre deux vecteurs préalablement ramenés à une longueur de 1. Il ne reste alors que l’angle : deux vecteurs qui pointent dans la même direction sont considérés comme très similaires, peu importe leur longueur.
 
-Dans un embedding idéal, les vecteurs seraient assez bien répartis dans toutes les directions. Mais les hidden states d’un LLM ont tendance à s’entasser dans une même région de l’espace, comme des aiguilles de boussole qui pointeraient presque toutes vaguement dans la même direction. Résultat, même deux mots qui n’ont rien à voir partagent déjà une grande partie de leur direction. Dans mes tests, les similarités sont presque toujours comprises entre 0,45 et 0,88, sur une échelle où 1 signifie que deux vecteurs pointent exactement dans la même direction et 0 qu’ils sont perpendiculaires. Ce phénomène porte un nom, l’**anisotropie**.
+Dans un embedding idéal, les vecteurs seraient assez bien répartis dans toutes les directions. Mais les hidden states d’un LLM ont tendance à s’entasser dans une même région de l’espace. Résultat, même deux mots qui n’ont rien à voir partagent déjà une grande partie de leur direction. Dans mes tests, les similarités sont presque toujours comprises entre 0,45 et 0,88, sur une échelle où 1 signifie que deux vecteurs pointent exactement dans la même direction et 0 qu’ils sont perpendiculaires. Ce phénomène porte un nom, l’**anisotropie**.
 
 On peut essayer d’en retirer une partie. Si tous les vecteurs ont tendance à pointer vers le même endroit, on calcule leur vecteur moyen, puis on le soustrait à chacun d’entre eux. En gros, on retire à tous ce qu’ils avaient en commun avant de recommencer à mesurer leurs différences. Ça étale un peu mieux les candidats et rend leurs similarités plus discriminantes. Mais pas suffisamment.
 
 <Plane
   caption="Des hidden states qui pointent tous à peu près dans la même direction, puis les mêmes, une fois leur vecteur moyen retiré."
   arrows
-  domain={{ x: [-1.1, 1.1], y: [-1.1, 1.1] }}
+  mean="moyenne"
+  domain={{ x: [-0.6, 1.05], y: [-0.6, 1.05] }}
   states={[
     {
       label: 'bruts',
       points: [
-        { id: 'h1', x: 0.54, y: 0.65 }, { id: 'h2', x: 0.79, y: 0.06 }, { id: 'h3', x: 0.3, y: 0.79 },
-        { id: 'h4', x: 0.7, y: 0.59 }, { id: 'h5', x: 0.76, y: 0.22 }, { id: 'h6', x: 0.4, y: 0.84 },
-        { id: 'h7', x: 0.68, y: 0.52 }, { id: 'h8', x: 0.85, y: 0.3 }, { id: 'h9', x: 0.61, y: 0.7 },
-        { id: 'h10', x: 0.35, y: 0.71 }, { id: 'h11', x: 0.6, y: 0.72 }, { id: 'h12', x: 0.79, y: 0.16 },
+        { id: 'h1', x: 0.51, y: 0.67 }, { id: 'h2', x: 0.79, y: 0.08 }, { id: 'h3', x: 0.27, y: 0.8 },
+        { id: 'h4', x: 0.76, y: 0.52 }, { id: 'h5', x: 0.76, y: 0.23 }, { id: 'h6', x: 0.38, y: 0.85 },
+        { id: 'h7', x: 0.74, y: 0.43 }, { id: 'h8', x: 0.83, y: 0.36 }, { id: 'h9', x: 0.68, y: 0.63 },
+        { id: 'h10', x: 0.39, y: 0.69 }, { id: 'h11', x: 0.62, y: 0.7 }, { id: 'h12', x: 0.79, y: 0.17 },
       ],
     },
     {
       label: 'centrés',
       points: [
-        { id: 'h1', x: -0.07, y: 0.13 }, { id: 'h2', x: 0.18, y: -0.46 }, { id: 'h3', x: -0.31, y: 0.27 },
-        { id: 'h4', x: 0.09, y: 0.07 }, { id: 'h5', x: 0.15, y: -0.3 }, { id: 'h6', x: -0.21, y: 0.32 },
-        { id: 'h7', x: 0.07, y: 0.0 }, { id: 'h8', x: 0.24, y: -0.22 }, { id: 'h9', x: 0.0, y: 0.18 },
-        { id: 'h10', x: -0.26, y: 0.19 }, { id: 'h11', x: -0.01, y: 0.2 }, { id: 'h12', x: 0.18, y: -0.36 },
+        { id: 'h1', x: -0.12, y: 0.16 }, { id: 'h2', x: 0.16, y: -0.43 }, { id: 'h3', x: -0.36, y: 0.29 },
+        { id: 'h4', x: 0.13, y: 0.01 }, { id: 'h5', x: 0.13, y: -0.28 }, { id: 'h6', x: -0.25, y: 0.34 },
+        { id: 'h7', x: 0.11, y: -0.08 }, { id: 'h8', x: 0.2, y: -0.15 }, { id: 'h9', x: 0.05, y: 0.12 },
+        { id: 'h10', x: -0.24, y: 0.18 }, { id: 'h11', x: -0.01, y: 0.19 }, { id: 'h12', x: 0.16, y: -0.34 },
       ],
     },
   ]}
@@ -298,11 +313,11 @@ On peut essayer d’en retirer une partie. Si tous les vecteurs ont tendance à 
 
 Second symptôme, dans les dernières couches, le modèle ne pense plus seulement au sens du mot. Il prépare surtout ce qui ferait sens à cet endroit de la phrase :
 
-```text /retraite/
-Phrase: jusqu’à sa retraite
-
-Mots: rentrée, mariage, grève
-```
+<Words
+  sentence="jusqu’à sa retraite"
+  lists={[{ words: ['rentrée', 'mariage', 'grève'] }]}
+  marks={['retraite']}
+/>
 
 Des événements qui se placent très bien après « jusqu’à sa », mais qui n’ont que peu de rapport avec la `retraite`. Le modèle mesure en grande partie à quel point le candidat fonctionne bien avec ce qui l’entoure, alors que nous voulons mesurer à quel point son **sens** correspond à celui du mot caché. On voulait une distance sémantique, on a fabriqué un exercice à trous.
 
@@ -325,25 +340,28 @@ Cette fois, on ne récupère plus le vecteur de `fauché` mais celui des deux-po
 
 On ne mesure donc plus la représentation du mot lui-même, avec son orthographe et son éventuelle découpe en plusieurs tokens, mais l’état du modèle juste avant qu’il propose une réponse. Ça résout au passage notre problème avec les mots découpés comme `cafard` : peu importe qu’ils occupent un ou cinq tokens, en arrivant aux deux-points le modèle les a déjà tous lus. Et en regardant couche par couche, sur un modèle qui en compte 36, on voit même la réponse se préciser progressivement :
 
-```text /sans-le-sou/ /désargenté/ /pauvre/ /impécunieux/ /indigent/ /démuni/
-couche 22 : fauchée, fauchage, faucheur, faucheux, fâché
-couche 28 : fauchée, faucheur, sans-le-sou, désargenté, pauvre
-couche 33 : désargenté, sans-le-sou, impécunieux, indigent, démuni
-```
+<Words
+  lists={[
+    { label: 'couche 22', words: ['fauchée', 'fauchage', 'faucheur', 'faucheux', 'fâché'] },
+    { label: 'couche 28', words: ['fauchée', 'faucheur', 'sans-le-sou', 'désargenté', 'pauvre'] },
+    { label: 'couche 33', words: ['désargenté', 'sans-le-sou', 'impécunieux', 'indigent', 'démuni'] },
+  ]}
+  marks={['sans-le-sou', 'désargenté', 'pauvre', 'impécunieux', 'indigent', 'démuni']}
+/>
 
-Au milieu du réseau, la représentation reste encore très sensible à la forme de fauché. Quelques couches plus tard, les voisins orthographiques disparaissent progressivement au profit de mots liés à son sens dans la phrase. Le modèle a fini par comprendre qu’on parlait d’un type sans argent, et quelques autres exemples choisis précisément pour leur ambiguïté commencent alors à fonctionner correctement :
+Au milieu du réseau, la représentation reste encore très sensible à la forme de `fauché`. Quelques couches plus tard, les voisins orthographiques disparaissent progressivement au profit de mots liés à son sens dans la phrase. Le modèle a fini par comprendre qu’on parlait d’un type sans argent, et quelques autres exemples choisis précisément pour leur ambiguïté commencent alors à fonctionner correctement :
 
-```text /volent/
-Phrase: Ne crains plus jamais le vide, c’est le refuge de ceux qui volent
+<Words
+  sentence="Ne crains plus jamais le vide, c’est le refuge de ceux qui volent"
+  lists={[{ words: ['envoler', 'voltiger', 'planer'] }]}
+  marks={['volent']}
+/>
 
-Mots: envoler, voltiger, planer
-```
-
-```text /traite/
-Phrase: On me traite avec une douceur d’infirmière
-
-Mots: manier, dorloter, soigner
-```
+<Words
+  sentence="On me traite avec une douceur d’infirmière"
+  lists={[{ words: ['manier', 'dorloter', 'soigner'] }]}
+  marks={['traite']}
+/>
 
 ### C’est mieux mais c’est pas encore ça
 
@@ -361,11 +379,11 @@ J’ai d’abord testé **Qwen 3**, qui utilise l’architecture Transformer cla
 
 **Qwen 3.5** utilise une architecture plus récente : dans trois couches sur quatre, l’attention classique est remplacée par un mécanisme de mémoire linéaire moins coûteux (Gated DeltaNet pour les experts encore). Ça n’a rien changé à notre problème. `cafard` continue à rimer, et sur six mots ambigus ce modèle s’est même montré moins efficace que sa génération précédente. Détail savoureux, pour `volent`, la version à 4 milliards de paramètres a compris le ciel, et celle à 9 milliards les portefeuilles. En faisant grossir le modèle, j’avais perdu en pertinence. Mon approche n’était clairement pas la bonne.
 
-### Qwen 3 - Embedding
+### Qwen 3 – Embedding
 
 Il existe justement des LLM réentraînés pour fabriquer de bons vecteurs. Cette fois, on leur apprend explicitement que des textes sémantiquement proches doivent produire des représentations proches, et que des textes sans rapport doivent s’éloigner. Ce sont des **modèles d’embedding**, et c’est exactement la propriété qui manquait à nos **hidden states** bricolés à la main. Qwen propose ainsi **Qwen3-Embedding**, une famille construite à partir de **Qwen 3** puis spécialement entraînée pour produire des représentations destinées à la recherche et à la comparaison sémantique. Je l’ai testé de plusieurs façons. Les résultats étaient au même niveau médiocre que mes **hidden states**.
 
-### Qwen 3 - Reranker
+### Qwen 3 – Reranker
 
 Qwen distribue aussi **Qwen3-Reranker**, peut-être le candidat le plus prometteur sur le papier. Quand on fait une recherche sur Google, le moteur ramasse d’abord des milliers de pages potentiellement pertinentes, puis il les reclasse pour mettre les meilleures en tête. Ce second tri, c’est le travail d’un reranker, un modèle qui relit la recherche avec chaque page et juge si elle y répond. Ça ressemble à notre problème, formulé différemment. La phrase, avec son mot caché, c’est notre recherche Google, et l’embedding de Cémantix qui nous fournit 10 000 mots potentiellement pertinents, ce sont les résultats à reclasser. Cette fois, pas de distance à calculer ni d’entrailles de Transformer à trifouiller, on demande simplement au reranker de faire son travail.
 
@@ -387,13 +405,13 @@ Un modèle de décision peut utiliser une représentation du même genre, mais t
 
 En simplifiant énormément, ça donne quelque chose comme :
 
-```text /question/ /classifier/
-LLM:
-texte → représentation → probabilités sur tous les prochains tokens → texte
-
-Modèle de décision:
-texte + question → représentation → classifier → probabilités sur les réponses proposées
-```
+<Flow
+  chains={[
+    { name: 'LLM', steps: ['texte', 'représentation', null, 'probabilités sur tous les prochains tokens', 'texte'] },
+    { name: 'Modèle de décision', steps: ['texte + question', 'représentation', 'classifier', 'probabilités sur les réponses proposées'] },
+  ]}
+  marks={['question', 'classifier']}
+/>
 
 Le gros du travail reste le même : lire le langage, comprendre les relations entre les mots et construire une représentation du contexte. C’est seulement à la fin qu’on lui demande autre chose, et c’est précisément ce dont on a besoin. On a passé tout ce temps à récupérer les vecteurs intermédiaires d’un modèle entraîné à écrire, en espérant que leur géométrie réponde malgré tout à notre objectif. Cette fois, on peut simplement poser la question :
 
@@ -413,20 +431,22 @@ Cémantix garde son rôle de rabatteur. Il fournit les 10 000 voisins du mot cac
 4 : même sens, synonyme direct dans ce contexte
 ```
 
-La consigne est écrite en français ordinaire : Seul le sens compte, pas la grammaire, pas l’orthographe, pas le fait que le candidat puisse remplacer le mot dans la phrase. Reprenons `nerfs` :
+La consigne est écrite en français ordinaire : seul le sens compte, pas la grammaire, pas l’orthographe, pas le fait que le candidat puisse remplacer le mot dans la phrase. Reprenons `nerfs` :
 
-```
-Qwen : organes, thymus, esprits, médicaux, moelles, gut
-Jev  : nervosité, excitabilité, nerveux, énervement, irritable
-```
+<Words
+  lists={[
+    { label: 'Qwen', words: ['organes', 'thymus', 'esprits', 'médicaux', 'moelles', 'gut'] },
+    { label: 'Jev', words: ['nervosité', 'excitabilité', 'nerveux', 'énervement', 'irritable'] },
+  ]}
+/>
 
 Jev a compris qu’on parlait de tempérament et pas de neurologie. Quant aux rimes et aux voisins orthographiques, ils ont disparu pour de bon. Au début, Jev faisait pourtant lui aussi des erreurs :
 
-```text /étouffer/
-Phrase: la force d’étouffer mes émotions
-
-Mot 28: étouffer
-```
+<Words
+  sentence="la force d’étouffer mes émotions"
+  lists={[{ label: 'Mot 28', words: ['étouffer'] }]}
+  marks={['étouffer']}
+/>
 
 `étouffer` n’est pas un mot proche d’`émotions`, c’est un mot de la phrase. Alors j’ai ajouté une ligne à la consigne :
 

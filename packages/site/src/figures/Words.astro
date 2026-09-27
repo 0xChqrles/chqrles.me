@@ -1,0 +1,53 @@
+---
+import { isMarked, markParts } from './marks'
+
+// Words under study: a sentence, then lists of words (a model's nearest
+// neighbours), side by side when there are several. The words are the
+// post's own, so it is an exhibit, like a code block: no number, no caption.
+// Marks follow the code block's rule: every occurrence, in the ink, bold, and
+// the rest of that part (the sentence, or the lists) steps back to the muted
+// ink. Plain HTML: nothing runs in the browser.
+interface List {
+  label?: string
+  words: string[]
+}
+
+interface Props {
+  sentence?: string
+  lists?: List[]
+  marks?: string[]
+}
+
+const { sentence, lists = [], marks = [] } = Astro.props
+if (!sentence && lists.length === 0) throw new Error('<Words>: give a sentence, lists, or both.')
+if (lists.some((list) => list.words.length === 0)) throw new Error('<Words>: a list has no words.')
+const sentenceMarked = sentence !== undefined && isMarked(sentence, marks)
+const listsMarked = lists.some((list) => list.words.some((word) => isMarked(word, marks)))
+const parts = (text: string) => markParts(text, marks).map((part, i) => (i % 2 ? { part, mark: true } : { part, mark: false }))
+---
+
+<figure class="exhibit words">
+  {
+    sentence && (
+      <p class:list={['words-sentence', { 'has-marks': sentenceMarked }]}>
+        {parts(sentence).map(({ part, mark }) => (mark ? <span class="code-mark">{part}</span> : part))}
+      </p>
+    )
+  }
+  {
+    lists.length > 0 && (
+      <div class:list={['words-lists', { 'is-columns': lists.length > 1, 'has-marks': listsMarked }]}>
+        {lists.map((list) => (
+          <div class="words-list">
+            {list.label && <p class="words-label micro">{list.label}</p>}
+            <ul role="list">
+              {list.words.map((word) => (
+                <li>{parts(word).map(({ part, mark }) => (mark ? <span class="code-mark">{part}</span> : part))}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    )
+  }
+</figure>

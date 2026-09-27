@@ -1,7 +1,8 @@
 /* FACE B — the blog as a record sleeve and its liner notes.
    One flat near-black ground, one near-white ink, one vermilion that means
-   "where you are" (the playhead, the cued track, focus, selection). Depth is
-   one step of value. Corners stay under 4px. Lines are hairlines. */
+   "where you are" (the playhead, the cued track, focus, selection, the point
+   a reader holds in a figure). Depth is one step of value. Corners stay at
+   2px or less. Lines are hairlines. */
 
 :root {
   color-scheme: dark;
@@ -237,6 +238,23 @@ a.track-row:focus-visible {
   font-weight: 600;
 }
 
+/* An article's length, in its credits, stands on one ink hairline as wide as
+   its figures (the tracking's trailing space left out). Never a double rule. */
+/* inline-block, so WebKit and Chromium hang the line from the same box. */
+.credits .sum {
+  position: relative;
+  display: inline-block;
+}
+
+.credits .sum::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0.12em;
+  bottom: -3px;
+  border-top: 1px solid var(--ink);
+}
+
 @media (min-width: 1040px) {
   .tracklist {
     padding-top: clamp(160px, 30vh, 280px);
@@ -456,7 +474,10 @@ a.track-row:focus-visible {
 /* ── Article: the liner notes ─────────────────────────────────────────── */
 
 .prose {
-  font-size: 19px;
+  /* The text size, which the blocks set in a smaller mono (code, exhibits)
+     also space themselves by. */
+  --text-size: 19px;
+  font-size: var(--text-size);
   line-height: 1.58;
   font-weight: 400;
   color: var(--text);
@@ -596,6 +617,11 @@ a.track-row:focus-visible {
   margin: 0;
 }
 
+/* Emphasis in an italic quotation turns upright, or it would not show. */
+.prose blockquote em {
+  font-style: normal;
+}
+
 .prose ol,
 .prose ul {
   padding-left: 1.6em;
@@ -613,21 +639,31 @@ a.track-row:focus-visible {
   color: var(--muted);
 }
 
-/* Inline code: the mono, matched to the text's x-height. A token is never
-   broken across two lines (-ard must not split at its hyphen). */
+/* Inline code: a word held up as a word. It sits on the code mark's step of
+   value, in the ink, at regular weight: bold stays the mark's. The padding is
+   laid out, so the chip never covers a neighbouring space or apostrophe. Upright even in a
+   quotation: in code, slant means a comment. A token is never broken across
+   two lines (-ard must not split at its hyphen). */
 .prose code {
   font-family: var(--face-mono);
-  font-size: 0.8em;
+  font-size: 0.85em;
   font-variant-ligatures: none;
 }
 
 .prose :not(pre) > code {
+  padding: 1px 3px;
+  border-radius: 2px;
+  background: var(--line);
+  color: var(--ink);
+  font-style: normal;
   white-space: nowrap;
 }
 
+/* A code block spaces itself by the text, like a quotation, not by its own
+   smaller size. */
 .prose pre {
   isolation: isolate;
-  margin: 1.5em 0;
+  margin: calc(1.5 * var(--text-size)) 0;
   padding: 16px 18px;
   background: var(--raise);
   border-radius: 2px;
@@ -644,6 +680,16 @@ a.track-row:focus-visible {
 
 .prose pre code {
   font-size: inherit;
+}
+
+/* A line that wraps hangs two characters in, so it never reads as a new
+   line. Two IBM Plex Mono cells are 1.2em (0.6em each); `ch` would measure
+   the latin-ext face, which has no 0, and land between two characters. */
+.prose pre .line {
+  display: inline-block;
+  width: 100%;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
 }
 
 /* Highlighted code (src/lib/code-theme.ts): value, weight and slant. */
@@ -666,6 +712,7 @@ a.track-row:focus-visible {
    padding is drawn behind the word, never laid out, so no character moves. */
 .code-mark {
   position: relative;
+  white-space: nowrap;
 }
 .code-mark::before {
   content: '';
@@ -727,7 +774,8 @@ a.track-row:focus-visible {
 /* ── Figures (src/figures) ─────────────────────────────────────────────
    One step of value holds the drawing; the number and caption follow it.
    Drawings wear the palette: hairlines, the ink, the muted ink, and the cue
-   only for the point the reader is holding. */
+   for the point the reader is holding; beyond that, only for a thing that
+   nothing else in the figure tells apart (AGENTS.md, the palette). */
 
 .prose figure.fig {
   counter-increment: figure;
@@ -794,12 +842,17 @@ a.track-row:focus-visible {
 }
 
 .plane-ticks text {
-  font-size: 10px;
+  font-size: 11px;
   fill: var(--muted);
 }
 
-/* The accent, in a figure: one specific thing the figure is about (this
-   distance, this arc, the mean), never a concept shown in general. */
+/* The tick values are written outside the square: room for them in the frame. */
+.plane:has(.plane-ticks) {
+  padding: 0 0 16px 20px;
+}
+
+/* The accent, in a figure: one specific thing that only the colour tells
+   apart (AGENTS.md, the palette), never a concept shown in general. */
 .plane-link.is-accent line {
   stroke: var(--cue);
   stroke-width: 1.5px;
@@ -809,19 +862,31 @@ a.track-row:focus-visible {
   fill: var(--cue);
 }
 
+/* The mean: derived from the points, so dashed, in the ink; while it is
+   drawn, the vectors it comes from step back to the muted ink, as the rest of
+   a marked code block does. */
+.plane.has-mean .plane-vector line {
+  stroke: var(--muted);
+}
+
+.plane.has-mean .plane-vector path {
+  fill: var(--muted);
+}
+
 .plane-mean line {
-  stroke: var(--cue);
+  stroke: var(--ink);
   stroke-width: 2px;
+  stroke-dasharray: 5 3;
 }
 
 .plane-mean path {
-  fill: var(--cue);
+  fill: var(--ink);
 }
 
 .plane-mean text {
   font-size: 11px;
   font-weight: 600;
-  fill: var(--cue);
+  fill: var(--ink);
   paint-order: stroke;
   stroke: var(--raise);
   stroke-width: 4px;
@@ -1018,7 +1083,7 @@ a.track-row:focus-visible {
   display: block;
   contain: inline-size;
   width: 100%;
-  height: 56px;
+  height: 40px;
   overflow: visible;
 }
 
@@ -1141,7 +1206,7 @@ a.track-row:focus-visible {
     padding: 24px;
   }
   .arcs-lines {
-    height: 72px;
+    height: 56px;
   }
   .prose .arcs-tokens {
     column-gap: 12px;
@@ -1151,7 +1216,7 @@ a.track-row:focus-visible {
 
 @media (min-width: 641px) {
   .prose {
-    font-size: 21px;
+    --text-size: 21px;
     line-height: 1.6;
     hyphens: manual;
     -webkit-hyphens: manual;
@@ -1165,6 +1230,240 @@ a.track-row:focus-visible {
   .prose pre {
     font-size: 15px;
     padding: 18px 22px;
+  }
+}
+
+/* ── Exhibits (src/figures: Words, Flow) ─────────────────────────────────
+   The post's own words, drawn: a code block's panel, spacing and mono, with
+   no number and no caption. Marks read as in a code block. */
+
+.prose figure.exhibit {
+  isolation: isolate;
+  margin: calc(1.5 * var(--text-size)) 0;
+  padding: 16px 18px;
+  background: var(--raise);
+  border-radius: 2px;
+  font-family: var(--face-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  font-variant-ligatures: none;
+  hyphens: none;
+  color: var(--ink);
+}
+
+.exhibit .code-mark {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Words: the sentence, then the lists. A part with a mark steps back to the
+   muted ink; its marks stay in the ink. */
+.prose .words-sentence {
+  margin: 0;
+}
+
+.words-sentence.has-marks,
+.words-lists.has-marks {
+  color: var(--muted);
+}
+
+.prose .words-sentence + .words-lists {
+  margin-top: 12px;
+}
+
+/* One list flows; several stand in columns, each as wide as its longest word
+   at least, one word a line. A column that does not fit goes under the
+   others, so the panel never spills. */
+.words-lists.is-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 1.2em;
+}
+
+.words-lists.is-columns > .words-list {
+  flex: 1 1 0;
+  min-width: max-content;
+}
+
+.prose .words-lists ul {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1.2em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.words-lists.is-columns ul {
+  flex-direction: column;
+}
+
+.prose .words-lists li {
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.prose .words-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+}
+
+/* Flow: steps as hairline boxes, one under the other, an arrow into each. */
+.prose figure.flow {
+  --gap: 22px; /* the room an arrow runs in */
+  --lh: 18px;
+  font-size: 13px;
+  line-height: var(--lh);
+}
+
+.prose .flow-steps {
+  position: relative;
+  display: grid;
+  row-gap: var(--gap);
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.prose .flow-steps > li {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+.prose .flow-steps > .flow-step {
+  display: grid;
+  align-content: center;
+  justify-content: center;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.flow.has-marks .flow-step {
+  color: var(--muted);
+}
+
+/* The arrow into a step, in the gap above: a 1px shaft, a plain box so it
+   lands on whole pixels, and its head. */
+.flow .is-next::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--gap) - 1px);
+  left: calc(50% - 0.5px);
+  width: 1px;
+  height: calc(var(--gap) - 6px);
+  background: var(--muted);
+}
+
+.flow .is-next::after {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: calc(50% - 4.5px);
+  width: 9px;
+  height: 6px;
+  background: var(--muted);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* A loop: the last step leads back to the first, up a lane on the right.
+   Each step draws its own stretch of the lane, so the lane leaves the last
+   step and enters the first at their middles, whatever their lines. */
+.prose .flow-steps.is-loop {
+  --lane: 30px;
+  padding-right: var(--lane);
+}
+
+.flow-lane {
+  position: absolute;
+  top: -1px;
+  bottom: calc(-1 * var(--gap) - 1px);
+  left: calc(100% + 1px);
+  width: calc(var(--lane) / 2);
+  border-right: 1px solid var(--muted);
+  pointer-events: none;
+}
+
+.flow-step:first-child > .flow-lane {
+  top: 50%;
+  border-top: 1px solid var(--muted);
+}
+
+.flow-step:last-child > .flow-lane {
+  bottom: 50%;
+  border-bottom: 1px solid var(--muted);
+}
+
+/* Its head, on the first step's edge, pointing into it. */
+.flow-step:first-child > .flow-lane::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 7px;
+  height: 9px;
+  background: var(--muted);
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+}
+
+/* Two chains side by side, their names above, aligned row by row. */
+.prose .flow-chains {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row dense;
+  column-gap: 12px;
+  row-gap: var(--gap);
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.prose .flow-chains .flow-steps {
+  display: contents;
+}
+
+.flow-chains .is-a,
+.flow-chains .is-a > li {
+  grid-column: 1;
+}
+
+.flow-chains .is-b,
+.flow-chains .is-b > li {
+  grid-column: 2;
+}
+
+.prose .flow-name {
+  align-self: end;
+  margin: 0 0 calc(12px - var(--gap));
+  text-align: center;
+  color: var(--muted);
+}
+
+/* A row where a chain has no step between two of its own: its line runs
+   straight through. */
+.flow-through::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--gap) - 1px);
+  bottom: -1px;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: var(--muted);
+}
+
+@media (min-width: 641px) {
+  .prose figure.exhibit {
+    padding: 18px 22px;
+    font-size: 15px;
+  }
+  .prose figure.flow {
+    --gap: 24px;
+    --lh: 20px;
+    font-size: 14px;
   }
 }
 

@@ -31,6 +31,10 @@ export function rehypeCodeClasses() {
   return (tree: Root) => {
     visit(tree, 'element', (pre) => {
       if (pre.tagName !== 'pre' || !classList(pre).includes('astro-code')) return
+      // Shiki makes every block a tab stop, for code that scrolls sideways.
+      // Code here wraps instead, so the stop would focus nothing.
+      delete pre.properties.tabindex
+      delete pre.properties.tabIndex
       visit(pre, 'element', (node) => {
         const style = node.properties.style
         if (typeof style !== 'string') return
@@ -94,7 +98,9 @@ export function transformerMarkWords(): ShikiTransformer {
         else merged.push([start, end])
       }
       options.decorations ||= []
-      for (const [start, end] of merged) options.decorations.push({ start, end, properties: { class: 'code-mark' } })
+      // Always a span of its own: a mark that covers a whole line must not
+      // turn the line itself into a mark.
+      for (const [start, end] of merged) options.decorations.push({ start, end, properties: { class: 'code-mark' }, alwaysWrap: true })
     },
   }
 }
