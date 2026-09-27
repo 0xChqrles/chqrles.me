@@ -155,6 +155,32 @@ Les autres mots possèdent de leur côté une **K (key)**, et pour déterminer l
 
 Ces pourcentages servent à pondérer les **values** correspondantes, qui viennent enrichir le vecteur de `vole`.
 
+<Plane
+  caption="`vole` avant et après l’attention : la value de `pigeon` le rapproche de `planer` et l’éloigne de `dérober`."
+  states={[
+    {
+      label: 'avant',
+      points: [
+        { id: 'planer', label: 'planer', x: 1, y: 3.2 },
+        { id: 'dérober', label: 'dérober', x: 4.4, y: 1.2 },
+        { id: 'vole', label: 'vole', x: 2.75, y: 2.35 },
+      ],
+    },
+    {
+      label: 'après',
+      points: [
+        { id: 'planer', label: 'planer', x: 1, y: 3.2 },
+        { id: 'dérober', label: 'dérober', x: 4.4, y: 1.2 },
+        { id: 'vole', label: 'vole', x: 1.9, y: 3.2 },
+      ],
+    },
+  ]}
+  links={[
+    { from: 'vole', to: 'planer', distance: true },
+    { from: 'vole', to: 'dérober', distance: true },
+  ]}
+/>
+
 `vole` vient ainsi d’intégrer beaucoup d’information provenant de `pigeon`, sans que le modèle ait reçu une règle écrite à la main disant :
 
 > Si le sujet est un pigeon, alors vole signifie probablement se déplacer dans les airs.
