@@ -134,8 +134,8 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
     ids the reader switches between); `links` (with `distance` written live on the
     link's middle, level, the line breaking around it, and `accent` for the one segment a figure
     is about); `arrows` (vectors from the origin);
-    `mean` (the points' mean as a dashed ink vector, a string labels it; while it is drawn
-    the other vectors step back to the muted ink); `ticks` (the grid's values
+    `mean` (the points' mean as a dashed ink vector, a string labels it past its tip; while
+    it is drawn the other vectors step back to the muted ink); `ticks` (the grid's values
     on the edges); `coordinates` (beside each point); `move` (drag, or arrow keys);
     `domain`; `digits` (decimals written, 1 by default).
   - `<Bars>`: labelled values as bars, every value 0 or more (a negative one fails the
@@ -154,7 +154,7 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
     going under the others), `marks`. A mark in the
     sentence mutes the sentence; a mark in the lists mutes the lists.
   - `<Flow>`: steps one under the other at every width, an arrow into each. `steps` and
-    optionally `loop` (the return's words, back to the first step), or `chains` (two,
+    optionally `loop` (the last step leads back to the first), or `chains` (two,
     `name` and `steps`, aligned row by row; `null` where a chain has no step, its line
     running through), `marks`.
 - **A figure runs in the browser only when the reader can act on it** (a React island,

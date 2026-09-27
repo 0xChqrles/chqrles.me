@@ -1344,7 +1344,7 @@ a.track-row:focus-visible {
   text-wrap: balance;
 }
 
-.flow.has-marks :is(.flow-step, .flow-back) {
+.flow.has-marks .flow-step {
   color: var(--muted);
 }
 
@@ -1371,52 +1371,40 @@ a.track-row:focus-visible {
   clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
-/* A loop: the return's words under the last step; their line runs up a lane
-   on the right and back into the first step. */
+/* A loop: the last step leads back to the first, up a lane on the right.
+   Each step draws its own stretch of the lane, so the lane leaves the last
+   step and enters the first at their middles, whatever their lines. */
 .prose .flow-steps.is-loop {
   --lane: 30px;
   padding-right: var(--lane);
 }
 
-.prose .flow-back {
-  text-align: center;
-}
-
-.flow-back > span {
-  position: relative;
-  z-index: 1;
-  padding: 0 8px;
-  background: var(--raise);
-}
-
-/* The return line, from under the return's words to the lane, on the same
-   row as the lane's foot, whatever the number of lines above it. */
-.flow-steps.is-loop::before {
-  content: '';
+.flow-lane {
   position: absolute;
-  bottom: calc(var(--lh) / 2);
-  left: calc((100% - var(--lane)) / 2);
-  right: calc(var(--lane) / 2);
-  border-bottom: 1px solid var(--muted);
-}
-
-.flow-steps.is-loop::after {
-  content: '';
-  position: absolute;
-  top: calc(9px + var(--lh) / 2);
-  bottom: calc(var(--lh) / 2);
-  right: calc(var(--lane) / 2);
+  top: -1px;
+  bottom: calc(-1 * var(--gap) - 1px);
+  left: calc(100% + 1px);
   width: calc(var(--lane) / 2);
-  border: 1px solid var(--muted);
-  border-left: 0;
+  border-right: 1px solid var(--muted);
   pointer-events: none;
 }
 
-.flow-steps.is-loop > .flow-step:first-child::after {
+.flow-step:first-child > .flow-lane {
+  top: 50%;
+  border-top: 1px solid var(--muted);
+}
+
+.flow-step:last-child > .flow-lane {
+  bottom: 50%;
+  border-bottom: 1px solid var(--muted);
+}
+
+/* Its head, on the first step's edge, pointing into it. */
+.flow-step:first-child > .flow-lane::before {
   content: '';
   position: absolute;
-  top: calc(9px + var(--lh) / 2 - 4.5px);
-  right: -8px;
+  top: -4px;
+  left: 0;
   width: 7px;
   height: 9px;
   background: var(--muted);

@@ -16,8 +16,8 @@ interface Chain {
 interface Props {
   // One chain...
   steps?: string[]
-  // ...whose last step leads back to the first: these are the return's words.
-  loop?: string
+  // ...whose last step leads back to the first.
+  loop?: boolean
   // ...or two chains, side by side.
   chains?: [Chain, Chain]
   marks?: string[]
@@ -32,7 +32,7 @@ for (const list of steps ? [steps] : chains!.map((c) => c.steps)) {
   if (list[0] === null || list.at(-1) === null) throw new Error('<Flow>: a chain starts and ends on a step.')
 }
 const parts = (text: string) => markParts(text, marks).map((part, i) => (i % 2 ? { part, mark: true } : { part, mark: false }))
-const marked = [...(steps ?? []), ...(chains ?? []).flatMap((c) => c.steps), loop].some((s) => s && isMarked(s, marks))
+const marked = [...(steps ?? []), ...(chains ?? []).flatMap((c) => c.steps)].some((s) => s && isMarked(s, marks))
 // A row with no step of this chain between two of its steps: a line through.
 const rows = chains ? Math.max(...chains.map((c) => c.steps.length)) : 0
 ---
@@ -44,13 +44,9 @@ const rows = chains ? Math.max(...chains.map((c) => c.steps.length)) : 0
         {steps.map((step, i) => (
           <li class:list={['flow-step', { 'is-next': i > 0 }]}>
             <span>{parts(step).map(({ part, mark }) => (mark ? <span class="code-mark">{part}</span> : part))}</span>
+            {loop && <span class="flow-lane" aria-hidden="true" />}
           </li>
         ))}
-        {loop && (
-          <li class="flow-back is-next">
-            <span>{parts(loop).map(({ part, mark }) => (mark ? <span class="code-mark">{part}</span> : part))}</span>
-          </li>
-        )}
       </ol>
     )
   }

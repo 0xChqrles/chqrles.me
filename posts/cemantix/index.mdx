@@ -69,7 +69,7 @@ Chacune de ces variations forme un **gradient**. Un vecteur qui indique la direc
 
 <Flow
   steps={['prédiction', 'comparaison avec le vrai contexte', 'calcul de la loss', 'calcul des gradients', 'légère modification des vecteurs']}
-  loop="nouvelle prédiction"
+  loop
 />
 
 Après seulement quelques milliards de répétitions, la loss commence à descendre sérieusement. Mais ce qui nous intéresse surtout, c’est ce que toutes ces corrections ont fait à nos vecteurs. Imaginons que le réseau rencontre régulièrement ce genre de phrases :
@@ -154,14 +154,6 @@ Les autres mots possèdent de leur côté une **K (key)**, et pour déterminer l
 />
 
 Ces pourcentages servent à pondérer les **values** correspondantes, qui viennent enrichir le vecteur de `vole`.
-
-<Arcs
-  caption="Ce que `vole` récupère : 90 % de la value de `pigeon`, 10 % de celle de `Le`."
-  tokens={['Le', 'pigeon', 'vole', 'dans', 'le', 'ciel']}
-  from={2}
-  to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
-  sum
-/>
 
 `vole` vient ainsi d’intégrer beaucoup d’information provenant de `pigeon`, sans que le modèle ait reçu une règle écrite à la main disant :
 
@@ -276,18 +268,18 @@ On peut essayer d’en retirer une partie. Si tous les vecteurs ont tendance à 
       label: 'bruts',
       points: [
         { id: 'h1', x: 0.54, y: 0.65 }, { id: 'h2', x: 0.79, y: 0.06 }, { id: 'h3', x: 0.3, y: 0.79 },
-        { id: 'h4', x: 0.7, y: 0.59 }, { id: 'h5', x: 0.76, y: 0.22 }, { id: 'h6', x: 0.4, y: 0.84 },
-        { id: 'h7', x: 0.68, y: 0.52 }, { id: 'h8', x: 0.85, y: 0.3 }, { id: 'h9', x: 0.61, y: 0.7 },
+        { id: 'h4', x: 0.51, y: 0.76 }, { id: 'h5', x: 0.76, y: 0.22 }, { id: 'h6', x: 0.4, y: 0.84 },
+        { id: 'h7', x: 0.77, y: 0.38 }, { id: 'h8', x: 0.85, y: 0.3 }, { id: 'h9', x: 0.56, y: 0.74 },
         { id: 'h10', x: 0.35, y: 0.71 }, { id: 'h11', x: 0.6, y: 0.72 }, { id: 'h12', x: 0.79, y: 0.16 },
       ],
     },
     {
       label: 'centrés',
       points: [
-        { id: 'h1', x: -0.07, y: 0.13 }, { id: 'h2', x: 0.18, y: -0.46 }, { id: 'h3', x: -0.31, y: 0.27 },
-        { id: 'h4', x: 0.09, y: 0.07 }, { id: 'h5', x: 0.15, y: -0.3 }, { id: 'h6', x: -0.21, y: 0.32 },
-        { id: 'h7', x: 0.07, y: 0.0 }, { id: 'h8', x: 0.24, y: -0.22 }, { id: 'h9', x: 0.0, y: 0.18 },
-        { id: 'h10', x: -0.26, y: 0.19 }, { id: 'h11', x: -0.01, y: 0.2 }, { id: 'h12', x: 0.18, y: -0.36 },
+        { id: 'h1', x: -0.06, y: 0.12 }, { id: 'h2', x: 0.19, y: -0.47 }, { id: 'h3', x: -0.3, y: 0.26 },
+        { id: 'h4', x: -0.09, y: 0.23 }, { id: 'h5', x: 0.16, y: -0.31 }, { id: 'h6', x: -0.2, y: 0.31 },
+        { id: 'h7', x: 0.17, y: -0.15 }, { id: 'h8', x: 0.25, y: -0.23 }, { id: 'h9', x: -0.04, y: 0.21 },
+        { id: 'h10', x: -0.25, y: 0.18 }, { id: 'h11', x: 0.0, y: 0.19 }, { id: 'h12', x: 0.19, y: -0.37 },
       ],
     },
   ]}

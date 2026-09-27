@@ -136,10 +136,23 @@ export default function Plane({ points, states, links = [], arrows = false, coor
   const centre = Object.values(at).reduce((sum, p, _, all) => ({ x: sum.x + p.x / all.length, y: sum.y + p.y / all.length }), { x: 0, y: 0 })
   // Once centred, the mean is next to nothing: it is not drawn.
   const meanShown = Boolean(mean) && Math.hypot((centre.x / (x1 - x0)) * 100, (centre.y / (y1 - y0)) * 100) > 2
-  // The head of a vector, turned along it (the square keeps the proportions).
+  // A vector's direction on screen (the square keeps the proportions).
+  const turn = (x: number, y: number) => Math.atan2(-(y / (y1 - y0)), x / (x1 - x0))
+  // A label past a vector's tip, along it, so it reads as the vector's end
+  // rather than landing on a neighbouring vector.
+  const label = (x: number, y: number, text: string) => {
+    const a = turn(x, y)
+    const dx = 10 * Math.cos(a)
+    return (
+      <text x={dx} y={10 * Math.sin(a)} dy="0.35em" textAnchor={dx < 0 ? 'end' : 'start'}>
+        {text}
+      </text>
+    )
+  }
+  // The head of a vector, turned along it.
   const head = (x: number, y: number) => (
     <svg x={X(x)} y={Y(y)} overflow="visible">
-      <path d="M0 0L-8 -3.5L-8 3.5z" transform={`rotate(${(Math.atan2(-(y / (y1 - y0)), x / (x1 - x0)) * 180) / Math.PI})`} />
+      <path d="M0 0L-8 -3.5L-8 3.5z" transform={`rotate(${(turn(x, y) * 180) / Math.PI})`} />
     </svg>
   )
 
@@ -216,9 +229,7 @@ export default function Plane({ points, states, links = [], arrows = false, coor
               {head(centre.x, centre.y)}
               {typeof mean === 'string' && (
                 <svg x={X(centre.x)} y={Y(centre.y)} overflow="visible">
-                  <text x="10" y="16">
-                    {mean}
-                  </text>
+                  {label(centre.x, centre.y, mean)}
                 </svg>
               )}
             </g>
