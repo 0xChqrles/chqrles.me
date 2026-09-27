@@ -40,9 +40,9 @@ export interface PlaneProps {
   coordinates?: boolean
   // The grid's values written along the bottom and left edges.
   ticks?: boolean
-  // The points' mean drawn in the accent as a vector from the origin (a string
-  // labels it), for a figure about the mean. It shrinks to nothing when the
-  // points are centred.
+  // The points' mean drawn as a dashed vector from the origin (a string labels
+  // it), for a figure about the mean. It shrinks to nothing when the points
+  // are centred.
   mean?: boolean | string
   // The reader moves the points: drag one, or focus it and use the arrow keys.
   move?: boolean
@@ -134,6 +134,8 @@ export default function Plane({ points, states, links = [], arrows = false, coor
 
   const ticks = { x: steps(x0, x1), y: steps(y0, y1) }
   const centre = Object.values(at).reduce((sum, p, _, all) => ({ x: sum.x + p.x / all.length, y: sum.y + p.y / all.length }), { x: 0, y: 0 })
+  // Once centred, the mean is next to nothing: it is not drawn.
+  const meanShown = Boolean(mean) && Math.hypot((centre.x / (x1 - x0)) * 100, (centre.y / (y1 - y0)) * 100) > 2
   // The head of a vector, turned along it (the square keeps the proportions).
   const head = (x: number, y: number) => (
     <svg x={X(x)} y={Y(y)} overflow="visible">
@@ -142,7 +144,7 @@ export default function Plane({ points, states, links = [], arrows = false, coor
   )
 
   return (
-    <div className={move ? 'plane plane-move' : 'plane'}>
+    <div className={['plane', move && 'plane-move', meanShown && 'has-mean'].filter(Boolean).join(' ')}>
       {states && (
         <div className="plane-states" role="group">
           {states.map((s, i) => (
@@ -208,7 +210,7 @@ export default function Plane({ points, states, links = [], arrows = false, coor
                 {head(p.x, p.y)}
               </g>
             ))}
-          {mean && Math.hypot((centre.x / (x1 - x0)) * 100, (centre.y / (y1 - y0)) * 100) > 2 && (
+          {meanShown && (
             <g className="plane-mean">
               <line x1={X(0)} y1={Y(0)} x2={X(centre.x)} y2={Y(centre.y)} />
               {head(centre.x, centre.y)}

@@ -1,7 +1,8 @@
 /* FACE B — the blog as a record sleeve and its liner notes.
    One flat near-black ground, one near-white ink, one vermilion that means
-   "where you are" (the playhead, the cued track, focus, selection). Depth is
-   one step of value. Corners stay under 4px. Lines are hairlines. */
+   "where you are" (the playhead, the cued track, focus, selection, the point
+   a reader holds in a figure). Depth is one step of value. Corners stay at
+   2px or less. Lines are hairlines. */
 
 :root {
   color-scheme: dark;
@@ -755,7 +756,8 @@ a.track-row:focus-visible {
 /* ── Figures (src/figures) ─────────────────────────────────────────────
    One step of value holds the drawing; the number and caption follow it.
    Drawings wear the palette: hairlines, the ink, the muted ink, and the cue
-   only for the point the reader is holding. */
+   for the point the reader is holding; beyond that, only for a thing that
+   nothing else in the figure tells apart (AGENTS.md, the palette). */
 
 .prose figure.fig {
   counter-increment: figure;
@@ -822,8 +824,13 @@ a.track-row:focus-visible {
 }
 
 .plane-ticks text {
-  font-size: 10px;
+  font-size: 11px;
   fill: var(--muted);
+}
+
+/* The tick values are written outside the square: room for them in the frame. */
+.plane:has(.plane-ticks) {
+  padding: 0 0 16px 20px;
 }
 
 /* The accent, in a figure: one specific thing the figure is about (this
@@ -837,19 +844,31 @@ a.track-row:focus-visible {
   fill: var(--cue);
 }
 
+/* The mean: derived from the points, so dashed, in the ink; while it is
+   drawn, the vectors it comes from step back to the muted ink, as the rest of
+   a marked code block does. */
+.plane.has-mean .plane-vector line {
+  stroke: var(--muted);
+}
+
+.plane.has-mean .plane-vector path {
+  fill: var(--muted);
+}
+
 .plane-mean line {
-  stroke: var(--cue);
+  stroke: var(--ink);
   stroke-width: 2px;
+  stroke-dasharray: 5 3;
 }
 
 .plane-mean path {
-  fill: var(--cue);
+  fill: var(--ink);
 }
 
 .plane-mean text {
   font-size: 11px;
   font-weight: 600;
-  fill: var(--cue);
+  fill: var(--ink);
   paint-order: stroke;
   stroke: var(--raise);
   stroke-width: 4px;
@@ -1046,7 +1065,7 @@ a.track-row:focus-visible {
   display: block;
   contain: inline-size;
   width: 100%;
-  height: 56px;
+  height: 40px;
   overflow: visible;
 }
 
@@ -1169,7 +1188,7 @@ a.track-row:focus-visible {
     padding: 24px;
   }
   .arcs-lines {
-    height: 72px;
+    height: 56px;
   }
   .prose .arcs-tokens {
     column-gap: 12px;
@@ -1193,6 +1212,234 @@ a.track-row:focus-visible {
   .prose pre {
     font-size: 15px;
     padding: 18px 22px;
+  }
+}
+
+/* ── Exhibits (src/figures: Words, Flow) ─────────────────────────────────
+   The post's own words, drawn: a code block's panel, spacing and mono, with
+   no number and no caption. Marks read as in a code block. */
+
+.prose figure.exhibit {
+  isolation: isolate;
+  margin: calc(1.5 * var(--text-size)) 0;
+  padding: 16px 18px;
+  background: var(--raise);
+  border-radius: 2px;
+  font-family: var(--face-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  font-variant-ligatures: none;
+  hyphens: none;
+  color: var(--ink);
+}
+
+.exhibit .code-mark {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Words: the sentence, then the lists. A part with a mark steps back to the
+   muted ink; its marks stay in the ink. */
+.prose .words-sentence {
+  margin: 0;
+}
+
+.words-sentence.has-marks,
+.words-lists.has-marks {
+  color: var(--muted);
+}
+
+.prose .words-sentence + .words-lists {
+  margin-top: 12px;
+}
+
+/* One list flows; several stand in columns, each as wide as its longest word
+   at least, one word a line. */
+.words-lists.is-columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(max-content, 1fr);
+  column-gap: 2ch;
+}
+
+.prose .words-lists ul {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 2ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.words-lists.is-columns ul {
+  flex-direction: column;
+}
+
+.prose .words-lists li {
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.prose .words-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+}
+
+/* Flow: steps as hairline boxes, one under the other, an arrow into each. */
+.prose figure.flow {
+  --gap: 22px; /* the room an arrow runs in */
+  --lh: 18px;
+  font-size: 13px;
+  line-height: var(--lh);
+}
+
+.prose .flow-steps {
+  position: relative;
+  display: grid;
+  row-gap: var(--gap);
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.prose .flow-steps > li {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+.prose .flow-steps > .flow-step {
+  display: grid;
+  align-content: center;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.flow.has-marks .flow-step {
+  color: var(--muted);
+}
+
+/* The arrow into a step: a 1px shaft and its head, one shape, in the gap above. */
+.flow .is-next::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--gap) - 1px);
+  left: calc(50% - 4.5px);
+  width: 9px;
+  height: var(--gap);
+  background: var(--muted);
+  clip-path: polygon(4px 0, 5px 0, 5px calc(100% - 6px), 9px calc(100% - 6px), 4.5px 100%, 0 calc(100% - 6px), 4px calc(100% - 6px));
+}
+
+/* A loop: the return's words under the last step; their line runs up a lane
+   on the right and back into the first step. */
+.prose .flow-steps.is-loop {
+  --lane: 30px;
+  padding-right: var(--lane);
+}
+
+.prose .flow-back {
+  text-align: center;
+}
+
+.flow-back > span {
+  position: relative;
+  z-index: 1;
+  padding: 0 8px;
+  background: var(--raise);
+}
+
+.flow-back::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  right: calc(-1 * var(--lane) / 2);
+  border-top: 1px solid var(--muted);
+}
+
+.flow-steps.is-loop::after {
+  content: '';
+  position: absolute;
+  top: calc(9px + var(--lh) / 2);
+  bottom: calc(var(--lh) / 2);
+  right: calc(var(--lane) / 2);
+  width: calc(var(--lane) / 2);
+  border: 1px solid var(--muted);
+  border-left: 0;
+  pointer-events: none;
+}
+
+.flow-steps.is-loop > .flow-step:first-child::after {
+  content: '';
+  position: absolute;
+  top: calc(9px + var(--lh) / 2 - 4.5px);
+  right: -8px;
+  width: 7px;
+  height: 9px;
+  background: var(--muted);
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+}
+
+/* Two chains side by side, their names above, aligned row by row. */
+.prose .flow-chains {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row dense;
+  column-gap: 12px;
+  row-gap: var(--gap);
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.prose .flow-chains .flow-steps {
+  display: contents;
+}
+
+.flow-chains .is-a,
+.flow-chains .is-a > li {
+  grid-column: 1;
+}
+
+.flow-chains .is-b,
+.flow-chains .is-b > li {
+  grid-column: 2;
+}
+
+.prose .flow-name {
+  align-self: end;
+  margin: 0 0 calc(12px - var(--gap));
+  text-align: center;
+  color: var(--muted);
+}
+
+/* A row where a chain has no step between two of its own: its line runs
+   straight through. */
+.flow-through::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--gap) - 1px);
+  bottom: -1px;
+  left: calc(50% - 4.5px);
+  width: 9px;
+  background: var(--muted);
+  clip-path: polygon(4px 0, 5px 0, 5px 100%, 4px 100%);
+}
+
+@media (min-width: 641px) {
+  .prose figure.exhibit {
+    padding: 18px 22px;
+    font-size: 15px;
+  }
+  .prose figure.flow {
+    --gap: 24px;
+    --lh: 20px;
+    font-size: 14px;
   }
 }
 

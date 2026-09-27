@@ -134,7 +134,8 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
     ids the reader switches between); `links` (with `distance` written live on the
     link's middle, level, the line breaking around it, and `accent` for the one segment a figure
     is about); `arrows` (vectors from the origin);
-    `mean` (the points' mean as an accent vector, a string labels it); `ticks` (the grid's values
+    `mean` (the points' mean as a dashed ink vector, a string labels it; while it is drawn
+    the other vectors step back to the muted ink); `ticks` (the grid's values
     on the edges); `coordinates` (beside each point); `move` (drag, or arrow keys);
     `domain`; `digits` (decimals written, 1 by default).
   - `<Bars>`: labelled values as bars, every value 0 or more (a negative one fails the
@@ -142,12 +143,24 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   - `<Arcs>`: a sequence of tokens with weighted arcs from one to others, or to itself (a
     small loop). `tokens`, `from`, `to` (`token`, `weight` 0 to 1, `accent`), `mask="causal"` (what
     comes after `from` is out of reach), `sum` (the weighted sum it ends up with). Too
-    many tokens for the column: the figure scrolls sideways, never the page.
+    many tokens for the column: the figure scrolls sideways, never the page. An arc rises
+    with its reach, the farthest one in the figure to the top.
+- **The exhibits** draw the post's own words, so they sit in a code block's panel, with
+  its spacing and mono, and have no number and no caption: the sentence before them
+  introduces them. Marks follow the code block's rule (every occurrence, in the ink, bold;
+  the rest of that part steps back to the muted ink).
+  - `<Words>`: words under study. `sentence` (optional), `lists` (`label` optional,
+    `words`; several lists stand in columns, one word a line), `marks`. A mark in the
+    sentence mutes the sentence; a mark in the lists mutes the lists.
+  - `<Flow>`: steps one under the other at every width, an arrow into each. `steps` and
+    optionally `loop` (the return's words, back to the first step), or `chains` (two,
+    `name` and `steps`, aligned row by row; `null` where a chain has no step, its line
+    running through), `marks`.
 - **A figure runs in the browser only when the reader can act on it** (a React island,
   `client:visible`, so only once it scrolls into view); every other figure is plain HTML
   and SVG. Rendered on the server first, each one reads fully without JavaScript: a
   `<Plane>` with `states` then draws every arrangement, one under the other.
-- **Every figure**: a caption; keyboard-reachable when interactive; reduced motion lands
+- **Every figure and exhibit**: a caption (figures only); keyboard-reachable when interactive; reduced motion lands
   at once; fits a 360px phone; drawn with the site's tokens and attributes only (no inline
   `style`, which the CSP forbids); numbers written in the post's language (`1,4`,
   `90 %`). The accent marks the point the reader holds; beyond that, only a specific thing
@@ -168,8 +181,11 @@ colour, icon or furniture is reused.
   body text a step under it, `#d0ccc3` (titles and bold keep the ink), and
   **vermilion `#ff5a1f`, the one accent**: "where you are" (the playhead, hover, the
   favicon, the point a reader holds). A figure may also accent one specific thing it is
-  about (this distance, this arc, the mean), never a concept it shows in general: the
-  distance between words, how attention spreads, a set of vectors. Every text colour is at least 4.5:1 on the ground.
+  about, only when the colour says what nothing else in the figure already says (not its
+  thickness, position, label, written number or alignment, nor the value step between
+  the ink and the muted ink): if the accent takes an argument, it is decoration. Never a
+  concept it shows in general: the distance between words, how attention spreads, a set
+  of vectors. Every text colour is at least 4.5:1 on the ground.
 - **Letters are drawn as designed**: `-webkit-font-smoothing: antialiased`, because macOS
   otherwise thickens light text on a dark ground.
 - **Three voices, strict roles** (`packages/site/src/styles/fonts.css`, all self-hosted):

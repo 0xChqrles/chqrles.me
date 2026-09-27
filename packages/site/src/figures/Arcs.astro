@@ -30,13 +30,14 @@ const accented = new Set(to.filter(({ accent }) => accent).map(({ token }) => to
 const total = to.reduce((s, { weight }) => s + (weight ?? 0), 0)
 
 // Each token owns a slot 100 units wide; an arc rises higher the farther it
-// goes, the longest possible one to the top. A token attending to itself gets
-// a small loop that leaves and lands on it.
+// goes, the farthest one in the figure to the top. A token attending to
+// itself gets a small loop that leaves and lands on it.
+const reach = Math.max(1, ...to.map(({ token }) => Math.abs(from - token)))
 const arc = (target: number) => {
   const a = from * 100 + 50
   const b = target * 100 + 50
   if (target === from) return `M${a - 12} 100 C${a - 40} 45 ${a + 40} 45 ${a + 12} 100`
-  const top = 88 - 80 * (Math.abs(from - target) / Math.max(1, tokens.length - 1))
+  const top = 88 - 80 * (Math.abs(from - target) / reach)
   return `M${a} 100 C${a} ${top} ${b} ${top} ${b} 100`
 }
 

@@ -1,0 +1,84 @@
+---
+import { markParts } from './marks'
+
+// Steps in order, one under the other at every width, an arrow into each: a
+// process, a loop, or two chains side by side, aligned row by row. The words
+// are the post's own, so it is an exhibit, like a code block: no number, no
+// caption. Marks follow the code block's rule. Plain HTML: nothing runs in
+// the browser.
+interface Chain {
+  name: string
+  // One step per row; null where this chain has no step in that row, and its
+  // line runs straight through.
+  steps: (string | null)[]
+}
+
+interface Props {
+  // One chain...
+  steps?: string[]
+  // ...whose last step leads back to the first: these are the return's words.
+  loop?: string
+  // ...or two chains, side by side.
+  chains?: [Chain, Chain]
+  marks?: string[]
+}
+
+const { steps, loop, chains, marks = [] } = Astro.props
+if (Boolean(steps) === Boolean(chains)) throw new Error('<Flow>: give either steps or chains.')
+if (chains && loop) throw new Error('<Flow>: only a single chain loops.')
+for (const list of steps ? [steps] : chains!.map((c) => c.steps)) {
+  if (list.filter(Boolean).length < 2) throw new Error('<Flow>: a chain needs at least two steps.')
+  if (list[0] === null || list.at(-1) === null) throw new Error('<Flow>: a chain starts and ends on a step.')
+}
+const parts = (text: string) => markParts(text, marks).map((part, i) => (i % 2 ? { part, mark: true } : { part, mark: false }))
+const marked = marks.length > 0
+// A row with no step of this chain between two of its steps: a line through.
+const rows = chains ? Math.max(...chains.map((c) => c.steps.length)) : 0
+---
+
+<figure class:list={['exhibit', 'flow', { 'has-marks': marked }]}>
+  {
+    steps && (
+      <ol class:list={['flow-steps', { 'is-loop': loop }]}>
+        {steps.map((step, i) => (
+          <li class:list={['flow-step', { 'is-next': i > 0 }]}>
+            <span>{parts(step).map(({ part, mark }) => (mark ? <span class="code-mark">{part}</span> : part))}</span>
+          </li>
+        ))}
+        {loop && (
+          <li class="flow-back is-next">
+            <span>{loop}</span>
+          </li>
+        )}
+      </ol>
+    )
+  }
+  {
+    chains && (
+      <div class="flow-chains">
+        {chains.map((chain, c) => (
+          <>
+            <p class:list={['flow-name', 'micro', c ? 'is-b' : 'is-a']} aria-hidden="true">
+              {chain.name}
+            </p>
+            <ol class:list={['flow-steps', c ? 'is-b' : 'is-a']} aria-label={chain.name}>
+              {Array.from({ length: rows }, (_, i) => {
+                const step = chain.steps[i]
+                const before = chain.steps.slice(0, i).some((s) => s)
+                if (step) {
+                  return (
+                    <li class:list={['flow-step', { 'is-next': before }]}>
+                      <span>{parts(step).map(({ part, mark }) => (mark ? <span class="code-mark">{part}</span> : part))}</span>
+                    </li>
+                  )
+                }
+                const after = chain.steps.slice(i + 1).some((s) => s)
+                return <li class={before && after ? 'flow-through' : 'flow-none'} aria-hidden="true" />
+              })}
+            </ol>
+          </>
+        ))}
+      </div>
+    )
+  }
+</figure>
