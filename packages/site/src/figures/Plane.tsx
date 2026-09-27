@@ -18,8 +18,8 @@ export interface Link {
   to: string
   // The distance between the two points, written at the link's middle.
   distance?: boolean
-  // This one segment in the accent: for a figure about this distance, not
-  // about distance in general.
+  // This one segment in the accent, when only the colour tells it apart
+  // (AGENTS.md, the palette); never for distance in general.
   accent?: boolean
 }
 

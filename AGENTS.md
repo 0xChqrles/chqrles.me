@@ -116,11 +116,11 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   stays the author's own. Mark what the prose points at: the word under study, the one
   that changes, the one the model reads. In a block with marks, the rest of the code steps
   back to the muted ink; marked words stay in the ink, bold, and never break across two
-  lines. A code block's wrapped line hangs 2ch under its first characters.
+  lines. A code block's wrapped line hangs two characters in.
 - **Inline code is a word held up as a word** (`packages/site/src/styles/site.css`): the
   ink, regular weight, on the code mark's step of value (`--line`), its 1px × 3px padding
-  laid out so no space or apostrophe moves; upright even in a quotation, never broken
-  across two lines. Bold stays the code mark's.
+  laid out so the chip never covers a neighbouring space or apostrophe; upright even in a
+  quotation, never broken across two lines. Bold stays the code mark's.
 
 ### Figures
 
@@ -149,8 +149,9 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   its spacing and mono, and have no number and no caption: the sentence before them
   introduces them. Marks follow the code block's rule (every occurrence, in the ink, bold;
   the rest of that part steps back to the muted ink).
-  - `<Words>`: words under study. `sentence` (optional), `lists` (`label` optional,
-    `words`; several lists stand in columns, one word a line), `marks`. A mark in the
+  - `<Words>`: words under study. `sentence`, `lists`, or both (`label` optional,
+    `words`; several lists stand in columns, one word a line, a column that does not fit
+    going under the others), `marks`. A mark in the
     sentence mutes the sentence; a mark in the lists mutes the lists.
   - `<Flow>`: steps one under the other at every width, an arrow into each. `steps` and
     optionally `loop` (the return's words, back to the first step), or `chains` (two,

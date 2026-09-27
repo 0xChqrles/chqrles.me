@@ -240,8 +240,10 @@ a.track-row:focus-visible {
 
 /* An article's length, in its credits, stands on one ink hairline as wide as
    its figures (the tracking's trailing space left out). Never a double rule. */
+/* inline-block, so WebKit and Chromium hang the line from the same box. */
 .credits .sum {
   position: relative;
+  display: inline-block;
 }
 
 .credits .sum::after {
@@ -249,7 +251,7 @@ a.track-row:focus-visible {
   position: absolute;
   left: 0;
   right: 0.12em;
-  bottom: -4px;
+  bottom: -3px;
   border-top: 1px solid var(--ink);
 }
 
@@ -639,7 +641,7 @@ a.track-row:focus-visible {
 
 /* Inline code: a word held up as a word. It sits on the code mark's step of
    value, in the ink, at regular weight: bold stays the mark's. The padding is
-   laid out, so spaces and apostrophes keep their place. Upright even in a
+   laid out, so the chip never covers a neighbouring space or apostrophe. Upright even in a
    quotation: in code, slant means a comment. A token is never broken across
    two lines (-ard must not split at its hyphen). */
 .prose code {
@@ -680,13 +682,14 @@ a.track-row:focus-visible {
   font-size: inherit;
 }
 
-/* A line that wraps hangs under its first characters, so it never reads as a
-   new line. */
+/* A line that wraps hangs two characters in, so it never reads as a new
+   line. Two IBM Plex Mono cells are 1.2em (0.6em each); `ch` would measure
+   the latin-ext face, which has no 0, and land between two characters. */
 .prose pre .line {
   display: inline-block;
   width: 100%;
-  padding-left: 2ch;
-  text-indent: -2ch;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
 }
 
 /* Highlighted code (src/lib/code-theme.ts): value, weight and slant. */
@@ -848,8 +851,8 @@ a.track-row:focus-visible {
   padding: 0 0 16px 20px;
 }
 
-/* The accent, in a figure: one specific thing the figure is about (this
-   distance, this arc, the mean), never a concept shown in general. */
+/* The accent, in a figure: one specific thing that only the colour tells
+   apart (AGENTS.md, the palette), never a concept shown in general. */
 .plane-link.is-accent line {
   stroke: var(--cue);
   stroke-width: 1.5px;
@@ -1269,18 +1272,23 @@ a.track-row:focus-visible {
 }
 
 /* One list flows; several stand in columns, each as wide as its longest word
-   at least, one word a line. */
+   at least, one word a line. A column that does not fit goes under the
+   others, so the panel never spills. */
 .words-lists.is-columns {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(max-content, 1fr);
-  column-gap: 2ch;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 1.2em;
+}
+
+.words-lists.is-columns > .words-list {
+  flex: 1 1 0;
+  min-width: max-content;
 }
 
 .prose .words-lists ul {
   display: flex;
   flex-wrap: wrap;
-  column-gap: 2ch;
+  column-gap: 1.2em;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1328,6 +1336,7 @@ a.track-row:focus-visible {
 .prose .flow-steps > .flow-step {
   display: grid;
   align-content: center;
+  justify-content: center;
   padding: 8px;
   border: 1px solid var(--line-strong);
   border-radius: 2px;
@@ -1335,20 +1344,31 @@ a.track-row:focus-visible {
   text-wrap: balance;
 }
 
-.flow.has-marks .flow-step {
+.flow.has-marks :is(.flow-step, .flow-back) {
   color: var(--muted);
 }
 
-/* The arrow into a step: a 1px shaft and its head, one shape, in the gap above. */
+/* The arrow into a step, in the gap above: a 1px shaft, a plain box so it
+   lands on whole pixels, and its head. */
 .flow .is-next::before {
   content: '';
   position: absolute;
   top: calc(-1 * var(--gap) - 1px);
+  left: calc(50% - 0.5px);
+  width: 1px;
+  height: calc(var(--gap) - 6px);
+  background: var(--muted);
+}
+
+.flow .is-next::after {
+  content: '';
+  position: absolute;
+  top: -7px;
   left: calc(50% - 4.5px);
   width: 9px;
-  height: var(--gap);
+  height: 6px;
   background: var(--muted);
-  clip-path: polygon(4px 0, 5px 0, 5px calc(100% - 6px), 9px calc(100% - 6px), 4.5px 100%, 0 calc(100% - 6px), 4px calc(100% - 6px));
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
 /* A loop: the return's words under the last step; their line runs up a lane
@@ -1369,13 +1389,15 @@ a.track-row:focus-visible {
   background: var(--raise);
 }
 
-.flow-back::after {
+/* The return line, from under the return's words to the lane, on the same
+   row as the lane's foot, whatever the number of lines above it. */
+.flow-steps.is-loop::before {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  right: calc(-1 * var(--lane) / 2);
-  border-top: 1px solid var(--muted);
+  bottom: calc(var(--lh) / 2);
+  left: calc((100% - var(--lane)) / 2);
+  right: calc(var(--lane) / 2);
+  border-bottom: 1px solid var(--muted);
 }
 
 .flow-steps.is-loop::after {
@@ -1440,10 +1462,9 @@ a.track-row:focus-visible {
   position: absolute;
   top: calc(-1 * var(--gap) - 1px);
   bottom: -1px;
-  left: calc(50% - 4.5px);
-  width: 9px;
+  left: calc(50% - 0.5px);
+  width: 1px;
   background: var(--muted);
-  clip-path: polygon(4px 0, 5px 0, 5px 100%, 4px 100%);
 }
 
 @media (min-width: 641px) {
