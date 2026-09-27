@@ -32,7 +32,7 @@ Chaque jour, un mot est tiré au hasard et il faut le deviner à l’aide d’un
 
 L’idée a l’air bonne, mais plus on ajoute de mots sur notre plan, plus il devient difficile de les répartir intelligemment, et deux dimensions ne suffiront pas longtemps. On va donc passer de 2 à, mettons, 300 dimensions. C’est beaucoup plus difficile à dessiner, mais nettement plus pratique pour ranger des centaines de milliers de mots. La vraie problématique se dessine enfin. Comment choisir les 300 coordonnées de chaque mot ?
 
-### skip-gram / word2vec
+### Skip-gram / word2vec
 
 On commence par attribuer un vecteur aléatoire à chaque mot. À ce stade, nos coordonnées ne veulent absolument rien dire, et pour leur donner un sens on va demander au réseau de faire quelque chose d’assez simple : à partir d’un mot, prédire ceux qui ont des chances d’apparaître autour. On lui donne `chat` et il attribue une probabilité à tous les mots qu’il connaît. Comme tout est encore plus ou moins aléatoire, ses premières réponses ressemblent à ça :
 
@@ -87,7 +87,7 @@ Le chien court dans le jardin
 
 `chat` et `chien` vivent manifestement des vies assez similaires. Ils `dorment`, `mangent`, `courent` donc ils apparaissent entourés de mots comparables. Pour réussir à prédire leurs contextes, le réseau finit donc par leur attribuer des représentations qui se ressemblent. Personne ne lui a expliqué qu’un chat et un chien étaient deux animaux domestiques relativement proches. D’ailleurs, il ne sait toujours pas ce qu’est un chat. Il a simplement constaté que `chat` traîne souvent avec les mêmes mots que `chien`, et ça suffit.
 
-À force de corriger ses prédictions, les vecteurs complètement aléatoires du départ finissent ainsi par s’organiser. Les mots utilisés dans des contextes similaires occupent des régions similaires de notre espace à 300 dimensions. À la fin de l’entraînement, on récupère ces vecteurs et on les utilise directement comme coordonnées sémantiques de nos mots : on vient de créer un **embedding** 🎉
+À force de corriger ses prédictions, les vecteurs complètement aléatoires du départ finissent ainsi par s’organiser. Les mots utilisés dans des contextes similaires occupent des régions similaires de notre espace à 300 dimensions. À la fin de l’entraînement, on récupère ces vecteurs et on les utilise directement comme coordonnées sémantiques de nos mots : on vient de créer un **embedding**.
 
 ## Un mot, un seul vecteur
 
@@ -101,7 +101,7 @@ Tant qu’on devine un mot sans contexte, ce flou n’est pas vraiment un probl�
 Ne crains plus jamais le vide, c’est le refuge de ceux qui volent
 ```
 
-Ici, aucun cambrioleur. Pourtant, voici les voisins de volent selon l’embedding :
+Ici, aucun cambrioleur. Pourtant, voici les voisins de `volent` selon l’embedding :
 
 <Words
   lists={[{ words: ['tournoyer', 'tuer', 'virevolter', 'tomber', 'survoler', 'planquer', 'perdre', 'détruire', 'écraser', 'attaquer'] }]}
@@ -208,9 +208,9 @@ Le pigeon virevolte dans le ciel
 
 On tient notre solution. On garde Cémantix pour trouver rapidement des candidats, puis on utilise un LLM pour éliminer ceux qui ont le mauvais sens. On ne compare plus `voler` et `tuer` dans le vide, on les laisse d’abord lire leur phrase respective, puis on compare ce qu’ils sont devenus. En théorie, l’idée est parfaite.
 
-Pourtant, l’article n'en est pas encore à sa moitié. La théorie avait omis trois détails importants.
+Pourtant, l’article n’en est pas encore à sa moitié. La théorie avait omis trois détails importants.
 
-### Problème 1 : Masque causal
+### Problème 1 : masque causal
 
 Premier détail passé sous silence. Pendant l’attention, un mot ne peut écouter que ce qui le précède. On appelle ça le **masque causal**, et c’est logique : le modèle est entraîné à deviner la suite, on ne va pas la lui montrer. Prenons une nouvelle phrase :
 
@@ -256,7 +256,7 @@ Pas un seul insecte, alors que l’embedding statique proposait `cancrelat`, `bl
 
 *À noter que le cloporte n’est pas un insecte mais un crustacé.*
 
-### Problème 3 : Les LLM prédisent des tokens, pas des distances
+### Problème 3 : les LLM prédisent des tokens, pas des distances
 
 Troisième détail, et le plus profond. Notre embedding à la Cémantix a été entraîné de manière à ce que les mots employés dans des contextes similaires obtiennent des vecteurs proches. Un LLM, lui, est entraîné avec un autre objectif : prédire le token suivant. Rien ne garantit donc que la géométrie brute de ses hidden states constitue une bonne distance sémantique. Ces vecteurs sont avant tout des représentations intermédiaires, utiles au modèle pour poursuivre son calcul.
 
@@ -331,7 +331,7 @@ On ne mesure donc plus la représentation du mot lui-même, avec son orthographe
   marks={['sans-le-sou', 'désargenté', 'pauvre', 'impécunieux', 'indigent', 'démuni']}
 />
 
-Au milieu du réseau, la représentation reste encore très sensible à la forme de fauché. Quelques couches plus tard, les voisins orthographiques disparaissent progressivement au profit de mots liés à son sens dans la phrase. Le modèle a fini par comprendre qu’on parlait d’un type sans argent, et quelques autres exemples choisis précisément pour leur ambiguïté commencent alors à fonctionner correctement :
+Au milieu du réseau, la représentation reste encore très sensible à la forme de `fauché`. Quelques couches plus tard, les voisins orthographiques disparaissent progressivement au profit de mots liés à son sens dans la phrase. Le modèle a fini par comprendre qu’on parlait d’un type sans argent, et quelques autres exemples choisis précisément pour leur ambiguïté commencent alors à fonctionner correctement :
 
 <Words
   sentence="Ne crains plus jamais le vide, c’est le refuge de ceux qui volent"
@@ -361,11 +361,11 @@ J’ai d’abord testé **Qwen 3**, qui utilise l’architecture Transformer cla
 
 **Qwen 3.5** utilise une architecture plus récente : dans trois couches sur quatre, l’attention classique est remplacée par un mécanisme de mémoire linéaire moins coûteux (Gated DeltaNet pour les experts encore). Ça n’a rien changé à notre problème. `cafard` continue à rimer, et sur six mots ambigus ce modèle s’est même montré moins efficace que sa génération précédente. Détail savoureux, pour `volent`, la version à 4 milliards de paramètres a compris le ciel, et celle à 9 milliards les portefeuilles. En faisant grossir le modèle, j’avais perdu en pertinence. Mon approche n’était clairement pas la bonne.
 
-### Qwen 3 - Embedding
+### Qwen 3 – Embedding
 
 Il existe justement des LLM réentraînés pour fabriquer de bons vecteurs. Cette fois, on leur apprend explicitement que des textes sémantiquement proches doivent produire des représentations proches, et que des textes sans rapport doivent s’éloigner. Ce sont des **modèles d’embedding**, et c’est exactement la propriété qui manquait à nos **hidden states** bricolés à la main. Qwen propose ainsi **Qwen3-Embedding**, une famille construite à partir de **Qwen 3** puis spécialement entraînée pour produire des représentations destinées à la recherche et à la comparaison sémantique. Je l’ai testé de plusieurs façons. Les résultats étaient au même niveau médiocre que mes **hidden states**.
 
-### Qwen 3 - Reranker
+### Qwen 3 – Reranker
 
 Qwen distribue aussi **Qwen3-Reranker**, peut-être le candidat le plus prometteur sur le papier. Quand on fait une recherche sur Google, le moteur ramasse d’abord des milliers de pages potentiellement pertinentes, puis il les reclasse pour mettre les meilleures en tête. Ce second tri, c’est le travail d’un reranker, un modèle qui relit la recherche avec chaque page et juge si elle y répond. Ça ressemble à notre problème, formulé différemment. La phrase, avec son mot caché, c’est notre recherche Google, et l’embedding de Cémantix qui nous fournit 10 000 mots potentiellement pertinents, ce sont les résultats à reclasser. Cette fois, pas de distance à calculer ni d’entrailles de Transformer à trifouiller, on demande simplement au reranker de faire son travail.
 
@@ -413,7 +413,7 @@ Cémantix garde son rôle de rabatteur. Il fournit les 10 000 voisins du mot cac
 4 : même sens, synonyme direct dans ce contexte
 ```
 
-La consigne est écrite en français ordinaire : Seul le sens compte, pas la grammaire, pas l’orthographe, pas le fait que le candidat puisse remplacer le mot dans la phrase. Reprenons `nerfs` :
+La consigne est écrite en français ordinaire : seul le sens compte, pas la grammaire, pas l’orthographe, pas le fait que le candidat puisse remplacer le mot dans la phrase. Reprenons `nerfs` :
 
 <Words
   lists={[

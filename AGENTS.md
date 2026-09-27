@@ -310,7 +310,7 @@ colour, icon or furniture is reused.
 
 ## Do NOT
 
-- Don't edit the author's prose, not even to fix a typo.
+- Don't edit the author's prose beyond the typo fixes the author asked for, each one reported.
 - Don't rename a published post's folder: its URL is permanent.
 - Don't deploy the site from a laptop. The one by-hand deploy is `ChqrlesMeDeployRole`.
 - Don't create a Route 53 zone or a GitHub OIDC provider: both already exist.
