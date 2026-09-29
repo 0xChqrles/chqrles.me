@@ -12,8 +12,7 @@ export default defineConfig({
   site: 'https://chqrles.me',
   // Canonical URLs end in a slash and each page is a folder: /<lang>/<slug>/index.html.
   trailingSlash: 'always',
-  // Two posts claiming one URL (index.md beside index.mdx, or a post named 404)
-  // fail the build instead of one silently winning.
+  // Two routes claiming one URL fail the build instead of one silently winning.
   prerenderConflictBehavior: 'error',
   build: {
     format: 'directory',

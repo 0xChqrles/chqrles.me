@@ -1,8 +1,10 @@
 import { readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineCollection } from 'astro:content'
 import { glob } from 'astro/loaders'
 import { postSchema } from './lib/post-schema'
-import { isPostFile, parseEntry, postId } from './lib/urls'
+import { assertPostFiles, parseEntry, postId } from './lib/urls'
 
 // One folder per post at the repo root: posts/<slug>/index.md, or index.mdx
 // when the post has a figure, with a file per translation beside it
@@ -20,18 +22,11 @@ export const collections = {
     loader: {
       name: 'posts',
       load: async (context) => {
-        // Two files of one language would claim one URL, and one would silently win.
-        const root = new URL(BASE, context.config.root)
+        // A file the glob would skip, or two files of one language, would leave a
+        // post out or let one silently win.
+        const root = fileURLToPath(new URL(BASE, context.config.root))
         for (const folder of readdirSync(root, { withFileTypes: true })) {
-          if (!folder.isDirectory()) continue
-          const files = new Map<string, string>()
-          for (const file of readdirSync(new URL(`${folder.name}/`, root))) {
-            if (!isPostFile(file)) continue
-            const { lang } = parseEntry(`${folder.name}/${file}`)
-            const other = files.get(lang)
-            if (other) throw new Error(`posts/${folder.name}: ${other} and ${file} are both in ${lang}. Keep one.`)
-            files.set(lang, file)
-          }
+          if (folder.isDirectory()) assertPostFiles(folder.name, readdirSync(join(root, folder.name)))
         }
         // Every post is validated, drafts included. Then a production build
         // drops the drafts, so nothing of theirs (not even an image) is built.

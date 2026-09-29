@@ -45,7 +45,8 @@ function chooseLang(request) {
   var cookie = request.cookies.lang;
   if (cookie && LANGS.indexOf(cookie.value) !== -1) return cookie.value;
   var header = request.headers['accept-language'];
-  var accepted = header ? parseAcceptLanguage(header.value) : [];
+  // A real header is a few dozen characters: the parser never reads more than 256.
+  var accepted = header ? parseAcceptLanguage(header.value.slice(0, 256)) : [];
   for (var i = 0; i < accepted.length; i++) {
     if (LANGS.indexOf(accepted[i]) !== -1) return accepted[i];
   }
@@ -77,11 +78,19 @@ function parseAcceptLanguage(header) {
 }
 
 // The query string comes along: a shared link's ?utm_… must reach the page.
+// It goes into a header, so a control character, a space or a # in it (whatever
+// form the runtime hands it over in) is written as %XX.
+function safe(text) {
+  return text.replace(/[\x00-\x20\x7f#]/g, function (c) {
+    return '%' + ('0' + c.charCodeAt(0).toString(16)).slice(-2);
+  });
+}
+
 function redirect(statusCode, statusDescription, location, querystring) {
   var pairs = [];
   for (var key in querystring) {
     var values = querystring[key].multiValue || [querystring[key]];
-    for (var i = 0; i < values.length; i++) pairs.push(values[i].value === '' ? key : key + '=' + values[i].value);
+    for (var i = 0; i < values.length; i++) pairs.push(values[i].value === '' ? safe(key) : safe(key) + '=' + safe(values[i].value));
   }
   return {
     statusCode: statusCode,

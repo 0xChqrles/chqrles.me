@@ -11,7 +11,7 @@ interface Props {
   title: string
   description: string
   lang: Lang
-  // Absent on the 404 page, which has no canonical URL (and is in no language).
+  // Absent on the 404 page, which has no canonical URL.
   path?: string
   // The same page in each language it comes in, this one included.
   alternates?: { lang: Lang; path: string }[]

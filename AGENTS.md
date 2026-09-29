@@ -60,13 +60,14 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   figure. Its images sit beside the text.
 - **The language is the file's name** (`packages/site/src/lib/urls.ts`): `index.md` (or
   `.mdx`) is French, `index.<lang>.md` is the post in that language, like `index.en.md`.
-  A folder holds at most one file per language (`index.md` beside `index.mdx` fails), and
-  a language the site does not have fails the build. Each file has its own frontmatter
+  A folder holds at most one file per language (`index.md` beside `index.mdx` fails), a
+  language the site does not have fails the build, and so does a markdown file named
+  `index…` that is none of these (a mistyped `index-en.md` never goes unnoticed). Each file has its own frontmatter
   (title, description and image alt in its language) and may point at the same image.
 - **The URL is the language and the folder name**: `https://chqrles.me/<lang>/<slug>/`,
   with the trailing slash. A slug is lowercase letters, digits and single hyphens (`SLUG`
   in `packages/site/src/lib/urls.ts`); any other folder name fails the build, a folder
-  starting with a dot included. A post named after a page (`404`) fails too. **A published
+  starting with a dot included. **A published
   URL never changes**: never rename a published post's folder. The URL without a language,
   `https://chqrles.me/<slug>/`, is how it was first published and stays a way in: the
   edge sends it to the reader's language (see *Infrastructure*).
@@ -106,8 +107,7 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   written follow the post's language.
 - **A path without a language is redirected** to the same path under the visitor's
   language: the last one they read, else their browser's, else French (see
-  *Infrastructure*). Only `/` and `/<slug>/` need it to be right: a page is never served
-  without its language.
+  *Infrastructure*). A page is never served without its language.
 - **Every post has a page in every language.** Where it is not translated (or its
   translation is a draft), `/<lang>/<slug>/` redirects to the original
   (`packages/site/src/pages/[lang]/[slug].astro`). The original is the French file, else
@@ -119,8 +119,9 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   with its `hreflang` alternates (`packages/site/src/pages/sitemap.xml.ts`).
 - **A post's share image is per language** (`/<lang>/<slug>/share.png`, it carries the
   title); the index's is one for both (`/share.png`).
-- **The words the site itself says** (only the index's meta description, `SITE_DESCRIPTION`
-  in `packages/site/src/site.ts`) are written in each language.
+- **The words the site itself says** (`SITE_DESCRIPTION` in `packages/site/src/site.ts`,
+  for the index, the feeds and the 404 page's meta description; the language names in
+  `packages/site/src/lib/lang.ts`) are written in each language.
 
 ### Writing and publishing a post
 
@@ -307,9 +308,10 @@ colour, icon or furniture is reused.
   `apple-touch-icon.png`, `robots.txt`, `share.png`, `sitemap.xml`, `404.html`) are served
   as they are. Repeated slashes collapse first, so a redirect never leaves the site.
 - **The `lang` cookie** (`packages/infra/functions/lang-cookie.js`, a CloudFront Function
-  on viewer response) is the "last language used": every HTML page under a language sets
-  it to that language, for a year, `Secure; HttpOnly; SameSite=Lax`. Nothing else reads or
-  writes it.
+  on viewer response) is the "last language used": every page under a language (a folder
+  or its `index.html`, answered 200 or 304) sets it to that language, for a year,
+  `Secure; HttpOnly; SameSite=Lax`. So reading a post that is not translated sets the
+  language of the original. Nothing else reads or writes it.
 - **A missing path is a real 404**: the bucket's 403 and 404 both map to `/404.html` with
   status 404. Not a single-page app.
 - **Security headers**: HSTS for a year with subdomains and without preload, the CSP,
@@ -358,7 +360,8 @@ colour, icon or furniture is reused.
 ## Testing
 
 - **Test contracts, never cosmetics** (figures and code marks are cosmetic). The contracts are the frontmatter schema, the URL
-  functions (the site's slug and file-name rules, and the CloudFront Functions, language choice included), the infra assertions
+  functions (the site's slug and file-name rules, the CloudFront Functions with their
+  choice of language), the infra assertions
   (including the CSP builder and cdk-nag) and the French-spacing transform. Assert against
   the rules in this file, not the implementation.
 - **A failing contract test is a real regression**: fix the code, never weaken the test.

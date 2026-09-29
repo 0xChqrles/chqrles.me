@@ -1,7 +1,7 @@
 // The site's languages. A page lives at /<lang>/…, and a post is written once
-// per language (see urls.ts). The edge function that picks a language for a
-// visitor keeps its own copy of these two constants
-// (packages/infra/functions/directory-urls.js); a test keeps them in step.
+// per language (see urls.ts). The two edge functions that pick and remember a
+// visitor's language keep their own copy of these constants
+// (packages/infra/functions/*.js); a test keeps them in step.
 export const LANGS = ['fr', 'en'] as const
 export type Lang = (typeof LANGS)[number]
 

@@ -9,8 +9,19 @@ export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 const POST_FILE = /^index(?:\.([^.]+))?\.mdx?$/
 
-export function isPostFile(file: string): boolean {
-  return POST_FILE.test(file)
+// What a post folder holds must be right, or a file is silently left out: any
+// markdown file named index… has to be a post file (a mistyped translation such
+// as index-en.md would otherwise never be published), and no language may have
+// two files (index.md beside index.mdx would claim one URL).
+export function assertPostFiles(folder: string, files: string[]): void {
+  const seen = new Map<Lang, string>()
+  for (const file of files) {
+    if (!/^index.*\.(md|mdx|markdown)$/i.test(file)) continue
+    const { lang } = parseEntry(`${folder}/${file}`)
+    const other = seen.get(lang)
+    if (other) throw new Error(`posts/${folder}: ${other} and ${file} are both in ${lang}. Keep one.`)
+    seen.set(lang, file)
+  }
 }
 
 // The language of the post file at a path (a markdown plugin only sees the

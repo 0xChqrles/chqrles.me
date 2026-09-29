@@ -13,8 +13,8 @@ import { languagePath, postPath } from '../../lib/urls'
 import { SITE_NAME } from '../../site'
 
 // Every post has a page in every language. Where it has not been translated,
-// the page sends the reader to the original (307: Astro writes a 2-second wait
-// into the page of a 302, and this one is not temporary either way).
+// the page sends the reader on to the original at once (Astro's static redirect
+// page, which waits 2 seconds for a 302 and none for a 307).
 export async function getStaticPaths() {
   const tracks = await getTracks()
   return LANGS.flatMap((lang) => tracks.map((track) => ({ params: { lang, slug: track.slug }, props: { track } })))

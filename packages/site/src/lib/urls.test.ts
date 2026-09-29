@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { languagePath, langOfPath, parseEntry, postId, postPath } from './urls'
+import { assertPostFiles, languagePath, langOfPath, parseEntry, postId, postPath } from './urls'
 
 describe('post URLs', () => {
   it('takes the slug from the folder name, for .md and .mdx alike', () => {
@@ -26,6 +26,17 @@ describe('post URLs', () => {
     expect(() => parseEntry('cemantix/index.de.md')).toThrow('"de" is not a language of the site (fr, en)')
     expect(() => parseEntry('cemantix/index-old.md')).toThrow('posts/cemantix/index-old.md: a post file is index.md')
     expect(() => parseEntry('cemantix/index.en.old.md')).toThrow('a post file is index.md')
+  })
+
+  it('holds a folder to one file per language, and to file names it can read', () => {
+    expect(() => assertPostFiles('cemantix', ['index.mdx', 'index.en.md', 'pigeon.jpg', 'notes.md'])).not.toThrow()
+    expect(() => assertPostFiles('cemantix', ['index.md', 'index.mdx'])).toThrow('posts/cemantix: index.md and index.mdx are both in fr. Keep one.')
+    expect(() => assertPostFiles('cemantix', ['index.mdx', 'index.fr.md'])).toThrow('are both in fr')
+    expect(() => assertPostFiles('cemantix', ['index.en.md', 'index.en.mdx'])).toThrow('are both in en')
+    for (const name of ['index-en.md', 'index_en.md', 'index.en.markdown', 'index-old.md', 'index.en.old.md']) {
+      expect(() => assertPostFiles('cemantix', ['index.mdx', name])).toThrow(`posts/cemantix/${name}: a post file is index.md`)
+    }
+    expect(() => assertPostFiles('cemantix', ['index.mdx', 'index.EN.md'])).toThrow('"EN" is not a language of the site')
   })
 
   it('reads the language off a file path, for the markdown plugins', () => {

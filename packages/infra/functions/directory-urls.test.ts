@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { createContext, Script } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 
@@ -114,6 +114,17 @@ describe('the language of a path that names none', () => {
     expect(run('/cemantix/share.png', { languages: 'en' })).toEqual(redirect(302, '/en/cemantix/share.png'))
   })
 
+  it('keeps a control character, a space or a # out of the Location header', () => {
+    const query = { a: { value: 'x\r\nSet-Cookie: y=1 #z' } }
+    const location = (run('/cemantix/', { languages: 'en', query }) as any).headers.location.value
+    expect(location).toBe('/en/cemantix/?a=x%0d%0aSet-Cookie:%20y=1%20%23z')
+    expect(location).not.toMatch(/[\r\n ]/)
+  })
+
+  it('reads no more than the start of a huge Accept-Language', () => {
+    expect(run('/', { languages: `${'x'.repeat(300)}, en` })).toEqual(redirect(302, '/fr/'))
+  })
+
   it('keeps the query string, so a shared link’s campaign reaches the page', () => {
     const query = { utm_source: { value: 'x' }, tag: { value: 'a', multiValue: [{ value: 'a' }, { value: 'b' }] }, empty: { value: '' } }
     expect(run('/cemantix/', { languages: 'en', query })).toEqual(redirect(302, '/en/cemantix/?utm_source=x&tag=a&tag=b&empty'))
@@ -124,6 +135,22 @@ describe('the language of a path that names none', () => {
     for (const uri of ['/_astro/page.css', '/favicon.svg', '/share.png', '/sitemap.xml', '/robots.txt']) {
       expect(run(uri, { languages: 'en', cookie: 'en' })).toMatchObject({ uri })
     }
+  })
+})
+
+describe('the files every language shares', () => {
+  // Every file the site puts at its root, from what builds it: the public folder
+  // and the pages that are files. One that this function does not pass through
+  // would be redirected to /fr/… and lost.
+  const site = new URL('../../site/', import.meta.url)
+  const root = [
+    ...readdirSync(new URL('public/', site)).filter((name) => !name.startsWith('.')),
+    ...readdirSync(new URL('src/pages/', site)).flatMap((name) => (/^.+\.\w+\.ts$/.test(name) ? [name.slice(0, -3)] : name === '404.astro' ? ['404.html'] : [])),
+  ]
+
+  it('are all served as they are', () => {
+    expect(root).toEqual(expect.arrayContaining(['robots.txt', 'favicon.svg', 'share.png', 'sitemap.xml', '404.html']))
+    for (const name of root) expect(run(`/${name}`, { languages: 'en', cookie: 'en' })).toMatchObject({ uri: `/${name}` })
   })
 })
 

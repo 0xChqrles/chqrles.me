@@ -29,15 +29,16 @@ describe('the language cookie', () => {
     expect(answer('/fr/index.html').cookies.lang.value).toBe('fr')
   })
 
-  it('takes a page with a charset', () => {
-    expect(answer('/en/index.html', { type: 'text/html; charset=utf-8' }).cookies.lang.value).toBe('en')
+  it('takes a page whatever its content type says, and a revisit answered 304', () => {
+    expect(answer('/en/', { type: 'text/html; charset=utf-8' }).cookies.lang.value).toBe('en')
+    expect(answer('/en/cemantix/', { statusCode: 304, type: null }).cookies.lang.value).toBe('en')
   })
 
   it('is not set by a file, an error, a path with no language or one that is not a language', () => {
     expect(answer('/en/rss.xml', { type: 'application/xml' }).cookies).toEqual({})
     expect(answer('/en/cemantix/share.png', { type: 'image/png' }).cookies).toEqual({})
     expect(answer('/en/missing/index.html', { statusCode: 404 }).cookies).toEqual({})
-    expect(answer('/en/index.html', { type: null }).cookies).toEqual({})
+    expect(answer('/en/index.html', { statusCode: 500 }).cookies).toEqual({})
     expect(answer('/404.html').cookies).toEqual({})
     expect(answer('/index.html').cookies).toEqual({})
     expect(answer('/de/index.html').cookies).toEqual({})
