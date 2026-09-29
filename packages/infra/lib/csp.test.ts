@@ -17,10 +17,10 @@ function site(pages: Record<string, string>) {
 const sha = (text: string) => `'sha256-${createHash('sha256').update(text).digest('base64')}'`
 
 describe('contentSecurityPolicy', () => {
-  it('allows only the site itself when the build has no inline code', () => {
+  it('allows only the site itself and Umami when the build has no inline code', () => {
     const dir = site({ 'index.html': '<link rel="stylesheet" href="/_astro/a.css"><script type="module" src="/_astro/a.js"></script>' })
     expect(contentSecurityPolicy(dir)).toBe(
-      "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "default-src 'none'; script-src 'self' https://cloud.umami.is; style-src 'self'; img-src 'self'; font-src 'self'; connect-src https://gateway.umami.is; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
     )
   })
 
@@ -31,7 +31,7 @@ describe('contentSecurityPolicy', () => {
       'post/data.html': '<script type="application/ld+json">{"a":1}</script>',
     })
     const policy = contentSecurityPolicy(dir)
-    expect(policy).toContain(`script-src 'self' ${[sha('run()'), sha('go()')].sort().join(' ')};`)
+    expect(policy).toContain(`script-src 'self' https://cloud.umami.is ${[sha('run()'), sha('go()')].sort().join(' ')};`)
     expect(policy).toContain(`style-src 'self' ${sha('a{b:c}')};`)
     expect(policy).not.toContain(sha('{"a":1}'))
   })

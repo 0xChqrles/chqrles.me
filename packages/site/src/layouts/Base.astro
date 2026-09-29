@@ -2,7 +2,7 @@
 import Furniture from '../components/Furniture.astro'
 import Mark from '../components/Mark.astro'
 import type { Lang } from '../lib/posts'
-import { SITE_NAME } from '../site'
+import { SITE_NAME, UMAMI_WEBSITE_ID } from '../site'
 import '../styles/fonts.css'
 import '../styles/site.css'
 
@@ -55,6 +55,8 @@ const shareUrl = share && new URL(share.src, Astro.site).href
         </>
       )
     }
+    {/* Umami counts the page views on the live site only: dev and preview send nothing. */}
+    <script is:inline defer src="https://cloud.umami.is/script.js" data-website-id={UMAMI_WEBSITE_ID} data-domains={Astro.site!.hostname}></script>
   </head>
   <body>
     <header class="masthead">
