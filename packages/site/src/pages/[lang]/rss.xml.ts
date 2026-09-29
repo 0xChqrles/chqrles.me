@@ -22,11 +22,15 @@ export async function GET(context: APIContext) {
     customData: `<language>${lang}</language>`,
     items: tracks.map((track) => {
       const post = versionIn(track, lang)
+      // A feed reader knows an item by its guid, which is its link. A renamed
+      // post keeps the guid it was first published under: the first of its aliases.
+      const first = post === track.original ? track.aliases[0] : undefined
       return {
         title: typeset(post.data.title, langOf(post)),
         description: typeset(post.data.description, langOf(post)),
         pubDate: post.data.date,
         link: postPath(post.id),
+        ...(first && { customData: `<guid isPermaLink="false">${new URL(postPath(first), context.site).href}</guid>` }),
       }
     }),
   })

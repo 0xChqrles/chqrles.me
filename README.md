@@ -5,7 +5,8 @@ The source of https://chqrles.me.
 ## Publishing a post
 
 1. Create a folder in `posts/`. Its name is the URL: `posts/my-post/` is published at
-   `https://chqrles.me/fr/my-post/`, forever. Lowercase letters, digits and hyphens.
+   `https://chqrles.me/fr/my-post/`, forever. Lowercase letters, digits and hyphens. To rename
+   it later, keep the old name in `aliases: [my-old-name]` and its links keep working.
 2. Write `index.md` in it (`index.mdx` if the post has a figure). It is the French post:
 
    ```markdown

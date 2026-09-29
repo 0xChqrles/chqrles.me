@@ -26,7 +26,7 @@ function without(key: keyof typeof published) {
 
 describe('post frontmatter', () => {
   it('accepts a published post and fills the defaults', () => {
-    expect(schema.parse(published)).toEqual({ ...published, date: new Date('2026-09-25T00:00:00Z'), draft: false })
+    expect(schema.parse(published)).toEqual({ ...published, date: new Date('2026-09-25T00:00:00Z'), aliases: [], draft: false })
   })
 
   it.each(['title', 'date', 'description', 'image', 'imageAlt'] as const)('fails a published post without %s, naming it', (key) => {
@@ -44,6 +44,13 @@ describe('post frontmatter', () => {
 
   it('still requires the title, date and description of a draft', () => {
     expect(paths({ draft: true })).toEqual(['title', 'date', 'description'])
+  })
+
+  it('takes the names a renamed post used to have, as slugs', () => {
+    expect(schema.parse(published).aliases).toEqual([])
+    expect(schema.parse({ ...published, aliases: ['cemantix', 'word-game-2'] }).aliases).toEqual(['cemantix', 'word-game-2'])
+    expect(paths({ ...published, aliases: ['Cemantix'] })).toEqual(['aliases.0'])
+    expect(paths({ ...published, aliases: 'cemantix' })).toEqual(['aliases'])
   })
 
   it('takes the language from the file name, so a lang field is refused', () => {

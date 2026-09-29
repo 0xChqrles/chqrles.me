@@ -7,25 +7,30 @@ import { figures } from '../../figures'
 import Base from '../../layouts/Base.astro'
 import { formatDuration, trackNumber } from '../../lib/duration'
 import { LANGS, type Lang } from '../../lib/lang'
-import { formatDate, getTracks, langOf, secondsOf, typeset, type Track } from '../../lib/posts'
+import { formatDate, getTracks, langOf, secondsOf, typeset, versionIn, type Track } from '../../lib/posts'
 import { assertShareable } from '../../lib/share-image'
 import { languagePath, postPath } from '../../lib/urls'
 import { SITE_NAME } from '../../site'
 
 // Every post has a page in every language. Where it has not been translated,
 // the page sends the reader on to the original at once (Astro's static redirect
-// page, which waits 2 seconds for a 302 and none for a 307).
+// page, which waits 2 seconds for a 302 and none for a 307). So does a name the
+// post used to have (its aliases), in every language: an old link still works.
 export async function getStaticPaths() {
   const tracks = await getTracks()
-  return LANGS.flatMap((lang) => tracks.map((track) => ({ params: { lang, slug: track.slug }, props: { track } })))
+  return LANGS.flatMap((lang) =>
+    tracks.flatMap((track) => [track.slug, ...track.aliases].map((slug) => ({ params: { lang, slug }, props: { track, alias: slug !== track.slug } }))),
+  )
 }
 
 interface Props {
   track: Track
+  alias: boolean
 }
 
 const lang = Astro.params.lang as Lang
-const { track } = Astro.props
+const { track, alias } = Astro.props
+if (alias) return Astro.redirect(postPath(versionIn(track, lang).id), 307)
 const post = track.versions.find((version) => langOf(version) === lang)
 if (!post) return Astro.redirect(postPath(track.original.id), 307)
 

@@ -68,9 +68,10 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   with the trailing slash. A slug is lowercase letters, digits and single hyphens (`SLUG`
   in `packages/site/src/lib/urls.ts`); any other folder name fails the build, a folder
   starting with a dot included. **A published
-  URL never changes**: never rename a published post's folder. The URL without a language,
-  `https://chqrles.me/<slug>/`, is how it was first published and stays a way in: the
-  edge sends it to the reader's language (see *Infrastructure*).
+  URL never stops working**: to rename a published post's folder, list its old name in
+  `aliases` (below), and `/<lang>/<old-slug>/` keeps redirecting to it. The URL without a
+  language, `https://chqrles.me/<slug>/`, is how the first post was published and stays a
+  way in: the edge sends it to the reader's language (see *Infrastructure*).
 - **The frontmatter is validated** (`packages/site/src/lib/post-schema.ts`). A post that
   breaks it fails the build, and the message names the field:
 
@@ -81,6 +82,7 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   | `description` | required, one or two sentences, used by previews and the feed |
   | `image` | required, the header image, a file in the post's folder, at least 1200×630 |
   | `imageAlt` | required, the header image's alt text |
+  | `aliases` | optional, on the French file: the slugs the post had before its folder was renamed, oldest first; each redirects to it, in every language, and its share image and the feed's guid stay as they were (a name that is the post's own, another post's, or another alias, fails the build) |
   | `draft` | optional, default `false` |
 
   Any other field fails the build, so a misspelled field never passes silently (`lang`
@@ -117,6 +119,11 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   it is translated, in its own when it is not (then marked with its `lang`). The reading
   time is that of the version shown. The sitemap lists the pages that have content, each
   with its `hreflang` alternates (`packages/site/src/pages/sitemap.xml.ts`).
+- **A renamed post's old names stay pages** (`aliases`): for each language and each alias,
+  `/<lang>/<alias>/` redirects at once to the post's page in that language, and
+  `/<lang>/<alias>/share.png` is the same card, so an old link or preview still works. The
+  feed item of the original keeps the URL of its first alias as its guid, so a reader does not
+  see the renamed post as new.
 - **A post's share image is per language** (`/<lang>/<slug>/share.png`, it carries the
   title); the index's is one for both (`/share.png`).
 - **The words the site itself says** (`SITE_DESCRIPTION` in `packages/site/src/site.ts`,
@@ -371,7 +378,7 @@ colour, icon or furniture is reused.
 ## Do NOT
 
 - Don't edit the author's prose beyond the typo fixes the author asked for, each one reported.
-- Don't rename a published post's folder: its URL is permanent.
+- Don't rename a published post's folder without keeping its old name in `aliases`: its URL is permanent.
 - Don't deploy the site from a laptop. The one by-hand deploy is `ChqrlesMeDeployRole`.
 - Don't create a Route 53 zone or a GitHub OIDC provider: both already exist.
 - Don't let CI deploy `ChqrlesMeDeployRole`.
