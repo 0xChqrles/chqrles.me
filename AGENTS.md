@@ -268,12 +268,20 @@ colour, icon or furniture is reused.
   `nosniff`, frames denied, `strict-origin-when-cross-origin`.
 - **The CSP is read off the build** (`packages/infra/lib/csp.ts`): `default-src 'none'`;
   scripts, styles, images and fonts from the site itself, plus the hash of each inline
-  script or style; `base-uri`, `form-action` and `frame-ancestors` `'none'`. An inline
+  script or style; Umami's script (`https://cloud.umami.is`) and where it sends
+  (`connect-src https://gateway.umami.is`), the only third party; `base-uri`,
+  `form-action` and `frame-ancestors` `'none'`. An inline
   `style=""` or `on…=""` attribute fails the synth, and so does a policy longer than
   CloudFront's 1,783 characters. So pages carry no inline style attributes, and the build
   keeps every script and stylesheet in a file (`packages/site/astro.config.ts`), except the
   island loader Astro inlines on a page with an interactive figure (two scripts and one
   style, the same on every page, allowed by hash).
+- **Umami Cloud counts the visits**: its official script on every page
+  (`packages/site/src/layouts/Base.astro`), page views only, no cookies. `data-domains`
+  keeps it to the live site, so `pnpm dev` and `pnpm preview` send nothing. The website
+  id sits in `packages/site/src/site.ts`: every page carries it anyway. Loaded straight
+  from Umami, not proxied through CloudFront: through a proxy Umami sees CloudFront's
+  address instead of the reader's, which blurs visitors and places.
 - **Uploads**: two passes over one asset. `_astro/*` (hashed) is cached a year,
   `immutable`, never pruned. Everything else is `no-cache`, published last, pruned (a
   deleted post disappears), and purges CloudFront (`/*`). `.DS_Store` never leaves the

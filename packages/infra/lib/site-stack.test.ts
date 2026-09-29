@@ -98,11 +98,14 @@ describe('the site stack', () => {
     ])
   })
 
-  it('allows no third party in the CSP', () => {
+  it('allows no third party but Umami in the CSP', () => {
     const [policy] = Object.values(template.findResources('AWS::CloudFront::ResponseHeadersPolicy'))
     const csp: string = policy?.Properties.ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy
     const sources = csp.split(';').flatMap((directive) => directive.trim().split(/\s+/).slice(1))
-    expect(sources.filter((source) => !["'self'", "'none'"].includes(source) && !source.startsWith("'sha256-"))).toEqual([])
+    expect(sources.filter((source) => !["'self'", "'none'"].includes(source) && !source.startsWith("'sha256-"))).toEqual([
+      'https://cloud.umami.is',
+      'https://gateway.umami.is',
+    ])
     expect(csp).toMatch(/^default-src 'none';/)
   })
 
@@ -111,7 +114,7 @@ describe('the site stack', () => {
       ResponseHeadersPolicyConfig: {
         SecurityHeadersConfig: {
           StrictTransportSecurity: { AccessControlMaxAgeSec: 31536000, IncludeSubdomains: true, Override: true, Preload: Match.absent() },
-          ContentSecurityPolicy: { ContentSecurityPolicy: Match.stringLikeRegexp("script-src 'self' 'sha256-"), Override: true },
+          ContentSecurityPolicy: { ContentSecurityPolicy: Match.stringLikeRegexp("script-src 'self' https://cloud.umami.is 'sha256-"), Override: true },
           ContentTypeOptions: { Override: true },
           FrameOptions: { FrameOption: 'DENY', Override: true },
           ReferrerPolicy: { ReferrerPolicy: 'strict-origin-when-cross-origin', Override: true },

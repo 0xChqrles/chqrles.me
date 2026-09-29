@@ -125,7 +125,7 @@ export class SiteStack extends Stack {
     Validations.of(distribution).acknowledge(
       { id: 'AwsSolutions-CFR1', reason: 'A public blog, served everywhere on purpose: no geo restriction.' },
       { id: 'AwsSolutions-CFR2', reason: 'No WAF: static public files from a private origin; a WAF would cost more than it protects.' },
-      { id: 'AwsSolutions-CFR3', reason: 'No CloudFront access logs: no analytics, by decision.' },
+      { id: 'AwsSolutions-CFR3', reason: 'No CloudFront access logs: Umami counts the visits.' },
     )
 
     // The upload Lambda and its role are written by CDK, not here.

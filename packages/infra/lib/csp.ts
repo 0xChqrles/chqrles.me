@@ -9,8 +9,13 @@ type Element = DefaultTreeAdapterMap['element']
 // CloudFront refuses a longer Content-Security-Policy header value.
 export const CSP_MAX_LENGTH = 1783
 
+// Umami counts the visits: its script loads from one origin and sends each page
+// view to another. The only origins besides the site itself.
+const UMAMI_SCRIPT = 'https://cloud.umami.is'
+const UMAMI_COLLECT = 'https://gateway.umami.is'
+
 // The site's Content-Security-Policy, read off the build so the two always
-// agree. Only the site's own files may load. The inline scripts and styles
+// agree. Only the site's own files may load, and Umami's. The inline scripts and styles
 // Astro writes for an interactive figure are allowed by their hash. An inline
 // style="" or on…="" attribute cannot be allowed that way, so it fails the synth.
 export function contentSecurityPolicy(siteDir: string): string {
@@ -34,10 +39,11 @@ export function contentSecurityPolicy(siteDir: string): string {
 
   const policy = [
     "default-src 'none'",
-    ["script-src 'self'", ...[...scripts].sort()].join(' '),
+    ["script-src 'self'", UMAMI_SCRIPT, ...[...scripts].sort()].join(' '),
     ["style-src 'self'", ...[...styles].sort()].join(' '),
     "img-src 'self'",
     "font-src 'self'",
+    `connect-src ${UMAMI_COLLECT}`,
     "base-uri 'none'",
     "form-action 'none'",
     "frame-ancestors 'none'",
