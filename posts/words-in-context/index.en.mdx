@@ -94,7 +94,7 @@ As it keeps correcting its predictions, the completely random vectors we started
 
 Now that we have the Semantle recipe, to make a version with context and offer a Pascalian diversion worthy of the name, we take a lovely sentence from a book or a song, we hide a few words, and the player has to find them. And there you go, we’ve created Semantle with context.
 
-Except our embedding has a birth defect: it’s **static**. It assigns a single vector to each word, whatever the sentence. Now, a word doesn’t have just one meaning. During training, `lift` hung out as often with planes as with members of Congress, and its vector ended up somewhere in between, in a place that is neither quite the sky nor quite the U.S. Treasury.
+Except our embedding has a birth defect: it’s **static**. It assigns a single vector to each word, whatever the sentence. Now, a word doesn’t have just one meaning. During training, `lift` hung out as often with planes as with Nancy Pelosi, and its vector ended up somewhere in between, in a place that is neither quite the sky nor quite the stock market.
 
 As long as we’re guessing a word without context, this fuzziness isn’t really a problem, since the word of the day itself has no precise meaning. But let’s take this sentence:
 
