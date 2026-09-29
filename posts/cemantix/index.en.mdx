@@ -8,12 +8,12 @@ draft: true
 ---
 Among the various ways I’ve found to waste time in front of a screen, there are daily games. One of them is called **Cémantix**.
 
-Every day, a word is picked at random and you have to guess it with a semantic game of hot and cold. At first you type random words, then you eventually get lucky and land on a word closer than the others. Then you follow the trail, testing similar words until you find the word of the day. The game is fun but repetitive, and finding the right word sometimes takes hundreds of tries for a reward that doesn’t always live up to the effort. “Bravo, you found the word cloakroom in 245 tries, see you tomorrow.” I was supposed to be entertained and forget my mortal condition. In the end, Cémantix mostly amplified my perception of wasted time and of the emptiness of my existence. Thanks, Cémantix.
+Every day, a word is picked at random and you have to guess it with a semantic hot-and-cold game. At first you type random words, then you eventually get lucky and land on a word closer than the others. Then you follow the trail, testing similar words until you find the word of the day. The game is fun but repetitive, and finding the right word sometimes takes hundreds of tries for a reward that doesn’t always live up to the effort. “Bravo, you found the word cloakroom in 245 tries, see you tomorrow.” I was supposed to be entertained and forget my mortal condition. In the end, Cémantix mostly amplified my perception of wasted time and of the emptiness of my existence. Thanks, Cémantix.
 
-Like the electron that is everywhere at once as long as you don’t measure it, a word on its own carries all its meanings as long as you don’t use it. The semantic value of a word on its own isn’t enough to understand what it expresses, and that may be what Cémantix is missing. What remains is to find how to measure the semantic distance between words depending on their context.
+Like the electron that is everywhere at once as long as you don’t measure it, a word on its own carries all its meanings as long as you don’t use it. The semantic value of a word on its own isn’t enough to understand what it expresses, and that may be what Cémantix is missing. What’s left is to work out how to measure the semantic distance between words depending on their context.
 ## Embedding
 
-Let’s first look at how Cémantix calculates the distance between words. A distance is a numerical value, so we need to manage to express the meaning of words in numerical form too. Basically, expressing complex information as numbers has a name: it’s called an **embedding**. We could, for example, give words coordinates, which would then make it easy to measure how close two words are.
+Let’s first look at how Cémantix calculates the distance between words. A distance is a numerical value, so we have to find a way to express the meaning of words in numerical form too. Basically, expressing complex information as numbers has a name, it’s called an **embedding**. We could, for example, give words coordinates, which would then make it easy to measure how close two words are.
 
 <Plane
   caption="`cat`, `dog` and `wolf` on a plane: two coordinates per word, one distance per pair."
@@ -60,7 +60,7 @@ The cat eats a mouse
 
 We pick `cat` and look at what appears around it: `the`, `eats`, `a`. That’s what the network is supposed to predict. If it considers `engine` far more likely than `eats`, it has obviously made a mistake. What’s left is to quantify by how much, so we sum up all its errors in a score we call the **loss**: the higher it is, the worse its predictions.
 
-We now know how to measure the problem, but not yet how to fix it. The network contains a huge number of parameters, among them the coordinates of our vectors, and we need to know which ones to move and in which direction. For each one, we therefore calculate the effect a tiny change would have on the loss. Basically, for each vector we answer the question:
+We now know how to measure the problem, but not yet how to fix it. The network contains a huge number of parameters, among them the coordinates of our vectors, and we need to know which ones to move and in which direction. For each one, so we calculate the effect a tiny change would have on the loss. Basically, for each vector we answer the question:
 
 > If I change this coordinate very slightly, does the *loss* go up or down, and by how much?
 
@@ -86,11 +86,11 @@ The cat runs in the garden
 The dog runs in the garden
 ```
 
-`cat` and `dog` obviously live fairly similar lives. They `sleep`, `eat`, `run` so they appear surrounded by comparable words. To manage to predict their contexts, the network therefore ends up giving them representations that look alike. Nobody explained to it that a cat and a dog were two fairly close domestic animals. Besides, it still doesn’t know what a cat is. It simply noticed that `cat` often hangs out with the same words as `dog`, and that’s enough.
+`cat` and `dog` obviously live fairly similar lives. They `sleep`, `eat`, `run` so they appear surrounded by comparable words. To get good at predicting their contexts, the network ends up giving them representations that look alike. Nobody explained to it that a cat and a dog were two fairly close domestic animals. In fact, it still doesn’t know what a cat is. It simply noticed that `cat` often hangs out with the same words as `dog`, and that’s enough.
 
 As it keeps correcting its predictions, the completely random vectors we started with end up organizing themselves. Words used in similar contexts occupy similar regions of our 300-dimensional space. At the end of training, we take these vectors and use them directly as the semantic coordinates of our words: we have just created an **embedding**.
 
-## One word, one vector
+## One word, a single vector
 
 Now that we have the Cémantix recipe, to make a version with context and offer a Pascalian diversion worthy of the name, we take a nice sentence from a book or a song, we hide a few words, and the player has to find them. And there you go, we’ve created Cémantix with context.
 
@@ -117,7 +117,7 @@ Half the list in the sky, the other half in the biography of Xavier Dupont de Li
   marks={['treated']}
 />
 
-The embedding understood “to treat a subject”. The sentence, for its part, is about treating someone. A player who types tend or spare has perfectly understood the sentence, yet the game tells them they’re far off. From this injustice frustration is born, and frustration, that leads to war. So giving the player a sentence isn’t enough. The embedding, too, has to read the sentence.
+The embedding understood “to treat a subject”. The sentence, though, is about treating someone. A player who types tend or spare has perfectly understood the sentence, yet the game tells them they’re far off. From this injustice frustration is born, and frustration, that leads to war. So giving the player a sentence isn’t enough. The embedding, too, has to read the sentence.
 
 ## First brilliant idea: reading ChatGPT’s mind
 
@@ -125,13 +125,13 @@ Despite the immensity of the universe, as far as we know there are only two kind
 
 ### Transformers
 
-Before talking about a full LLM, let’s start with the brick it’s mostly made of, the **Transformer**. We’ve seen how to represent words as vectors. A Transformer receives several of these vectors and transforms them so that each one can take in information coming from the other words in the sentence. All it takes then is to pass a sentence through several layers of Transformers to get vectors that no longer represent just the words themselves, but the words in their context. On paper, Transformers look like the ideal tool to solve our problem.
+Before talking about a full LLM, let’s start with the building block it’s mostly made of, the **Transformer**. We’ve seen how to represent words as vectors. A Transformer receives several of these vectors and transforms them so that each one can take in information coming from the other words in the sentence. All it takes then is to pass a sentence through several layers of Transformers to get vectors that no longer represent just the words themselves, but the words in their context. On paper, Transformers look like the ideal tool to solve our problem.
 
 The mechanism that lets words pick up information from one another is called **attention**. For each word, the Transformer builds three new vectors from its current representation:
 
 ```
 Q (query): what I’m looking for
-K (key): in which cases I can be relevant
+K (key):   in which cases I can be relevant
 V (value): the information I pass on if I’m listened to
 ```
 
@@ -145,7 +145,7 @@ The Transformer receives its vector and computes its **Q (query)**. We can imagi
 
 > Which pieces of information in the context are important to understand my role here?
 
-The other words, for their part, have a **K (key)**, and to determine which ones are interesting, the Transformer compares the query of `flies` with the different keys using a **dot product**. The dot product depends on both the length of the two vectors and the angle between them. At equal length, the more they point in the same direction, the bigger the result; perpendicular, we get zero, and in opposite directions, it goes negative. We can therefore use it as a compatibility score between a **Q (query)** and a **K (key)**, and these scores are then scaled down to percentages that add up to 100% (thanks to a softmax, for the experts).
+The other words, on their side, have a **K (key)**, and to determine which ones are interesting, the Transformer compares the query of `flies` with the different keys using a **dot product**. The dot product depends on both the length of the two vectors and the angle between them. At equal length, the more they point in the same direction, the bigger the result; perpendicular, we get zero, and in opposite directions, it goes negative. We can therefore use it as a compatibility score between a **Q (query)** and a **K (key)**, and these scores are then converted to percentages that add up to 100% (thanks to a softmax, for the experts).
 
 <Arcs
   caption="The query of `flies` compared with the keys of `The` and `pigeon`: `pigeon` wins."
@@ -157,13 +157,13 @@ The other words, for their part, have a **K (key)**, and to determine which ones
 These percentages are used to weight the corresponding **values**, which come to enrich the vector of `flies`.
 
 <Plane
-  caption="`flies` before and after attention: the value of `pigeon` brings it closer to `glide` and moves it away from `pilfer`."
+  caption="`flies` before and after attention: the value of `pigeon` brings it closer to `glide` and moves it away from `purloin`."
   states={[
     {
       label: 'before',
       points: [
         { id: 'glide', label: 'glide', x: 1, y: 3.2 },
-        { id: 'pilfer', label: 'pilfer', x: 4.4, y: 1.2 },
+        { id: 'purloin', label: 'purloin', x: 4.4, y: 1.2 },
         { id: 'flies', label: 'flies', x: 2.75, y: 2.35 },
       ],
     },
@@ -171,14 +171,14 @@ These percentages are used to weight the corresponding **values**, which come to
       label: 'after',
       points: [
         { id: 'glide', label: 'glide', x: 1, y: 3.2 },
-        { id: 'pilfer', label: 'pilfer', x: 4.4, y: 1.2 },
+        { id: 'purloin', label: 'purloin', x: 4.4, y: 1.2 },
         { id: 'flies', label: 'flies', x: 1.9, y: 3.2 },
       ],
     },
   ]}
   links={[
     { from: 'flies', to: 'glide', distance: true },
-    { from: 'flies', to: 'pilfer', distance: true },
+    { from: 'flies', to: 'purloin', distance: true },
   ]}
 />
 
@@ -190,13 +190,13 @@ The model simply learned that, in this kind of context, the information containe
 
 Once attention is done, each word has a new representation, enriched by what it picked up from its context. It then goes through a more classic neural network, then becomes the input of the next Transformer layer. And we start over a few dozen times. At each layer, new Q, K and V are computed from the representations produced by the previous one. A first layer may learn a relatively simple relationship between `pigeon` and `flies`, then the following ones work from this already integrated information and progressively build richer representations.
 
-To train a model like GPT, we give it a task fairly close to the one we used for embeddings: predicting what comes next in a text. We show it, for example, `The pigeon` and it has to predict `flies`, then `The pigeon flies` and it has to predict `in`, and so on over billions of pieces of text. At each prediction, we calculate the **loss**, then the **gradients**, and we slightly change all the parameters. By dint of predicting what comes next in billions of sentences, the model gradually learns which words should listen to each other and which information should flow between them. That’s how a huge stack of Transformer layers, trained with the rather basic goal of guessing the next word, ends up building something that looks dangerously like a fine understanding of context.
+To train a model like GPT, we give it a task fairly close to the one we used for embeddings: predicting what comes next in a text. We show it, for example, `The pigeon` and it has to predict `flies`, then `The pigeon flies` and it has to predict `in`, and so on over billions of pieces of text. At each prediction, we calculate the **loss**, then the **gradients**, and we slightly change all the parameters. By dint of predicting what comes next in billions of sentences, the model gradually learns which words should listen to each other and which information should flow between them. That’s how a huge stack of Transformer layers, trained with the rather basic goal of guessing the next word, ends up building something that looks dangerously like a nuanced understanding of context.
 
 ### Opening the hood
 
 At each layer of the network, each word therefore has a vector that has listened to its context. This intermediate vector has a name, the **hidden state**. It’s exactly what Cémantix was missing: an embedding that has read the sentence and can tell the difference between the pigeon’s `flight` and the `theft` of land in the West Bank. In normal use of an LLM, we don’t look directly at these vectors, we let the model go all the way and read the text it produces. But nothing forbids us from stopping it along the way and retrieving the vector produced by the layer we’re interested in.
 
-Nothing, except OpenAI. ChatGPT doesn’t let us open its hood, so we need a model whose parameters we can download and that we can run ourselves. Fortunately, the ways of market communism are inscrutable, and Alibaba gives away the weights of its **Qwen** model for free.
+Nothing, except OpenAI. ChatGPT doesn’t let us open its hood, so we need a model whose parameters we can download and that we can run ourselves. Fortunately, the ways of market communism are inscrutable, and Alibaba hands out the weights of its **Qwen** model for free.
 
 ### The plan
 
@@ -223,7 +223,7 @@ The pigeon twirls in the sky
 
 4. We sort the list again, but by this contextual distance.
 
-<Words lists={[{ words: ['fly away', 'whirl', 'glide', 'twirl', 'float'] }]} />
+<Words lists={[{ words: ['take flight', 'whirl', 'glide', 'twirl', 'float'] }]} />
 
 We’ve got our solution. We keep Cémantix to quickly find candidates, then we use an LLM to eliminate the ones with the wrong meaning. We no longer compare `fly` and `kill` in a vacuum, we first let them read their respective sentence, then we compare what they’ve become. In theory, the idea is perfect.
 
@@ -245,7 +245,7 @@ The pigeon steals money
   mask="causal"
 />
 
-When the model computes the **hidden state** of `steals`, it has heard `The` and `pigeon`, but it has never heard of `money`. The most useful part of the sentence is invisible to it and the model knows nothing of the pigeon’s kleptomania. For a word to have read the whole sentence, we therefore have to place it after it:
+When the model computes the **hidden state** of `steals`, it has heard `The` and `pigeon`, but it has never heard of `money`. The most useful part of the sentence is invisible to it and the model knows nothing of the pigeon’s kleptomania. For a word to have read the whole sentence, we have to place it after it:
 
 ```text /<TARGET>/ /voler/
 Context:
@@ -257,11 +257,11 @@ voler
 
 This time, `voler` has read everything. Unfortunately, nothing really pushes it to make the connection with the sentence above, and its vector falls back on a fairly general meaning, close to that of the static embedding:
 
-<Words lists={[{ words: ['pilfer', 'fly over', 'swipe', 'glide', 'filch', 'fly away', 'burgle'] }]} />
+<Words lists={[{ words: ['purloin', 'fly over', 'swipe', 'glide', 'pilfer', 'take flight', 'burgle'] }]} />
 
 ### Problem 2: word ≠ token
 
-Since the beginning, I’ve been acting as if an LLM read words. That’s wrong. It reads **tokens**, pieces of text chosen to be reusable. A common word can fit in a single token, a rarer word can be split into several, and it then has one **hidden state** per token. We have to choose which one to use, and since each token can only read what comes before it, the last one is a fairly natural candidate: it has at least seen all the previous pieces of the same word.
+From the start, I’ve been acting as if an LLM read words. That’s wrong. It reads **tokens**, pieces of text chosen to be reusable. A common word can fit in a single token, a rarer word can be split into several, and it then has one **hidden state** per token. We have to choose which one to use, and since each token can only read what comes before it, the last one is a fairly natural candidate: it has at least seen all the previous pieces of the same word.
 
 In the case of Qwen 3, for example, `cafard` (“cockroach”) is split into `caf-` and `-ard`. Here is what we then find among the nearest neighbors of its last token, `-ard`:
 
@@ -279,14 +279,14 @@ Not a single insect, whereas the static embedding offered `cockroach`, `roach` a
 
 Third detail, and the deepest. Our Cémantix-style embedding was trained so that words used in similar contexts get close vectors. An LLM, for its part, is trained with another objective: predicting the next token. Nothing guarantees, then, that the raw geometry of its hidden states makes a good semantic distance. These vectors are above all intermediate representations, useful to the model to continue its calculation.
 
-First symptom, the vectors look far too much alike. With our static embedding, we measured the closeness between two words with **cosine similarity**, a dot product between two vectors previously scaled to a length of 1. All that’s left is then the angle: two vectors pointing in the same direction are considered very similar, regardless of their length.
+First symptom, the vectors look far too much alike. With our static embedding, we measured the closeness between two words with **cosine similarity**, a dot product between two vectors previously scaled to a length of 1. That leaves only the angle: two vectors pointing in the same direction are considered very similar, regardless of their length.
 
 In an ideal embedding, the vectors would be fairly well spread out in all directions. But the hidden states of an LLM tend to pile up in the same region of space. As a result, even two words that have nothing to do with each other already share a large part of their direction. In my tests, the similarities are almost always between 0.45 and 0.88, on a scale where 1 means two vectors point in exactly the same direction and 0 that they’re perpendicular. This phenomenon has a name, **anisotropy**.
 
 We can try to remove part of it. If all the vectors tend to point to the same place, we calculate their mean vector, then subtract it from each of them. Basically, we take away from everyone what they had in common before measuring their differences again. That spreads the candidates out a bit better and makes their similarities more discriminating. But not enough.
 
 <Plane
-  caption="Hidden states all pointing in roughly the same direction, then the same ones, once their mean vector is removed."
+  caption="Hidden states all pointing in roughly the same direction, then those same states, once their mean vector is removed."
   arrows
   mean="mean"
   domain={{ x: [-0.6, 1.05], y: [-0.6, 1.05] }}
@@ -316,11 +316,11 @@ Second symptom, in the last layers, the model no longer thinks only about the me
 
 <Words
   sentence="until their retirement"
-  lists={[{ words: ['back to school', 'wedding', 'strike'] }]}
+  lists={[{ words: ['return to school', 'wedding', 'strike'] }]}
   marks={['retirement']}
 />
 
-Events that fit very well after “until their”, but have little to do with `retirement`. The model largely measures how well the candidate works with what surrounds it, whereas we want to measure how well its **meaning** matches that of the hidden word. We wanted a semantic distance, we built a fill-in-the-blanks exercise.
+Events that fit very well after “until their”, but have little to do with `retirement`. The model largely measures how well the candidate works with what surrounds it, whereas we want to measure how well its **meaning** matches that of the hidden word. We wanted a semantic distance, we built a fill-in-the-blank exercise.
 
 The project seemed doomed to fail, but poking around in the guts of an LLM was still more fun than going back to Cémantix with my tail between my legs to guess the word “willy” in 328 tries. So I kept looking and I ended up finding (a bit).
 
@@ -345,9 +345,9 @@ So we’re no longer measuring the representation of the word itself, with its s
   lists={[
     { label: 'layer 22', words: ['fauchée', 'fauchage', 'faucheur', 'faucheux', 'fâché'] },
     { label: 'layer 28', words: ['fauchée', 'faucheur', 'penniless', 'cash-strapped', 'poor'] },
-    { label: 'layer 33', words: ['cash-strapped', 'penniless', 'impecunious', 'indigent', 'destitute'] },
+    { label: 'layer 33', words: ['cash-strapped', 'penniless', 'impecunious', 'indigent', 'deprived'] },
   ]}
-  marks={['penniless', 'cash-strapped', 'poor', 'impecunious', 'indigent', 'destitute']}
+  marks={['penniless', 'cash-strapped', 'poor', 'impecunious', 'indigent', 'deprived']}
 />
 
 In the middle of the network, the representation is still very sensitive to the form of `fauché`. A few layers later, the spelling neighbors progressively disappear in favor of words tied to its meaning in the sentence. The model ended up understanding that we were talking about a guy without money, and a few other examples chosen precisely for their ambiguity then start to work properly:
@@ -378,19 +378,19 @@ I first tested **Qwen 3**, which uses the classic Transformer architecture we ju
 
 ### Qwen 3.5
 
-**Qwen 3.5** uses a more recent architecture: in three layers out of four, classic attention is replaced by a cheaper linear memory mechanism (Gated DeltaNet, for the experts again). It changed nothing about our problem. `cafard` keeps rhyming, and on six ambiguous words this model even proved less effective than its previous generation. A delicious detail: for `fly`, the 4-billion-parameter version understood the sky, and the 9-billion one, wallets. By making the model bigger, I had lost relevance. My approach was clearly not the right one.
+**Qwen 3.5** uses a more recent architecture: in three layers out of four, classic attention is replaced by a cheaper linear memory mechanism (Gated DeltaNet, for the experts again). It changed nothing about our problem. `cafard` keeps rhyming, and on six ambiguous words this model even proved less effective than its previous generation. A juicy detail: for `fly`, the 4-billion-parameter version understood the sky, and the 9-billion one, wallets. By making the model bigger, I had lost relevance. My approach was clearly not the right one.
 
 ### Qwen 3 – Embedding
 
-As it happens, there are LLMs retrained to produce good vectors. This time, they are explicitly taught that semantically close texts must produce close representations, and that unrelated texts must move apart. These are **embedding models**, and it’s exactly the property our hand-rigged **hidden states** were missing. Qwen thus offers **Qwen3-Embedding**, a family built from **Qwen 3** and then specially trained to produce representations intended for search and semantic comparison. I tested it in several ways. The results were at the same mediocre level as my **hidden states**.
+As it happens, there are LLMs retrained to produce good vectors. This time, they are explicitly taught that semantically close texts must produce close representations, and that unrelated texts must move apart. These are **embedding models**, and it’s exactly the property our hand-cobbled **hidden states** were missing. Qwen thus offers **Qwen3-Embedding**, a family built from **Qwen 3** and then specially trained to produce representations intended for search and semantic comparison. I tested it in several ways. The results were at the same mediocre level as my **hidden states**.
 
 ### Qwen 3 – Reranker
 
-Qwen also distributes **Qwen3-Reranker**, perhaps the most promising candidate on paper. When you do a Google search, the engine first gathers thousands of potentially relevant pages, then re-ranks them to put the best ones first. This second sort is the job of a reranker, a model that rereads the search alongside each page and judges whether it answers it. It resembles our problem, phrased differently. The sentence, with its hidden word, is our Google search, and the Cémantix embedding that provides us with 10,000 potentially relevant words, those are the results to re-rank. This time, no distance to calculate and no Transformer guts to poke around in, we simply ask the reranker to do its job.
+Qwen also distributes **Qwen3-Reranker**, perhaps the most promising candidate on paper. When you do a Google search, the engine first gathers thousands of potentially relevant pages, then reranks them to put the best ones first. This second sort is the job of a reranker, a model that rereads the search alongside each page and judges whether it answers it. That looks like our problem, phrased differently. The sentence, with its hidden word, is our Google search, and the Cémantix embedding that provides us with 10,000 potentially relevant words, those are the results to rerank. This time, no distance to calculate and no Transformer guts to poke around in, we simply ask the reranker to do its job.
 
 It understands `broke` and `cockroach` the way the sentence means them, but a reranker is first designed to judge how relevant a result is to a search. So it brings up words that go well with the search, not necessarily those that mean the same thing, and `unemployed` comes second for `broke`. Which makes sense, but it’s not exactly what we’re trying to get here.
 
-In my tests, it also had an unfortunate tendency to take the instruction for part of the search. Even when explicitly telling it that `stifle` should not be considered close to `emotions`, it kept ranking it among the very first. A bit as if I had typed “recipe without peanuts” into Google and the search engine had focused on `recipe` and `peanut`.
+In my tests, it also had an unfortunate tendency to take the instruction for part of the search. Even when I explicitly told it that `stifle` should not be considered close to `emotions`, it kept ranking it among the very first. A bit as if I had typed “recipe without peanuts” into Google and the search engine had focused on `recipe` and `peanut`.
 
 So that’s it? I’m nothing but a two-bit tinkerer unable to improve the horrible Cémantix, and my fate is to keep being tortured daily by ever more absurd words?
 
@@ -436,8 +436,8 @@ The instruction is written in ordinary French: only meaning counts, not grammar,
 
 <Words
   lists={[
-    { label: 'Qwen', words: ['organs', 'thymus', 'spirits', 'medical', 'marrows', 'gut'] },
-    { label: 'Jev', words: ['nervousness', 'excitability', 'nervous', 'annoyance', 'irritable'] },
+    { label: 'Qwen', words: ['organs', 'thymus', 'minds', 'medical', 'marrows', 'gut'] },
+    { label: 'Jev', words: ['nervousness', 'excitability', 'nervous', 'irritation', 'irritable'] },
   ]}
 />
 
@@ -451,7 +451,7 @@ Jev understood we were talking about temperament and not neurology. As for rhyme
 
 `stifle` isn’t a word close to `emotions`, it’s a word from the sentence. So I added a line to the instruction:
 
-> A candidate that appears in the sentence, or that describes what the sentence does with the secret word, is not any closer for that.
+> A candidate that appears in the sentence, or that describes what the sentence does with the secret word, is not any closer because of that.
 
 `stifle` went from 28th to 1,182nd place. Poking around in the **hidden states**, I could observe that a result was bad, but not explain to the vector why. Here, if Jev gets it wrong for a reason I can put into words, I can simply tell it.
 
@@ -459,9 +459,9 @@ Not everything can be fixed with words, though. I had also written that a candid
 
 ### A tournament to tell the winners apart
 
-Jev isn’t perfectly stable either. If I ask it several times to rate the same candidate, its answer can vary by about 0.1 points. At the bottom of the ranking, that doesn’t change much. The 7,400th word can become the 7,500th, it won’t shake up the game. At the top of the ranking, it’s different. That’s where the order matters most, and if the words ranked 50th and 150th have almost identical ratings, such a variation is enough to make them interchangeable. So Jev knows fairly well which words deserve to enter the top 200, but much less well in what order to rank them.
+Jev isn’t perfectly stable either. If I ask it several times to rate the same candidate, its answer can vary by about 0.1 point. At the bottom of the ranking, that doesn’t change much. The 7,400th word can become the 7,500th, it won’t shake up the game. At the top of the ranking, it’s different. That’s where the order matters most, and if the words ranked 50th and 150th have almost identical ratings, such a variation is enough to make them interchangeable. So Jev knows fairly well which words deserve to enter the top 200, but much less well in what order to rank them.
 
-So we’re going to organize a tournament. The 200 best candidates face each other two by two, that is 19,900 duels, with a single question:
+So we’re going to organize a tournament. The 200 best candidates all face each other, two by two, that is 19,900 duels, with a single question:
 
 > Which of these two words is closer to the secret word in this sentence?
 
@@ -475,7 +475,7 @@ Finally, beyond the 300th rank or so, I simply keep Cémantix’s initial order.
 
 We still have to do justice to LLMs. Nothing I ask of Jev seems out of their reach. I could take a good model, show it the sentence and two candidates, then ask it which one is semantically closer to the secret word. It would probably answer very well. The problem is that I’d have to ask it the question tens of thousands of times, and an idea that’s perfectly reasonable on paper becomes much less appealing when each little decision costs a few seconds and a request to a big model.
 
-Jev can’t do anything an LLM would be unable to do, but it can make a small semantic decision extremely fast and for almost nothing. For one secret word, my system has it process about 3.1 million tokens, and by caching the fixed part of the instruction, the whole thing costs me about $0.13. So I can afford a strategy of remarkable brutality: have 10,000 candidates judged one by one, keep the best 200, then organize 19,900 additional duels just to rank them better. With a slower or more expensive model, I’d have spent my time looking for a clever algorithm to reduce the number of requests. Jev, for its part, is cheap enough that we can ask it the question thirty thousand times.
+Jev can’t do anything an LLM would be unable to do, but it can make a small semantic decision extremely fast and for almost nothing. For one secret word, my system has it process about 3.1 million tokens, and by caching the fixed part of the instruction, the whole thing costs me about $0.13. So I can afford a strategy of remarkable brutality: have 10,000 candidates judged one by one, keep the best 200, then organize 19,900 additional duels just to rank them better. With a slower or more expensive model, I’d have spent my time looking for a clever algorithm to reduce the number of requests. Jev, though, is cheap enough that we can ask it the question thirty thousand times.
 
 An operation that becomes a hundred or a thousand times cheaper doesn’t just make the same solution more economical, it makes possible solutions that we would previously have ruled out before even trying them.
 
