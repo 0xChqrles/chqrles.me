@@ -1,7 +1,8 @@
 ---
 import Furniture from '../components/Furniture.astro'
 import Mark from '../components/Mark.astro'
-import type { Lang } from '../lib/posts'
+import { LANGUAGES, type Lang } from '../lib/lang'
+import { languagePath } from '../lib/urls'
 import { SITE_NAME, UMAMI_WEBSITE_ID } from '../site'
 import '../styles/fonts.css'
 import '../styles/site.css'
@@ -10,8 +11,10 @@ interface Props {
   title: string
   description: string
   lang: Lang
-  // Absent on the 404 page, which has no canonical URL.
+  // Absent on the 404 page, which has no canonical URL (and is in no language).
   path?: string
+  // The same page in each language it comes in, this one included.
+  alternates?: { lang: Lang; path: string }[]
   article?: { published: Date }
   // The 1200×630 share image and its alt text.
   share?: { src: string; alt: string }
@@ -19,9 +22,12 @@ interface Props {
   home?: boolean
 }
 
-const { title, description, lang, path, article, share, home = false } = Astro.props
+const { title, description, lang, path, alternates = [], article, share, home = false } = Astro.props
 const canonical = path && new URL(path, Astro.site).href
 const shareUrl = share && new URL(share.src, Astro.site).href
+const others = alternates.filter((alternate) => alternate.lang !== lang)
+// The mark leads home in the reader's language; the 404 page has none.
+const homePath = path ? languagePath(lang) : '/'
 ---
 
 <!doctype html>
@@ -34,10 +40,12 @@ const shareUrl = share && new URL(share.src, Astro.site).href
     {canonical ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href="/rss.xml" />
+    {others.length > 0 && alternates.map((alternate) => <link rel="alternate" hreflang={alternate.lang} href={new URL(alternate.path, Astro.site).href} />)}
+    <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href={`/${lang}/rss.xml`} />
     <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:type" content={article ? 'article' : 'website'} />
-    <meta property="og:locale" content={lang === 'fr' ? 'fr_FR' : 'en_US'} />
+    <meta property="og:locale" content={LANGUAGES[lang].locale} />
+    {others.map((alternate) => <meta property="og:locale:alternate" content={LANGUAGES[alternate.lang].locale} />)}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     {canonical && <meta property="og:url" content={canonical} />}
@@ -64,11 +72,12 @@ const shareUrl = share && new URL(share.src, Astro.site).href
         home ? (
           <Mark />
         ) : (
-          <a href="/" aria-label={SITE_NAME}>
+          <a href={homePath} aria-label={SITE_NAME}>
             <Mark />
           </a>
         )
       }
+      <slot name="masthead" />
     </header>
     <slot />
     <Furniture />

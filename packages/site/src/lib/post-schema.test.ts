@@ -26,7 +26,7 @@ function without(key: keyof typeof published) {
 
 describe('post frontmatter', () => {
   it('accepts a published post and fills the defaults', () => {
-    expect(schema.parse(published)).toEqual({ ...published, date: new Date('2026-09-25T00:00:00Z'), lang: 'fr', draft: false })
+    expect(schema.parse(published)).toEqual({ ...published, date: new Date('2026-09-25T00:00:00Z'), draft: false })
   })
 
   it.each(['title', 'date', 'description', 'image', 'imageAlt'] as const)('fails a published post without %s, naming it', (key) => {
@@ -46,9 +46,8 @@ describe('post frontmatter', () => {
     expect(paths({ draft: true })).toEqual(['title', 'date', 'description'])
   })
 
-  it('accepts only fr and en', () => {
-    expect(schema.parse({ ...published, lang: 'en' }).lang).toBe('en')
-    expect(paths({ ...published, lang: 'de' })).toEqual(['lang'])
+  it('takes the language from the file name, so a lang field is refused', () => {
+    expect(paths({ ...published, lang: 'en' })).toEqual([''])
   })
 
   it('rejects a misspelled or unknown field', () => {

@@ -57,10 +57,9 @@ describe('rehypeFrenchSpacing', () => {
   })
   const texts = (root: Root) => root.children.map((node) => JSON.stringify((node as Element).children))
 
-  function run(lang?: string) {
+  function run(path = '/repo/posts/cemantix/index.mdx') {
     const root = tree()
-    const file = new VFile()
-    file.data.astro = { frontmatter: lang ? { lang } : {} }
+    const file = new VFile({ path })
     rehypeFrenchSpacing()(root, file)
     return root
   }
@@ -74,6 +73,6 @@ describe('rehypeFrenchSpacing', () => {
   })
 
   it('leaves an English post alone', () => {
-    expect(texts(run('en'))[0]).toContain('Et alors ?')
+    expect(texts(run('/repo/posts/cemantix/index.en.mdx'))[0]).toContain('Et alors ?')
   })
 })

@@ -1,6 +1,7 @@
 import type { Root } from 'hast'
 import { visitParents } from 'unist-util-visit-parents'
 import type { VFile } from 'vfile'
+import { langOfPath } from './urls'
 
 // French typography, applied at render time. The post files are never edited.
 // A line must never break before : ; ? ! or inside « », inside a number like
@@ -26,13 +27,12 @@ export function frenchSpacing(text: string): string {
 }
 
 // Rehype step: applies frenchSpacing to the text of a French post, never
-// inside code. A post's `lang` reaches the plugin through its frontmatter.
+// inside code. The post's language is in its file name (urls.ts).
 const VERBATIM = new Set(['code', 'pre', 'kbd', 'samp', 'script', 'style'])
 
 export function rehypeFrenchSpacing() {
   return (tree: Root, file: VFile) => {
-    const astro = file.data.astro as { frontmatter?: { lang?: string } } | undefined
-    if ((astro?.frontmatter?.lang ?? 'fr') !== 'fr') return
+    if (langOfPath(file.path) !== 'fr') return
     visitParents(tree, 'text', (node, ancestors) => {
       // An HTML element, or a JSX one in MDX.
       const verbatim = ancestors.some(

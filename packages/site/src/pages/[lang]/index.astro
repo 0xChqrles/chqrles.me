@@ -1,0 +1,62 @@
+---
+import LangSwitch from '../../components/LangSwitch.astro'
+import Base from '../../layouts/Base.astro'
+import { formatDuration, trackNumber } from '../../lib/duration'
+import { LANGS, type Lang } from '../../lib/lang'
+import { formatDate, getTracks, langOf, secondsOf, typeset, versionIn } from '../../lib/posts'
+import { languagePath, postPath } from '../../lib/urls'
+import { SITE_DESCRIPTION, SITE_NAME } from '../../site'
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang } }))
+}
+
+const lang = Astro.params.lang as Lang
+
+// The index is the sleeve's tracklist, newest first. Each track is the post in
+// the reader's language, or in its own when it has not been translated.
+const tracks = await Promise.all(
+  (await getTracks()).map(async (track) => {
+    const post = versionIn(track, lang)
+    return { post, number: track.number, seconds: await secondsOf(post) }
+  }),
+)
+const pages = LANGS.map((l) => ({ lang: l, path: languagePath(l) }))
+const total = tracks.reduce((sum, { seconds }) => sum + seconds, 0)
+// The share image shows the newest post's sleeve (src/pages/share.png.ts).
+const newest = tracks[0]?.post.data
+const share = { src: '/share.png', alt: newest?.image && newest.imageAlt ? newest.imageAlt : SITE_NAME }
+---
+
+<Base title={SITE_NAME} description={SITE_DESCRIPTION[lang]} lang={lang} path={languagePath(lang)} alternates={pages} share={share} home>
+  <span slot="masthead" class="micro"><LangSwitch current={lang} targets={pages} /></span>
+  <main class="tracklist column">
+    <ol class="tracks">
+      {
+        tracks.map(({ post, number, seconds }) => {
+          const postLang = langOf(post)
+          return (
+            <li class="track" lang={postLang === lang ? undefined : postLang}>
+              <a class="track-row" href={postPath(post.id)}>
+                <span class="track-no">{trackNumber(number)}</span>
+                <span class="track-title">{typeset(post.data.title, postLang)}</span>
+                <span class="track-meta micro">
+                  <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatDate(post.data.date, postLang)}</time>
+                  <span class="leader" aria-hidden="true" />
+                  <span class="track-len">{formatDuration(seconds)}</span>
+                </span>
+              </a>
+            </li>
+          )
+        })
+      }
+    </ol>
+    {
+      tracks.length > 1 && (
+        <p class="total micro">
+          <span class="sum">{formatDuration(total)}</span>
+        </p>
+      )
+    }
+  </main>
+</Base>

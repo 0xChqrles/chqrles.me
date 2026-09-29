@@ -1,7 +1,6 @@
 import { rehypeHeadingIds, unified } from '@astrojs/markdown-remark'
 import mdx from '@astrojs/mdx'
 import react from '@astrojs/react'
-import sitemap from '@astrojs/sitemap'
 import { defineConfig } from 'astro/config'
 import rehypeRaw from 'rehype-raw'
 import { codeTheme, rehypeCodeClasses, transformerMarkWords } from './src/lib/code-theme'
@@ -11,7 +10,7 @@ import { rehypeSectionCues } from './src/lib/section-cues'
 
 export default defineConfig({
   site: 'https://chqrles.me',
-  // Canonical URLs end in a slash and each page is a folder: /<slug>/index.html.
+  // Canonical URLs end in a slash and each page is a folder: /<lang>/<slug>/index.html.
   trailingSlash: 'always',
   // Two posts claiming one URL (index.md beside index.mdx, or a post named 404)
   // fail the build instead of one silently winning.
@@ -41,5 +40,5 @@ export default defineConfig({
     }),
     shikiConfig: { theme: codeTheme, transformers: [transformerMarkWords()] },
   },
-  integrations: [mdx(), react(), sitemap()],
+  integrations: [mdx(), react()],
 })

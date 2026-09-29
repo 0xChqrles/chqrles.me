@@ -1,8 +1,9 @@
 import { z } from 'astro/zod'
 
 // The frontmatter contract. A post that breaks it fails the build, and the
-// message names each field at fault. `image` is passed in because Astro builds
-// it from the post's folder (the `image()` helper of content.config.ts).
+// message names each field at fault. The language is not a field: it is the
+// name of the file (urls.ts). `image` is passed in because Astro builds it from
+// the post's folder (the `image()` helper of content.config.ts).
 export function postSchema<Image extends z.ZodType>(image: Image) {
   return z
     .strictObject({
@@ -15,7 +16,6 @@ export function postSchema<Image extends z.ZodType>(image: Image) {
       description: z.string({ error: 'required: one or two sentences for previews and the feed' }).min(1),
       image: image.optional(),
       imageAlt: z.string().min(1).optional(),
-      lang: z.enum(['fr', 'en']).default('fr'),
       draft: z.boolean().default(false),
     })
     .superRefine(
