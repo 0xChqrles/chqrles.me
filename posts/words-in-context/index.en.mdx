@@ -1,14 +1,14 @@
 ---
 title: "I improved Semantle with an AI that can’t talk"
 date: 2026-09-25
-description: "Semantle measures the distance between words without ever reading the sentence. This is the story of trying to teach it context, from embeddings to the guts of LLMs, all the way to Jev."
+description: "Semantle measures the distance between words without ever reading the sentence. From embeddings to the guts of LLMs, an attempt to teach it context, all the way to Jev."
 image: ./pigeon-knife.jpg
 imageAlt: "A pigeon flies off a café table with a knife in its beak"
 draft: true
 ---
 Among the many ways I’ve found to waste time in front of a screen are daily games. One of them is called **Semantle**.
 
-Every day, a word is picked at random and you have to guess it with a semantic game of hot and cold. At first you type random words, then you eventually get lucky and land on a word closer than the others. Then you follow the trail, testing similar words until you find the word of the day. The game is fun but repetitive, and finding the right word sometimes takes hundreds of guesses for a reward that doesn’t always live up to the effort. “Congratulations, you found the word cloakroom in 245 guesses. See you tomorrow.” The game was supposed to divert me and make me forget my mortal condition. In the end, Semantle mostly sharpened my sense of wasted time and of the emptiness of my existence. Thanks, Semantle.
+Every day, a word is picked at random and you have to guess it with a semantic game of hot and cold. At first you type random words, then you eventually get lucky and land on a word closer than the others. Then you follow the trail, testing similar words until you find the word of the day. The game is fun but repetitive, and finding the right word sometimes takes hundreds of guesses for a reward that doesn’t always live up to the effort. “Congratulations, you found the word cloakroom in 245 guesses. See you tomorrow.” The game was supposed to distract me from my own mortality. In the end, Semantle mostly sharpened my sense of wasted time and of the emptiness of my existence. Thanks, Semantle.
 
 Just as an electron is everywhere at once until you measure it, a word on its own carries all its meanings until you use it. The semantic value of a word on its own isn’t enough to understand what it expresses, and that may be what Semantle is missing. All that’s left is to figure out how to measure the semantic distance between words depending on their context.
 ## Embedding
@@ -35,7 +35,7 @@ The idea looks good, but the more words we add to our plane, the harder it gets 
 
 ### Skip-gram / word2vec
 
-We start by assigning a random vector to each word. At this stage, our coordinates mean absolutely nothing, and to give them meaning we’ll ask the network to do something fairly simple: given a word, predict the ones likely to appear around it. We give it `cat` and it assigns a probability to every word it knows. Since everything is still more or less random, its first answers look like this:
+We start by assigning a random vector to each word. At this stage, our coordinates mean absolutely nothing, and to give them meaning we’ll ask a neural network to do something fairly simple: given a word, predict the ones likely to appear around it. We give it `cat` and it assigns a probability to every word it knows. Since everything is still more or less random, its first answers look like this:
 
 
 <Bars
@@ -92,7 +92,7 @@ As it keeps correcting its predictions, the completely random vectors we started
 
 ## One word, one vector
 
-Now that we have the Semantle recipe, here’s how to make a version with context, a Pascalian diversion worthy of the name: take a lovely sentence from a book or a song, hide a few words, and have the player find them. And there you go, we’ve created Semantle with context.
+Now that we have the Semantle recipe, here’s how to make a version with context, a distraction from death worthy of Pascal: take a lovely sentence from a book or a song, hide a few words and have the player find them. And there you go, we’ve created Semantle with context.
 
 Except our embedding has a birth defect: it’s **static**. It assigns a single vector to each word, whatever the sentence. But words don’t have just one meaning. During training, `bank` hung out as often with rivers as with Nancy Pelosi, and its vector ended up somewhere in between, a place that’s neither quite the shore nor quite an offshore account.
 
@@ -112,9 +112,9 @@ No robbers in sight. And yet, here are the neighbors of `banks` according to the
 Half the list by the river, the other half in the biography of Bonnie and Clyde. But let’s take another, more subtle example:
 
 <Words
-  sentence="I’m treated with a nurse’s gentleness"
+  sentence="She treats me with a nurse’s gentleness"
   lists={[{ words: ['address', 'document', 'cover', 'examine', 'dissect', 'discuss'] }]}
-  marks={['treated']}
+  marks={['treats']}
 />
 
 The embedding read it as “to treat a subject.” The sentence, though, is about treating someone. A player who types tend or coddle has perfectly understood the sentence, yet the game tells them they’re far off. This injustice breeds frustration, and frustration leads to war. So giving the player a sentence isn’t enough. The embedding, too, has to read the sentence.
@@ -219,7 +219,7 @@ The duck swims to the creek
 ...
 ```
 
-3. We feed these 10,000 sentences to the LLM, retrieve the **hidden state** of the swapped-in word each time, and calculate its distance from that of `bank` in the original sentence.
+3. We feed these 10,000 sentences to the LLM, retrieve the **hidden state** of the swapped-in word each time and calculate its distance from that of `bank` in the original sentence.
 
 4. We sort the list again, but by this contextual distance.
 
@@ -231,7 +231,7 @@ And yet the article isn’t even halfway through. The theory had left out three 
 
 ### Problem 1: causal mask
 
-First detail glossed over. During attention, a word can only listen to what comes before it. This is called the **causal mask**, and it makes sense: the model is trained to guess what comes next, so we’re hardly going to give it away. Let’s take a new sentence:
+First detail I glossed over. During attention, a word can only listen to what comes before it. This is called the **causal mask**, and it makes sense: the model is trained to guess what comes next, so we’re hardly going to give it away. Let’s take a new sentence:
 
 ```text /bank/ /robbed/
 The bank was robbed by a pigeon
@@ -245,7 +245,7 @@ The bank was robbed by a pigeon
   mask="causal"
 />
 
-When the model computes the **hidden state** of `bank`, it has heard `The`, but it hasn’t heard `robbed` yet. The most useful part of the sentence is invisible to it, and the model has no idea a pigeon is about to rob the place. For a word to have read the whole sentence, we have to place it after the sentence:
+When the model computes the **hidden state** of `bank`, it has heard `The`, but it hasn’t heard `robbed` yet. The most useful part of the sentence is invisible to it, and the model knows nothing of the pigeon’s kleptomania. For a word to have read the whole sentence, we have to place it after the sentence:
 
 ```text /<TARGET>/ /bank/
 Context:
@@ -268,7 +268,7 @@ With Qwen 3, for example, `bedbug` is split into `bed-` and `-bug`. Here’s wha
 <Words
   sentence="it’s getting harder and harder to tell the bedbug from the man"
   lists={[{ words: ['rug', 'mug', 'thug', 'slug', 'drug', 'shrug'] }]}
-  marks={['ug']}
+  marks={['bug', 'ug']}
 />
 
 Not a single insect, whereas the static embedding offered `flea`, `cockroach` and `tick`. We just turned Semantle into a rhyming dictionary.
@@ -359,14 +359,14 @@ In the middle of the network, the representation is still very sensitive to the 
 />
 
 <Words
-  sentence="I’m treated with a nurse’s gentleness"
+  sentence="She treats me with a nurse’s gentleness"
   lists={[{ words: ['handle', 'pamper', 'tend'] }]}
-  marks={['treated']}
+  marks={['treats']}
 />
 
 ### Better, but not quite there yet
 
-Except this solution generalizes rather poorly. Spelling lookalikes keep climbing the rankings (`angle`, for example, ends up as the 4th neighbor of `angel`), and the top of the lists is sometimes downright noisy. In `they were bundles of nerves`, `nerves` ends up surrounded by `organs`, `thymus` and `viscères`.
+Except this solution generalizes rather poorly. Spelling lookalikes keep climbing the rankings (`angle`, for example, ends up as the 4th neighbor of `angel`), and the top of the lists is sometimes downright noisy. In `they were bundles of nerves`, `nerves` ends up surrounded by `organs`, `thymus` and, for good measure, the French `viscères`.
 
 Above all, I have no way of really talking to the model. A vector gives me a distance, but it doesn’t let me explain to it what shouldn’t count. If a word is rewarded simply because it rhymes with the answer, I can’t write “enough with the rhymes” anywhere. I can only change the prompt and pray. I did try several phrasings: they all produced different rankings, but none was clearly more relevant than the others.
 
@@ -388,15 +388,15 @@ As it happens, there are LLMs retrained to produce good vectors. This time, they
 
 Qwen also distributes **Qwen3-Reranker**, perhaps the most promising candidate on paper. When you do a Google search, the engine first gathers thousands of potentially relevant pages, then reranks them to put the best ones first. That second sort is the job of a reranker, a model that rereads the query alongside each page and judges whether the page answers it. That looks like our problem, phrased differently. The sentence, with its hidden word, is our Google search, and the 10,000 potentially relevant words the Semantle embedding hands us are the results to rerank. This time there’s no distance to calculate and no Transformer guts to poke around in: we simply ask the reranker to do its job.
 
-It understands `broke` and `bank` the way their sentences mean them, but a reranker is designed first and foremost to judge how relevant a result is to a search. So it brings up words that go well with the search, not necessarily ones that mean the same thing: `unemployed` comes second for `broke`. Which makes sense, but it’s not quite what we’re after.
+It understands `broke` and `bedbug` the way their sentences mean them, but a reranker is designed first and foremost to judge how relevant a result is to a search. So it brings up words that go well with the search, not necessarily ones that mean the same thing: `unemployed` comes second for `broke`. Which makes sense, but it’s not quite what we’re after.
 
-In my tests, it also had an annoying habit of treating the instruction as part of the search. Even when I explicitly told it that `stifle` should not be considered close to `emotions`, it kept ranking it near the very top. A bit like typing “recipe without peanuts” into Google and watching it zero in on `recipe` and `peanut`.
+In my tests, it also had an annoying habit of treating the instruction as part of the search. Even when I explicitly told it that, in `the strength to stifle my emotions`, `stifle` should not be considered close to `emotions`, it kept ranking it near the very top. A bit like typing “recipe without peanuts” into Google and watching it zero in on `recipe` and `peanut`.
 
 So that’s it? I’m nothing but a two-bit tinkerer unable to improve that horrible Semantle, doomed to keep being tortured daily by ever more absurd words?
 
 ## The solution: stop measuring, start asking
 
-That’s when I came across **Jev**, a decision model released in September 2026 by TypeSafe. So what is this famous model, the one that succeeded where LLMs failed, actually made of? We don’t know exactly: TypeSafe mentions a new architecture but hasn’t published the details. But we can still get a fairly good idea of the principle. Take a model capable of understanding text, then replace its calling as a writer with that of a judge. A standard LLM ends its calculation by trying to answer this question:
+That’s when I came across **Jev**, a decision model released in September 2026 by TypeSafe. So what is this wonder model, the one that succeeded where LLMs failed, actually made of? We don’t know exactly: TypeSafe mentions a new architecture but hasn’t published the details. But we can still get a fairly good idea of the principle. Take a model capable of understanding text, then replace its calling as a writer with that of a judge. A standard LLM ends its calculation by trying to answer this question:
 
 > Which token should I write next?
 
@@ -404,7 +404,7 @@ A decision model can use a representation of the same kind, but end with a small
 
 > Among these answers, which one seems correct, and with what probability?
 
-Grossly simplified, it looks something like this:
+Grossly oversimplified, it looks something like this:
 
 <Flow
   chains={[
@@ -432,7 +432,7 @@ Semantle keeps its role as the beater. It flushes out the 10,000 neighbors of th
 4: same meaning, direct synonym in this context
 ```
 
-The instructions are written in plain language: only meaning counts, not grammar, not spelling, not whether the candidate can replace the word in the sentence. Let’s take `nerves` again:
+The instructions are written in plain English: only meaning counts, not grammar, not spelling, not whether the candidate can replace the word in the sentence. Let’s take `nerves` again:
 
 <Words
   lists={[
@@ -445,17 +445,17 @@ Jev understood we were talking about temperament and not neurology. As for rhyme
 
 <Words
   sentence="the strength to stifle my emotions"
-  lists={[{ label: 'Word 28', words: ['stifle'] }]}
+  lists={[{ label: '28th place', words: ['stifle'] }]}
   marks={['stifle']}
 />
 
 `stifle` isn’t a word close to `emotions`, it’s a word from the sentence. So I added a line to the instructions:
 
-> A candidate that appears in the sentence, or that describes what the sentence does with the secret word, is no closer for that.
+> A candidate that appears in the sentence, or that describes what the sentence does with the secret word, isn’t any closer because of it.
 
 `stifle` went from 28th to 1,182nd place. When I was poking around in the **hidden states**, I could see that a result was bad, but I couldn’t explain to the vector why. Here, if Jev gets it wrong for a reason I can put into words, I can simply tell it.
 
-Not everything can be fixed with words, though. I had also written that a candidate that isn’t English deserved the lowest rating, and Jev royally ignored it. `retraite` stayed the first neighbor of `retirement`. I ended up fixing this with code, by demoting any word that’s three times more frequent in a French corpus than in an English one.
+Not everything can be fixed with words, though. I had also written that a candidate that isn’t English deserved the lowest rating, and Jev blithely ignored it. `retraite` stayed the first neighbor of `retirement`. I ended up fixing this with code, by demoting any word that’s three times more frequent in a French corpus than in an English one.
 
 ### A tournament to sort out the winners
 
@@ -483,6 +483,6 @@ An operation that becomes a hundred or a thousand times cheaper doesn’t just m
 
 A few embeddings, several billion parameters, hundreds of thousands of comparisons and a reasonable amount of stubbornness later, the problem is more or less solved and Semantle can finally leave my daily life for good.
 
-But in the end, no **daily** game has ever diverted me as much as doing everything I could to never have to play Semantle again.
+But in the end, no **daily** game has ever distracted me from my mortality as well as doing everything I could to never have to play Semantle again.
 
 So thanks, Semantle.
