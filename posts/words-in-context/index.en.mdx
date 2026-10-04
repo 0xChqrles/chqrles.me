@@ -64,9 +64,7 @@ We now know how to measure the problem, but not yet how to fix it. The network c
 
 > If I change this coordinate very slightly, does the *loss* go up or down, and by how much?
 
-All these variations make up the **gradient**, a vector that points in the direction in which the loss would increase the most, so we do something very sophisticated: we go the other way.
-
-Each of these variations makes up a **gradient**. A vector that points in the direction in which the loss would increase the most, so we do something very sophisticated: we go the other way. We slightly change the parameters, make a new prediction, recalculate the error, then start over. That’s **gradient descent**.
+All these variations make up the **gradient**, a vector that points in the direction in which the loss would increase the most, so we do something very sophisticated: we go the other way. We slightly change the parameters, make a new prediction, recalculate the error, then start over. That’s **gradient descent**.
 
 <Flow
   steps={['predicting', 'comparing with the actual context', 'computing the loss', 'computing the gradients', 'nudging the vectors']}
@@ -266,7 +264,7 @@ So far, I’ve been pretending that an LLM reads words. It doesn’t. It reads *
 With Qwen 3, for example, `bedbug` is split into `bed-` and `-bug`. Here’s what turns up among the nearest neighbors of its last token, `-bug`:
 
 <Words
-  sentence="it’s getting harder and harder to tell the bedbug from the man"
+  sentence="it’s getting harder and harder to tell the bedbug from the landlord"
   lists={[{ words: ['rug', 'mug', 'thug', 'slug', 'drug', 'shrug'] }]}
   marks={['bug', 'ug']}
 />
@@ -422,7 +420,7 @@ Let’s look at the new plan.
 
 ### A rating for each candidate
 
-Semantle keeps its role as the beater. It flushes out the 10,000 neighbors of the hidden word, without worrying about context, and each one then receives a rating from Jev:
+Semantle keeps its role as the bird dog. It flushes out the 10,000 neighbors of the hidden word, without worrying about context, and each one then receives a rating from Jev:
 
 ```
 0: no relation in meaning to the secret word as used in the sentence

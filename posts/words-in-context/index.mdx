@@ -64,9 +64,7 @@ On sait maintenant mesurer le problème, mais pas encore le corriger. Le réseau
 
 > Si je modifie très légèrement cette coordonnée, est-ce que la *loss* augmente ou diminue, et de combien ?
 
-L’ensemble de ces variations forme le **gradient**, un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens.
-
-Chacune de ces variations forme un **gradient**. Un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens. On modifie légèrement les paramètres, on refait une prédiction, on recalcule l’erreur, puis on recommence. C’est la **descente de gradient**.
+L’ensemble de ces variations forme le **gradient**, un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens. On modifie légèrement les paramètres, on refait une prédiction, on recalcule l’erreur, puis on recommence. C’est la **descente de gradient**.
 
 <Flow
   steps={['prédiction', 'comparaison avec le vrai contexte', 'calcul de la loss', 'calcul des gradients', 'légère modification des vecteurs']}
