@@ -143,7 +143,7 @@ The Transformer receives its vector and computes its **Q (query)**. We can imagi
 
 > What in the context matters for understanding my role here?
 
-Each of the other words has a **K (key)**, and to determine which ones are interesting, the Transformer compares the query of `bank` with each of those keys using a **dot product**. The dot product depends on both the length of the two vectors and the angle between them. For a given length, the more they point in the same direction, the bigger the result: at right angles it’s zero, and in opposite directions it goes negative. We can therefore use it as a compatibility score between a **Q (query)** and a **K (key)**, and these scores are then converted to percentages that add up to 100% (thanks to a softmax, for the experts).
+Each of the other words has a **K (key)**, and to determine which ones are interesting, the Transformer compares the query of `bank` with each of those keys using a **dot product**. The dot product depends on both the length of the two vectors and the angle between them. For a given length, the more they point in the same direction, the bigger the result: at right angles it’s zero, and in opposite directions it goes negative. We can therefore use it as a compatibility score between a **Q (query)** and a **K (key)**, and these scores are then converted to percentages that add up to 100% (via a softmax, for those who care).
 
 <Arcs
   caption="The query of `bank` compared with the keys of the words before it: `duck` wins."
@@ -376,7 +376,7 @@ I first tested **Qwen 3**, which uses the standard Transformer architecture we j
 
 ### Qwen 3.5
 
-**Qwen 3.5** uses a more recent architecture: in three out of four layers, standard attention is replaced by a cheaper linear memory mechanism (Gated DeltaNet, for the experts again). It made no difference to our problem. `bedbug` keeps rhyming, and on six ambiguous words this model even proved less effective than its predecessor. Best part: for the `banks` of the Ohio, the 4-billion-parameter version understood the river, and the 9-billion one, the vault. I’d made the model bigger and the answers worse. My approach was clearly wrong.
+**Qwen 3.5** uses a more recent architecture: in three out of four layers, standard attention is replaced by a cheaper linear memory mechanism (Gated DeltaNet, for those who still care). It made no difference to our problem. `bedbug` keeps rhyming, and on six ambiguous words this model even proved less effective than its predecessor. Best part: for the `banks` of the Ohio, the 4-billion-parameter version understood the river, and the 9-billion one, the vault. I’d made the model bigger and the answers worse. My approach was clearly wrong.
 
 ### Qwen 3 – Embedding
 
@@ -390,11 +390,11 @@ It understands `broke` and `bedbug` the way their sentences mean them, but a rer
 
 In my tests, it also had an annoying habit of treating the instruction as part of the search. Even when I explicitly told it that, in `the strength to stifle my emotions`, `stifle` should not be considered close to `emotions`, it kept ranking it near the very top. A bit like typing “recipe without peanuts” into Google and watching it zero in on `recipe` and `peanut`.
 
-So that’s it? I’m nothing but a two-bit tinkerer unable to improve that horrible Semantle, doomed to keep being tortured daily by ever more absurd words?
+So that’s it? I’m just a sorry excuse for a tinkerer who can’t even improve the dreaded Semantle, doomed to be tormented, day after day, by ever more absurd words?
 
 ## The solution: stop measuring, start asking
 
-That’s when I came across **Jev**, a decision model released in September 2026 by TypeSafe. So what is this wonder model, the one that succeeded where LLMs failed, actually made of? We don’t know exactly: TypeSafe mentions a new architecture but hasn’t published the details. But we can still get a fairly good idea of the principle. Take a model capable of understanding text, then replace its calling as a writer with that of a judge. A standard LLM ends its calculation by trying to answer this question:
+That’s when I came across **Jev**, a decision model released in September 2026 by TypeSafe. So what is this wonder model, the one that succeeded where LLMs failed, actually made of? We don’t know exactly: TypeSafe mentions a new architecture but hasn’t published the details. But we can still get a fairly good idea of the principle. Take a model that understands text, then make it switch careers: from writer to judge. A standard LLM ends its calculation by trying to answer this question:
 
 > Which token should I write next?
 
@@ -475,7 +475,7 @@ Let’s be fair to LLMs, though. Nothing I ask of Jev seems out of their reach. 
 
 Jev can’t do anything an LLM couldn’t, but it can make a small semantic decision extremely fast and for almost nothing. For one secret word, my system has it process about 3.1 million tokens, and with the fixed part of the prompt cached, the whole thing costs me about $0.13. So I can afford a strategy of remarkable brutality: have 10,000 candidates judged one by one, keep the best 200, then organize 19,900 additional duels just to rank them better. With a slower or more expensive model, I’d have spent my time looking for a clever algorithm to reduce the number of requests. Jev, though, is cheap enough that we can ask it the question thirty thousand times.
 
-An operation that becomes a hundred or a thousand times cheaper doesn’t just make the same solution more economical, it opens the door to solutions we would have ruled out before even trying them.
+When an operation gets a hundred or a thousand times cheaper, you don’t just get the same solution for less. You get the ones you’d never have bothered to try.
 
 ## Thanks anyway
 
