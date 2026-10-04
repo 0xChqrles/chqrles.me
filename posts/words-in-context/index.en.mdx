@@ -94,22 +94,22 @@ As it keeps correcting its predictions, the completely random vectors we started
 
 Now that we have the Semantle recipe, to make a version with context and offer a Pascalian diversion worthy of the name, we take a lovely sentence from a book or a song, we hide a few words, and the player has to find them. And there you go, we’ve created Semantle with context.
 
-Except our embedding has a birth defect: it’s **static**. It assigns a single vector to each word, whatever the sentence. Now, a word doesn’t have just one meaning. During training, `lift` hung out as often with planes as with Nancy Pelosi, and its vector ended up somewhere in between, in a place that is neither quite the sky nor quite the stock market.
+Except our embedding has a birth defect: it’s **static**. It assigns a single vector to each word, whatever the sentence. Now, a word doesn’t have just one meaning. During training, `bank` hung out as often with rivers as with Nancy Pelosi, and its vector ended up somewhere in between, in a place that is neither quite the shore nor quite an offshore account.
 
 As long as we’re guessing a word without context, this fuzziness isn’t really a problem, since the word of the day itself has no precise meaning. But let’s take this sentence:
 
-```text /lift/
-Never fear the void again, it’s the refuge of those who lift off
+```text /banks/
+Down beside where the waters flow, down by the banks of the Ohio
 ```
 
-Here, no burglar. Yet here are the neighbors of `lift` according to the embedding:
+No robbers here. Yet here are the neighbors of `banks` according to the embedding:
 
 <Words
-  lists={[{ words: ['whirl', 'kill', 'twirl', 'fall', 'hover', 'stash', 'lose', 'destroy', 'crush', 'attack'] }]}
-  marks={['kill', 'stash', 'lose', 'destroy', 'crush', 'attack']}
+  lists={[{ words: ['shore', 'loan', 'creek', 'vault', 'slope', 'deposit', 'riverside', 'robbery', 'heist', 'teller'] }]}
+  marks={['loan', 'vault', 'deposit', 'robbery', 'heist', 'teller']}
 />
 
-Half the list in the sky, the other half in the biography of Jeffrey Dahmer. But let’s take another, more subtle example:
+Half the list by the river, the other half in the biography of Bonnie and Clyde. But let’s take another, more subtle example:
 
 <Words
   sentence="I am treated with the gentleness of a nurse"
@@ -135,66 +135,66 @@ K (key):   in which cases I can be relevant
 V (value): the information I pass on if I’m listened to
 ```
 
-Let’s take the following sentence and focus on the word `lifts`:
+Let’s take the following sentence and focus on the word `bank`:
 
-```text /lifts/
-The pigeon lifts into the sky
+```text /bank/
+The duck swims to the bank
 ```
 
 The Transformer receives its vector and computes its **Q (query)**. We can imagine it expresses something like:
 
 > Which pieces of information in the context are important to understand my role here?
 
-The other words, for their part, have a **K (key)**, and to determine which ones are interesting, the Transformer compares the query of `lifts` with the different keys using a **dot product**. The dot product depends on both the length of the two vectors and the angle between them. At equal length, the more they point in the same direction, the bigger the result; perpendicular, we get zero, and in opposite directions, it goes negative. We can therefore use it as a compatibility score between a **Q (query)** and a **K (key)**, and these scores are then converted to percentages that add up to 100% (thanks to a softmax, for the experts).
+The other words, for their part, have a **K (key)**, and to determine which ones are interesting, the Transformer compares the query of `bank` with the different keys using a **dot product**. The dot product depends on both the length of the two vectors and the angle between them. At equal length, the more they point in the same direction, the bigger the result; perpendicular, we get zero, and in opposite directions, it goes negative. We can therefore use it as a compatibility score between a **Q (query)** and a **K (key)**, and these scores are then converted to percentages that add up to 100% (thanks to a softmax, for the experts).
 
 <Arcs
-  caption="The query of `lifts` compared with the keys of `The` and `pigeon`: `pigeon` wins."
-  tokens={['The', 'pigeon', 'lifts', 'into', 'the', 'sky']}
-  from={2}
-  to={[{ token: 1, weight: 0.9 }, { token: 0, weight: 0.1 }]}
+  caption="The query of `bank` compared with the keys of the words before it: `duck` wins."
+  tokens={['The', 'duck', 'swims', 'to', 'the', 'bank']}
+  from={5}
+  to={[{ token: 1, weight: 0.7 }, { token: 2, weight: 0.2 }, { token: 0, weight: 0.04 }, { token: 3, weight: 0.03 }, { token: 4, weight: 0.03 }]}
 />
 
-These percentages are used to weight the corresponding **values**, which then enrich the vector of `lifts`.
+These percentages are used to weight the corresponding **values**, which then enrich the vector of `bank`.
 
 <Plane
-  caption="`lifts` before and after attention: the value of `pigeon` brings it closer to `glide` and moves it away from `swipe`."
+  caption="`bank` before and after attention: the value of `duck` brings it closer to `shore` and moves it away from `loan`."
   states={[
     {
       label: 'before',
       points: [
-        { id: 'glide', label: 'glide', x: 1, y: 3.2 },
-        { id: 'swipe', label: 'swipe', x: 4.4, y: 1.2 },
-        { id: 'lifts', label: 'lifts', x: 2.75, y: 2.35 },
+        { id: 'shore', label: 'shore', x: 1, y: 3.2 },
+        { id: 'loan', label: 'loan', x: 4.4, y: 1.2 },
+        { id: 'bank', label: 'bank', x: 2.75, y: 2.35 },
       ],
     },
     {
       label: 'after',
       points: [
-        { id: 'glide', label: 'glide', x: 1, y: 3.2 },
-        { id: 'swipe', label: 'swipe', x: 4.4, y: 1.2 },
-        { id: 'lifts', label: 'lifts', x: 1.9, y: 3.2 },
+        { id: 'shore', label: 'shore', x: 1, y: 3.2 },
+        { id: 'loan', label: 'loan', x: 4.4, y: 1.2 },
+        { id: 'bank', label: 'bank', x: 1.9, y: 3.2 },
       ],
     },
   ]}
   links={[
-    { from: 'lifts', to: 'glide', distance: true },
-    { from: 'lifts', to: 'swipe', distance: true },
+    { from: 'bank', to: 'shore', distance: true },
+    { from: 'bank', to: 'loan', distance: true },
   ]}
 />
 
-`lifts` has thus just taken in a lot of information from `pigeon`, without the model having been given a handwritten rule saying:
+`bank` has thus just taken in a lot of information from `duck`, without the model having been given a handwritten rule saying:
 
-> If the subject is a pigeon, then lifts probably means rising into the air.
+> If the subject is a duck, then bank probably means the side of a river.
 
-The model simply learned that, in this kind of context, the information contained in `pigeon` is very useful for correctly representing `lifts`. The matrices that produce Q, K and V are themselves parameters of the network. At the start of training, they produce essentially nonsense, then they are gradually adjusted by **gradient descent**, like our **embeddings**.
+The model simply learned that, in this kind of context, the information contained in `duck` is very useful for correctly representing `bank`. The matrices that produce Q, K and V are themselves parameters of the network. At the start of training, they produce essentially nonsense, then they are gradually adjusted by **gradient descent**, like our **embeddings**.
 
-Once attention is done, each word has a new representation, enriched by what it picked up from its context. It then goes through a more standard neural network, then becomes the input of the next Transformer layer. And we start over a few dozen times. At each layer, new Q, K and V are computed from the representations produced by the previous one. A first layer may learn a relatively simple relationship between `pigeon` and `lifts`, then the following ones work from this already integrated information and progressively build richer representations.
+Once attention is done, each word has a new representation, enriched by what it picked up from its context. It then goes through a more standard neural network, then becomes the input of the next Transformer layer. And we start over a few dozen times. At each layer, new Q, K and V are computed from the representations produced by the previous one. A first layer may learn a relatively simple relationship between `duck` and `bank`, then the following ones work from this already integrated information and progressively build richer representations.
 
-To train a model like GPT, we give it a task fairly close to the one we used for embeddings: predicting what comes next in a text. We show it, for example, `The pigeon` and it has to predict `lifts`, then `The pigeon lifts` and it has to predict `into`, and so on over billions of pieces of text. At each prediction, we calculate the **loss**, then the **gradients**, and we slightly change all the parameters. After predicting what comes next in billions of sentences, the model gradually learns which words should listen to each other and which information should flow between them. That’s how a huge stack of Transformer layers, trained with the rather basic goal of guessing the next word, ends up building something that looks dangerously like a nuanced understanding of context.
+To train a model like GPT, we give it a task fairly close to the one we used for embeddings: predicting what comes next in a text. We show it, for example, `The duck`, and it has to predict `swims`, then `The duck swims`, and it has to predict `to`, and so on over billions of pieces of text. At each prediction, we calculate the **loss**, then the **gradients**, and we slightly change all the parameters. After predicting what comes next in billions of sentences, the model gradually learns which words should listen to each other and which information should flow between them. That’s how a huge stack of Transformer layers, trained with the rather basic goal of guessing the next word, ends up building something that looks dangerously like a nuanced understanding of context.
 
 ### Opening the hood
 
-At each layer of the network, each word therefore has a vector that has listened to its context. This intermediate vector has a name, the **hidden state**. It’s exactly what Semantle was missing: an embedding that has read the sentence and can tell a pigeon that `lifts` off from a pickpocket that `lifts` a wallet. In normal use of an LLM, we don’t look directly at these vectors, we let the model go all the way and read the text it produces. But nothing forbids us from stopping it along the way and retrieving the vector produced by the layer we’re interested in.
+At each layer of the network, each word therefore has a vector that has listened to its context. This intermediate vector has a name, the **hidden state**. It’s exactly what Semantle was missing: an embedding that has read the sentence and can tell the `bank` a duck swims to from the `bank` that finances settlements in the West Bank. In normal use of an LLM, we don’t look directly at these vectors, we let the model go all the way and read the text it produces. But nothing forbids us from stopping it along the way and retrieving the vector produced by the layer we’re interested in.
 
 Nothing, except OpenAI. ChatGPT doesn’t let us open its hood, so we need a model whose parameters we can download and that we can run ourselves. Fortunately, market communism works in mysterious ways, and Alibaba hands out the weights of its **Qwen** model for free.
 
@@ -202,30 +202,30 @@ Nothing, except OpenAI. ChatGPT doesn’t let us open its hood, so we need a mod
 
 Let’s go back to our sentence:
 
-```text /lifts/
-The pigeon lifts into the sky
+```text /bank/
+The duck swims to the bank
 ```
 
-1. We take the 10,000 words closest to `lifts` according to our standard Semantle-style embedding.
+1. We take the 10,000 words closest to `bank` according to our standard Semantle-style embedding.
 
-<Words lists={[{ words: ['whirl', 'kill', 'twirl', 'fall', 'hover', 'stash', 'lose', 'destroy', 'crush', 'attack'] }]} />
+<Words lists={[{ words: ['shore', 'loan', 'creek', 'vault', 'slope', 'deposit', 'riverside', 'robbery', 'heist', 'teller'] }]} />
 
-2. We write 10,000 versions of our sentence, replacing `lifts` with each of these words.
+2. We write 10,000 versions of our sentence, replacing `bank` with each of these words.
 
-```text /whirls/ /kills/ /twirls/
-The pigeon whirls into the sky
-The pigeon kills into the sky
-The pigeon twirls into the sky
+```text /shore/ /loan/ /creek/
+The duck swims to the shore
+The duck swims to the loan
+The duck swims to the creek
 ...
 ```
 
-3. We show these 10,000 sentences to the LLM, each time we retrieve the **hidden state** of the tested word, and we calculate its distance from that of `lifts` in the original sentence.
+3. We show these 10,000 sentences to the LLM, each time we retrieve the **hidden state** of the tested word, and we calculate its distance from that of `bank` in the original sentence.
 
 4. We sort the list again, but by this contextual distance.
 
-<Words lists={[{ words: ['rise', 'whirl', 'glide', 'twirl', 'float'] }]} />
+<Words lists={[{ words: ['shore', 'riverside', 'embankment', 'slope', 'waterside'] }]} />
 
-We’ve got our solution. We keep Semantle to quickly find candidates, then we use an LLM to eliminate the ones with the wrong meaning. We no longer compare `lift` and `kill` in a vacuum, we first let them read their respective sentences, then we compare what they’ve become. In theory, the idea is perfect.
+We’ve got our solution. We keep Semantle to quickly find candidates, then we use an LLM to eliminate the ones with the wrong meaning. We no longer compare `bank` and `loan` in a vacuum, we first let them read their respective sentences, then we compare what they’ve become. In theory, the idea is perfect.
 
 And yet the article isn’t even halfway through. The theory had left out three important details.
 
@@ -233,31 +233,31 @@ And yet the article isn’t even halfway through. The theory had left out three 
 
 First detail glossed over. During attention, a word can only listen to what comes before it. This is called the **causal mask**, and it makes sense: the model is trained to guess what comes next, so we’re not going to show it. Let’s take a new sentence:
 
-```text /lifts/ /wallet/
-The pigeon lifts a wallet
+```text /bank/ /robbed/
+The bank was robbed by a pigeon
 ```
 
 <Arcs
-  caption="When the model computes `lifts`, `wallet` hasn’t arrived yet."
-  tokens={['The', 'pigeon', 'lifts', 'a', 'wallet']}
-  from={2}
-  to={[{ token: 0 }, { token: 1 }]}
+  caption="When the model computes `bank`, `robbed` hasn’t arrived yet."
+  tokens={['The', 'bank', 'was', 'robbed', 'by', 'a', 'pigeon']}
+  from={1}
+  to={[{ token: 0 }]}
   mask="causal"
 />
 
-When the model computes the **hidden state** of `lifts`, it has heard `The` and `pigeon`, but it has never heard of `wallet`. The most useful part of the sentence is invisible to it and the model knows nothing of the pigeon’s kleptomania. For a word to have read the whole sentence, we have to place it after the sentence:
+When the model computes the **hidden state** of `bank`, it has heard `The`, but it has never heard of `robbed`. The most useful part of the sentence is invisible to it, and the model has no idea a pigeon is about to rob the place. For a word to have read the whole sentence, we have to place it after the sentence:
 
-```text /<TARGET>/ /lift/
+```text /<TARGET>/ /bank/
 Context:
-The pigeon <TARGET> a wallet
+The <TARGET> was robbed by a pigeon
 
 Lexeme:
-lift
+bank
 ```
 
-This time, `lift` has read everything. Unfortunately, nothing really pushes it to make the connection with the sentence above, and its vector falls back on a fairly general meaning, close to that of the static embedding:
+This time, `bank` has read everything. Unfortunately, nothing really pushes it to make the connection with the sentence above, and its vector falls back on a fairly general meaning, close to that of the static embedding:
 
-<Words lists={[{ words: ['purloin', 'hover', 'swipe', 'soar', 'pilfer', 'ascend', 'shoplift'] }]} />
+<Words lists={[{ words: ['loan', 'shore', 'vault', 'creek', 'deposit', 'riverside', 'teller'] }]} />
 
 ### Problem 2: word ≠ token
 
@@ -353,9 +353,9 @@ So we’re no longer measuring the representation of the word itself, with its s
 In the middle of the network, the representation is still very sensitive to the form of `broke`. A few layers later, the spelling neighbors progressively disappear in favor of words tied to its meaning in the sentence. The model ended up understanding that we were talking about a guy without money, and a few other examples chosen precisely for their ambiguity then start to work properly:
 
 <Words
-  sentence="Never fear the void again, it’s the refuge of those who lift off"
-  lists={[{ words: ['rise', 'flutter', 'glide'] }]}
-  marks={['lift']}
+  sentence="Down beside where the waters flow, down by the banks of the Ohio"
+  lists={[{ words: ['shore', 'riverside', 'waterside'] }]}
+  marks={['banks']}
 />
 
 <Words
@@ -378,7 +378,7 @@ I first tested **Qwen 3**, which uses the standard Transformer architecture we j
 
 ### Qwen 3.5
 
-**Qwen 3.5** uses a more recent architecture: in three layers out of four, standard attention is replaced by a cheaper linear memory mechanism (Gated DeltaNet, for the experts again). It made no difference to our problem. `bedbug` keeps rhyming, and on six ambiguous words this model even proved less effective than its previous generation. A juicy detail: for `lift`, the 4-billion-parameter version understood the sky, and the 9-billion one, wallets. By making the model bigger, I had lost relevance. My approach was clearly not the right one.
+**Qwen 3.5** uses a more recent architecture: in three layers out of four, standard attention is replaced by a cheaper linear memory mechanism (Gated DeltaNet, for the experts again). It made no difference to our problem. `bedbug` keeps rhyming, and on six ambiguous words this model even proved less effective than its previous generation. A juicy detail: for the `banks` of the Ohio, the 4-billion-parameter version understood the river, and the 9-billion one, the vault. By making the model bigger, I had lost relevance. My approach was clearly not the right one.
 
 ### Qwen 3 – Embedding
 
@@ -388,7 +388,7 @@ As it happens, there are LLMs retrained to produce good vectors. This time, they
 
 Qwen also distributes **Qwen3-Reranker**, perhaps the most promising candidate on paper. When you do a Google search, the engine first gathers thousands of potentially relevant pages, then reranks them to put the best ones first. This second sort is the job of a reranker, a model that rereads the search alongside each page and judges whether it answers it. That looks like our problem, phrased differently. The sentence, with its hidden word, is our Google search, and the Semantle embedding that provides us with 10,000 potentially relevant words, those are the results to rerank. This time, no distance to calculate and no Transformer guts to poke around in, we simply ask the reranker to do its job.
 
-It understands `broke` and `lift` the way the sentence means them, but a reranker is first designed to judge how relevant a result is to a search. So it brings up words that go well with the search, not necessarily those that mean the same thing, and `unemployed` comes second for `broke`. Which makes sense, but it’s not exactly what we’re trying to get here.
+It reads `broke` and `bank` the way their sentences mean them, but a reranker is first designed to judge how relevant a result is to a search. So it brings up words that go well with the search, not necessarily those that mean the same thing, and `unemployed` comes second for `broke`. Which makes sense, but it’s not exactly what we’re trying to get here.
 
 In my tests, it also had an unfortunate tendency to take the instruction for part of the search. Even when I explicitly told it that `stifle` should not be considered close to `emotions`, it kept ranking it among the very first. A bit as if I had typed “recipe without peanuts” into Google and the search engine had focused on `recipe` and `peanut`.
 
