@@ -96,11 +96,22 @@ a {
   color: var(--ink);
 }
 
+/* The mark at the left edge and, on the index, the languages at the right. The
+   box spans the page, so it lets the pointer through to what lies under it. */
 .masthead {
   position: absolute;
   top: 20px;
   left: var(--gutter);
+  right: var(--gutter);
   z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.masthead > * {
+  pointer-events: auto;
 }
 
 .masthead a {
@@ -111,12 +122,40 @@ a {
   color: var(--cue);
 }
 
+/* The languages: the one you are in in the ink, each other a link. Beside the
+   mark, they sit level with its middle. */
+.langs {
+  display: inline-flex;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.langs [aria-current] {
+  color: var(--ink);
+}
+
+.langs a {
+  text-decoration: none;
+}
+
+.langs a:hover {
+  color: var(--cue);
+}
+
+.masthead > .micro {
+  margin-top: 2px;
+}
+
 @media (min-width: 1040px) {
   /* On a wide screen the mark stays put: the way back is always one click. */
   .masthead {
     position: fixed;
     top: 32px;
     left: 32px;
+    right: 32px;
+  }
+  .masthead > .micro {
+    margin-top: 6px;
   }
   .mark {
     width: 20px; /* 5 × 7 cells at 4px */

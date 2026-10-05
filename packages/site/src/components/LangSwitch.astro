@@ -1,0 +1,30 @@
+---
+import { LANGUAGES, type Lang } from '../lib/lang'
+
+// The languages a page comes in: the one you are reading, and a link to the
+// same page in each of the others. With only one, it is just the language.
+interface Props {
+  current: Lang
+  targets: { lang: Lang; path: string }[]
+}
+
+const { current, targets } = Astro.props
+---
+
+{
+  targets.length > 1 ? (
+    <span class="langs">
+      {targets.map(({ lang, path }) =>
+        lang === current ? (
+          <span aria-current="true">{lang}</span>
+        ) : (
+          <a href={path} hreflang={lang} lang={lang} aria-label={LANGUAGES[lang].name}>
+            {lang}
+          </a>
+        ),
+      )}
+    </span>
+  ) : (
+    current
+  )
+}

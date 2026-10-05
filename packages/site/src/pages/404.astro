@@ -1,13 +1,15 @@
 ---
 import Base from '../layouts/Base.astro'
 import { formatDuration } from '../lib/duration'
+import { DEFAULT_LANG } from '../lib/lang'
 import { SITE_DESCRIPTION } from '../site'
 
 // A missing page is a track with nothing on it: no title, no length. The mark
-// (top left) is the way back.
+// (top left) is the way back. CloudFront serves this one file for every
+// language, so it has no words of its own.
 ---
 
-<Base title="404" description={SITE_DESCRIPTION} lang="fr">
+<Base title="404" description={SITE_DESCRIPTION[DEFAULT_LANG]} lang={DEFAULT_LANG}>
   <main class="tracklist column">
     <div class="track-row lost">
       <h1 class="track-no">404</h1>

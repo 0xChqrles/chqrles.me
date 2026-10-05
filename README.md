@@ -5,8 +5,9 @@ The source of https://chqrles.me.
 ## Publishing a post
 
 1. Create a folder in `posts/`. Its name is the URL: `posts/my-post/` is published at
-   `https://chqrles.me/my-post/`, forever. Lowercase letters, digits and hyphens.
-2. Write `index.md` in it (`index.mdx` if the post has a figure):
+   `https://chqrles.me/fr/my-post/`, forever. Lowercase letters, digits and hyphens. To rename
+   it later, keep the old name in `aliases: [my-old-name]` and its links keep working.
+2. Write `index.md` in it (`index.mdx` if the post has a figure). It is the French post:
 
    ```markdown
    ---
@@ -15,7 +16,6 @@ The source of https://chqrles.me.
    description: "One or two sentences, for link previews and the feed."
    image: ./header.jpg   # at least 1200×630
    imageAlt: "What the header image shows."
-   lang: fr          # fr or en, fr by default
    draft: false      # true keeps it off the site
    ---
 
@@ -23,7 +23,14 @@ The source of https://chqrles.me.
    ```
 
 3. Drop the header image in the same folder.
-4. Push to `main`. CI checks the post, builds the site and deploys it.
+4. To translate it, write `index.en.md` beside it, with its own frontmatter (the same
+   image, its own title, description and alt text). It is published at
+   `https://chqrles.me/en/my-post/`.
+5. Push to `main`. CI checks the post, builds the site and deploys it.
+
+A page is always under its language, `/fr/…` or `/en/…`. A link without one, like
+`https://chqrles.me/my-post/`, is sent to the reader's language: the last they read, else
+their browser's. A post with no translation is listed in both languages, in its own.
 
 A post with a missing or misspelled field fails the build, with a message that names the field.
 

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://chqrles.me/sitemap-index.xml
+Sitemap: https://chqrles.me/sitemap.xml

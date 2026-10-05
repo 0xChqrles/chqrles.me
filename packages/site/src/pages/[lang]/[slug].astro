@@ -1,0 +1,88 @@
+---
+import { render } from 'astro:content'
+import LangSwitch from '../../components/LangSwitch.astro'
+import Mark from '../../components/Mark.astro'
+import Sleeve from '../../components/Sleeve.astro'
+import { figures } from '../../figures'
+import Base from '../../layouts/Base.astro'
+import { formatDuration, trackNumber } from '../../lib/duration'
+import { LANGS, type Lang } from '../../lib/lang'
+import { formatDate, getTracks, langOf, secondsOf, typeset, versionIn, type Track } from '../../lib/posts'
+import { assertShareable } from '../../lib/share-image'
+import { languagePath, postPath } from '../../lib/urls'
+import { SITE_NAME } from '../../site'
+
+// Every post has a page in every language. Where it has not been translated,
+// the page sends the reader on to the original at once (Astro's static redirect
+// page, which waits 2 seconds for a 302 and none for a 307). So does a name the
+// post used to have (its aliases), in every language: an old link still works.
+export async function getStaticPaths() {
+  const tracks = await getTracks()
+  return LANGS.flatMap((lang) =>
+    tracks.flatMap((track) => [track.slug, ...track.aliases].map((slug) => ({ params: { lang, slug }, props: { track, alias: slug !== track.slug } }))),
+  )
+}
+
+interface Props {
+  track: Track
+  alias: boolean
+}
+
+const lang = Astro.params.lang as Lang
+const { track, alias } = Astro.props
+if (alias) return Astro.redirect(postPath(versionIn(track, lang).id), 307)
+const post = track.versions.find((version) => langOf(version) === lang)
+if (!post) return Astro.redirect(postPath(track.original.id), 307)
+
+const { number } = track
+const { title, description, date, image, imageAlt } = post.data
+const { Content } = await render(post)
+const seconds = await secondsOf(post)
+// The post in each language it is written in.
+const versions = LANGS.flatMap((l) => {
+  const version = track.versions.find((v) => langOf(v) === l)
+  return version ? [{ lang: l, path: postPath(version.id) }] : []
+})
+// The post's figures write numbers in its language.
+Astro.locals.lang = lang
+if (image) assertShareable(post.id, image)
+// The link preview is the post's share card (src/pages/[lang]/[slug]/share.png.ts).
+const share = image && imageAlt ? { src: `${postPath(post.id)}share.png`, alt: imageAlt } : undefined
+const day = date.toISOString().slice(0, 10)
+---
+
+<Base
+  title={typeset(title, lang)}
+  description={typeset(description, lang)}
+  lang={lang}
+  path={postPath(post.id)}
+  alternates={versions.length > 1 ? versions : undefined}
+  article={{ published: date }}
+  share={share}
+>
+  <main class="record column">
+    <article>
+      {/* Only a draft may have no photo: its header then stays in the column. */}
+      <header class:list={['sleeve-head', { 'has-sleeve': image && imageAlt }]}>
+        <div class="title-row">
+          <span class="track-no" aria-hidden="true">{trackNumber(number)}</span>
+          <h1>{typeset(title, lang)}</h1>
+        </div>
+        {/* The sleeve's credits: the date, the length (the sum of the sections), the language. */}
+        <ul class="credits micro">
+          <li><time datetime={day}>{formatDate(date, lang)}</time></li>
+          <li><span class="sum">{formatDuration(seconds)}</span></li>
+          <li><LangSwitch current={lang} targets={versions} /></li>
+        </ul>
+        {image && imageAlt && <Sleeve src={image} alt={imageAlt} />}
+      </header>
+      <div class="prose" data-total={seconds}>
+        <Content components={figures} />
+      </div>
+      {/* The run-out: the centre label, and the way back. */}
+      <footer class="runout">
+        <a href={languagePath(lang)} aria-label={SITE_NAME}><Mark /></a>
+      </footer>
+    </article>
+  </main>
+</Base>

@@ -59,10 +59,17 @@ export class SiteStack extends Stack {
       },
     })
 
-    // Astro writes /<slug>/index.html, and CloudFront's default root object only works at /.
+    // Astro writes /<lang>/<slug>/index.html, and CloudFront's default root object only works at /.
+    // The same function sends a path with no language to the visitor's language.
     const directoryUrls = new cloudfront.Function(this, 'DirectoryUrls', {
-      comment: 'Serves /<slug>/ from <slug>/index.html and redirects /<slug> and /<slug>/index.html to it',
+      comment: 'Serves /<lang>/<slug>/ from index.html, redirects other forms, and a path with no language to the reader\'s',
       code: cloudfront.FunctionCode.fromFile({ filePath: join(here, '..', 'functions', 'directory-urls.js') }),
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+    })
+    // Remembers the language of the last page read, for the function above.
+    const langCookie = new cloudfront.Function(this, 'LangCookie', {
+      comment: 'Sets the lang cookie on a page in a language',
+      code: cloudfront.FunctionCode.fromFile({ filePath: join(here, '..', 'functions', 'lang-cookie.js') }),
       runtime: cloudfront.FunctionRuntime.JS_2_0,
     })
 
@@ -80,7 +87,10 @@ export class SiteStack extends Stack {
         // Honours each file's Cache-Control, set by the uploads below.
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         responseHeadersPolicy: securityHeaders,
-        functionAssociations: [{ function: directoryUrls, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
+        functionAssociations: [
+          { function: directoryUrls, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST },
+          { function: langCookie, eventType: cloudfront.FunctionEventType.VIEWER_RESPONSE },
+        ],
       },
       // Not a single-page app: a missing path is a real 404. With Origin Access
       // Control the bucket answers 403 for a missing key, so both map to /404.html.

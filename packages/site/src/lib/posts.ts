@@ -1,8 +1,11 @@
 import { getCollection, render, type CollectionEntry } from 'astro:content'
 import { frenchSpacing } from './french-spacing'
+import type { Lang } from './lang'
+import { groupTracks, langOf, slugOf, versionIn, type Track as TrackOf } from './tracks'
 
 export type Post = CollectionEntry<'posts'>
-export type Lang = Post['data']['lang']
+
+export { langOf, slugOf, versionIn }
 
 // Newest first. Drafts are here only under `pnpm dev`: a production build
 // never loads them (content.config.ts).
@@ -21,17 +24,10 @@ export function typeset(text: string, lang: Lang): string {
   return lang === 'fr' ? frenchSpacing(text) : text
 }
 
-// The index is a tracklist: each post is a track, numbered in the order it
-// was published (the first post is 01), with its length in seconds.
-export interface Track {
-  post: Post
-  number: number
-  seconds: number
-}
+export type Track = TrackOf<Post>
 
 export async function getTracks(): Promise<Track[]> {
-  const posts = await getPosts()
-  return Promise.all(posts.map(async (post, i) => ({ post, number: posts.length - i, seconds: await secondsOf(post) })))
+  return groupTracks(await getPosts())
 }
 
 // Counted at render time by the section-cues rehype step.

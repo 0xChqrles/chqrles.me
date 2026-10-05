@@ -9,7 +9,8 @@
 > and surface the conflict rather than silently "fixing" either side.
 
 ```
-posts/<slug>/       one folder per post: index.md (or index.mdx) and its images
+posts/<slug>/       one folder per post: index.md (or index.mdx), index.en.md for its English
+                    version, and their images
 packages/site/      the Astro site: content schema, pages, feed, sitemap
 packages/infra/     the AWS CDK app: the site stack and CI's deploy role
 .github/workflows/  ci.yml (checks) and deploy.yml (checks, then deploy)
@@ -57,12 +58,20 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
 
 - **One folder per post**: `posts/<slug>/index.md`, or `index.mdx` when the post has a
   figure. Its images sit beside the text.
-- **The folder name is the URL**: `https://chqrles.me/<slug>/`, with the trailing slash.
-  A slug is lowercase letters, digits and single hyphens (`SLUG` in
-  `packages/site/src/lib/urls.ts`); any other folder name fails the build, a folder
-  starting with a dot included. A folder holding both `index.md` and `index.mdx` fails
-  too, and so does a post named after a page (`404`). **A published URL never changes**:
-  never rename a published post's folder.
+- **The language is the file's name** (`packages/site/src/lib/urls.ts`): `index.md` (or
+  `.mdx`) is French, `index.<lang>.md` is the post in that language, like `index.en.md`.
+  A folder holds at most one file per language (`index.md` beside `index.mdx` fails), a
+  language the site does not have fails the build, and so does a markdown file named
+  `index…` that is none of these (a mistyped `index-en.md` never goes unnoticed). Each file has its own frontmatter
+  (title, description and image alt in its language) and may point at the same image.
+- **The URL is the language and the folder name**: `https://chqrles.me/<lang>/<slug>/`,
+  with the trailing slash. A slug is lowercase letters, digits and single hyphens (`SLUG`
+  in `packages/site/src/lib/urls.ts`); any other folder name fails the build, a folder
+  starting with a dot included. **A published
+  URL never stops working**: to rename a published post's folder, list its old name in
+  `aliases` (below), and `/<lang>/<old-slug>/` keeps redirecting to it. The URL without a
+  language, `https://chqrles.me/<slug>/`, is how the first post was published and stays a
+  way in: the edge sends it to the reader's language (see *Infrastructure*).
 - **The frontmatter is validated** (`packages/site/src/lib/post-schema.ts`). A post that
   breaks it fails the build, and the message names the field:
 
@@ -73,11 +82,11 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   | `description` | required, one or two sentences, used by previews and the feed |
   | `image` | required, the header image, a file in the post's folder, at least 1200×630 |
   | `imageAlt` | required, the header image's alt text |
-  | `lang` | `fr` or `en`, default `fr`; sets `<html lang>` and how dates are written |
+  | `aliases` | optional, on the French file: the slugs the post had before its folder was renamed, oldest first; each redirects to it, in every language, and its share image and the feed's guid stay as they were (a name that is the post's own, another post's, or another alias, fails the build) |
   | `draft` | optional, default `false` |
 
-  Any other field fails the build, so a misspelled field never passes silently. One build
-  names every field at fault.
+  Any other field fails the build, so a misspelled field never passes silently (`lang`
+  included: the file's name says it). One build names every field at fault.
 - **A draft** renders under `pnpm dev` and never reaches a production build: not its page,
   not its images, not the feed, not the sitemap. A production build still validates it,
   then drops it (`packages/site/src/content.config.ts`). Only a draft may omit `image` and
@@ -88,16 +97,49 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
   smaller than 1200×630 fails the build (`packages/site/src/lib/share-image.ts`). The header itself is served responsive, in AVIF
   and WebP, with its width and height set.
 - **Every page carries** its title and description, and its canonical URL, except the 404
-  page: it answers any missing URL, so it has none and is marked `noindex`.
+  page: it answers any missing URL, so it has none and is marked `noindex`. A page that
+  comes in several languages also lists each one as an `hreflang` alternate.
+
+### Languages
+
+- **The site has two languages, `fr` and `en`**, French by default (`LANGS` and
+  `DEFAULT_LANG` in `packages/site/src/lib/lang.ts`; the edge functions keep a copy, and a
+  test keeps them in step). Every page lives under its language: `/<lang>/`,
+  `/<lang>/<slug>/`, `/<lang>/rss.xml`. `<html lang>` and how dates and numbers are
+  written follow the post's language.
+- **A path without a language is redirected** to the same path under the visitor's
+  language: the last one they read, else their browser's, else French (see
+  *Infrastructure*). A page is never served without its language.
+- **Every post has a page in every language.** Where it is not translated (or its
+  translation is a draft), `/<lang>/<slug>/` redirects to the original
+  (`packages/site/src/pages/[lang]/[slug].astro`). The original is the French file, else
+  the earliest. A track's number and place come from the original, so they are the same
+  on every page.
+- **Each language has its own index and feed**, listing every post: in that language when
+  it is translated, in its own when it is not (then marked with its `lang`). The reading
+  time is that of the version shown. The sitemap lists the pages that have content, each
+  with its `hreflang` alternates (`packages/site/src/pages/sitemap.xml.ts`).
+- **A renamed post's old names stay pages** (`aliases`): for each language and each alias,
+  `/<lang>/<alias>/` redirects at once to the post's page in that language, and
+  `/<lang>/<alias>/share.png` is the same card, so an old link or preview still works. The
+  feed item of the original keeps the URL of its first alias as its guid, so a reader does not
+  see the renamed post as new.
+- **A post's share image is per language** (`/<lang>/<slug>/share.png`, it carries the
+  title); the index's is one for both (`/share.png`).
+- **The words the site itself says** (`SITE_DESCRIPTION` in `packages/site/src/site.ts`,
+  for the index, the feeds and the 404 page's meta description; the language names in
+  `packages/site/src/lib/lang.ts`) are written in each language.
 
 ### Writing and publishing a post
 
 1. Create the folder `posts/<slug>/`.
 2. Write `index.md` with the frontmatter above.
 3. Drop the header image in the same folder and point `image:` at it (`./header.jpg`).
-4. Push to `main`.
+4. To translate it, write `index.en.md` beside it, with its own frontmatter and the same image.
+5. Push to `main`.
 
-That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
+That is all: nothing else to touch. To keep it unpublished, set `draft: true`; a draft
+translation leaves the original published.
 
 ### Rendering
 
@@ -106,7 +148,7 @@ That is all: nothing else to touch. To keep it unpublished, set `draft: true`.
   inside `« »`, inside a number like `10 000`, or between a number and `%` or a currency
   symbol. Only spaces the author typed are replaced (a line break in the source counts as
   one). Code is never touched. It applies to titles, descriptions and the feed too.
-  English posts (`lang: en`) are left alone.
+  Posts in another language (`index.en.md`) are left alone.
 - **A fenced block with the language `figure`** is a figure that is not built yet. It
   renders as a visible placeholder, never as code
   (`packages/site/src/lib/figure-placeholders.ts`).
@@ -212,6 +254,10 @@ colour, icon or furniture is reused.
   stays at a few lines instead of a stack of short ones.
 - **The mark is a pixel q** (`packages/site/src/lib/mark.ts`), 5×7 cells at 3px (4px on a
   wide screen): the only link home. The favicon is the same q in vermilion.
+- **The languages are two codes in the chrome voice** (`packages/site/src/components/LangSwitch.astro`):
+  the one you are in in the ink, each other a link to the same page in that language, and
+  only where the page has one. On the index they stand at the masthead's right edge; on an
+  article, in its credits, where its language stood.
 - **Totals** (an article's length, the index's runtime) are written in the ink, bold. In
   an article's credits the length also stands on one ink hairline, as wide as its figures.
   Never a double rule.
@@ -230,7 +276,7 @@ colour, icon or furniture is reused.
   baseline on the photo's foot, 52px or smaller to keep to six lines. The title is on the
   card because some previews (X's) show the image alone. It is drawn as outlines with
   fontkit, from the static weight-500 WOFF (fontkit cannot vary a WOFF2), so the build
-  needs no font installed. A post's is `/<slug>/share.png`; the index's is `/share.png`,
+  needs no font installed. A post's is `/<lang>/<slug>/share.png`; the index's is `/share.png`,
   the newest post's photo beside the mark alone.
 - **Never**: textures, gradients, glows, shadows, a radius above 2px, a second accent, a
   pixel face at a size that is not a whole multiple of its grid, helper copy.
@@ -257,11 +303,22 @@ colour, icon or furniture is reused.
   blocked, TLS only, S3-managed encryption, destroyed with the stack); CloudFront with
   Origin Access Control, HTTP/2 and HTTP/3, TLS 1.2_2021, price class 100; a
   DNS-validated certificate for the apex; A and AAAA aliases at the apex. No `www`.
-- **Directory URLs** (`packages/infra/functions/directory-urls.js`, a CloudFront Function
-  on viewer request): `/<slug>/` serves `<slug>/index.html`; `/<slug>` and
-  `/<slug>/index.html` redirect (301) to `/<slug>/`; a path whose last segment has a dot
-  is a file and passes through. Repeated slashes collapse first, so a redirect never
-  leaves the site.
+- **Directory URLs and languages** (`packages/infra/functions/directory-urls.js`, a
+  CloudFront Function on viewer request): under a language, `/<lang>/<slug>/` serves
+  `<lang>/<slug>/index.html`; `/<lang>/<slug>` and `/<lang>/<slug>/index.html` redirect
+  (301) to `/<lang>/<slug>/`; a path whose last segment has a dot is a file and passes
+  through. A path with no language (`/`, `/<slug>/`, `/rss.xml`, `/<slug>/share.png`)
+  redirects (302: it depends on who asks) to the same path under the visitor's language,
+  the query string kept: the language in the `lang` cookie, else the first language of the
+  `Accept-Language` header that the site has (weights honoured, `fr-CH` is `fr`), else
+  French. The files every language shares (`_astro/*`, `favicon.svg`,
+  `apple-touch-icon.png`, `robots.txt`, `share.png`, `sitemap.xml`, `404.html`) are served
+  as they are. Repeated slashes collapse first, so a redirect never leaves the site.
+- **The `lang` cookie** (`packages/infra/functions/lang-cookie.js`, a CloudFront Function
+  on viewer response) is the "last language used": every page under a language (a folder
+  or its `index.html`, answered 200 or 304) sets it to that language, for a year,
+  `Secure; HttpOnly; SameSite=Lax`. So reading a post that is not translated sets the
+  language of the original. Nothing else reads or writes it.
 - **A missing path is a real 404**: the bucket's 403 and 404 both map to `/404.html` with
   status 404. Not a single-page app.
 - **Security headers**: HSTS for a year with subdomains and without preload, the CSP,
@@ -310,7 +367,8 @@ colour, icon or furniture is reused.
 ## Testing
 
 - **Test contracts, never cosmetics** (figures and code marks are cosmetic). The contracts are the frontmatter schema, the URL
-  functions (the site's slug rule and the CloudFront Function), the infra assertions
+  functions (the site's slug and file-name rules, the CloudFront Functions with their
+  choice of language), the infra assertions
   (including the CSP builder and cdk-nag) and the French-spacing transform. Assert against
   the rules in this file, not the implementation.
 - **A failing contract test is a real regression**: fix the code, never weaken the test.
@@ -320,7 +378,7 @@ colour, icon or furniture is reused.
 ## Do NOT
 
 - Don't edit the author's prose beyond the typo fixes the author asked for, each one reported.
-- Don't rename a published post's folder: its URL is permanent.
+- Don't rename a published post's folder without keeping its old name in `aliases`: its URL is permanent.
 - Don't deploy the site from a laptop. The one by-hand deploy is `ChqrlesMeDeployRole`.
 - Don't create a Route 53 zone or a GitHub OIDC provider: both already exist.
 - Don't let CI deploy `ChqrlesMeDeployRole`.

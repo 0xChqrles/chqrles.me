@@ -82,12 +82,18 @@ describe('the site stack', () => {
     }
   })
 
-  it('attaches the directory-URL function to viewer requests', () => {
-    const [[id, fn]] = Object.entries(template.findResources('AWS::CloudFront::Function')) as [[string, any]]
-    expect(fn.Properties.FunctionConfig.Runtime).toBe('cloudfront-js-2.0')
-    expect(fn.Properties.FunctionCode).toBe(readFileSync(new URL('../functions/directory-urls.js', import.meta.url), 'utf8'))
+  it('attaches the directory-URL function to viewer requests and the language cookie to viewer responses', () => {
+    const functions = Object.entries(template.findResources('AWS::CloudFront::Function')) as [string, any][]
+    expect(functions).toHaveLength(2)
+    const idOf = (file: string) => {
+      const code = readFileSync(new URL(`../functions/${file}`, import.meta.url), 'utf8')
+      const [id, fn] = functions.find(([, f]) => f.Properties.FunctionCode === code) ?? []
+      expect(fn?.Properties.FunctionConfig.Runtime).toBe('cloudfront-js-2.0')
+      return id
+    }
     expect(config.DefaultCacheBehavior.FunctionAssociations).toEqual([
-      { EventType: 'viewer-request', FunctionARN: { 'Fn::GetAtt': [id, 'FunctionARN'] } },
+      { EventType: 'viewer-request', FunctionARN: { 'Fn::GetAtt': [idOf('directory-urls.js'), 'FunctionARN'] } },
+      { EventType: 'viewer-response', FunctionARN: { 'Fn::GetAtt': [idOf('lang-cookie.js'), 'FunctionARN'] } },
     ])
   })
 

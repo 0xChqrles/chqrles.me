@@ -2,14 +2,15 @@
 title: "J’ai amélioré Cémantix avec une IA qui ne peut pas parler"
 date: 2026-09-25
 description: "Cémantix mesure la distance entre les mots sans jamais lire la phrase. Des embeddings aux entrailles des LLM, le récit d’une tentative pour lui apprendre le contexte, jusqu’à Jev."
-image: ./pigeon-knife.jpg
-imageAlt: "Un pigeon s’envole d’une table de café avec un couteau dans le bec"
+image: ./pigeon-atm.jpg
+imageAlt: "Un pigeon s’envole d’un distributeur de billets au bord de la Seine, un couteau dans le bec, au milieu des billets qui volent"
+aliases: [cemantix]
 ---
 Parmi les différentes manières que j’ai trouvées de perdre du temps devant un écran, il y a les jeux daily. L’un d’entre eux s’appelle **Cémantix**.
 
 Chaque jour, un mot est tiré au hasard et il faut le deviner à l’aide d’un chaud-froid sémantique. Au début, on tape des mots aléatoires, puis on finit par avoir de la chance et tomber sur un mot plus proche que les autres. Alors on remonte la piste en testant des mots similaires jusqu’à retrouver le mot du jour. Le jeu est amusant mais répétitif, et trouver le bon mot demande parfois des centaines d’essais avec, à la clé, une récompense pas toujours à la hauteur de l’effort. « Bravo, vous avez trouvé le mot vestiaire en 245 essais, à demain. » J’étais censé me divertir et oublier ma condition de mortel. Au final, Cémantix a surtout amplifié ma perception du temps perdu et de la vacuité de mon existence. Merci Cémantix.
 
-À la manière de l’électron qui se trouve partout à la fois tant qu’on ne le mesure pas, un mot seul porte tous ses sens tant qu’on ne l’utilise pas. La valeur sémantique d’un mot seul ne suffit pas à comprendre ce qu’il exprime, c’est peut-être ce qui manque à Cémantix. Reste à trouver comment mesurer la distance sémantique entre les mots en fonction de leur contexte.
+La valeur sémantique d’un mot seul ne suffit pas à comprendre ce qu’il exprime, c’est peut-être ce qui manque à Cémantix. Reste à trouver comment mesurer la distance sémantique entre les mots en fonction de leur contexte.
 ## Embedding
 
 Étudions déjà comment Cémantix calcule la distance entre les mots. Une distance, c’est une valeur numérique, donc il faut réussir à exprimer le sens des mots sous une forme numérique également. En gros, exprimer des informations complexes sous forme de nombres, ça a un nom, ça s’appelle un **embedding**. On pourrait par exemple donner des coordonnées aux mots, ce qui permettrait ensuite de mesurer facilement à quel point deux mots sont proches.
@@ -63,9 +64,7 @@ On sait maintenant mesurer le problème, mais pas encore le corriger. Le réseau
 
 > Si je modifie très légèrement cette coordonnée, est-ce que la *loss* augmente ou diminue, et de combien ?
 
-L’ensemble de ces variations forme le **gradient**, un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens.
-
-Chacune de ces variations forme un **gradient**. Un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens. On modifie légèrement les paramètres, on refait une prédiction, on recalcule l’erreur, puis on recommence. C’est la **descente de gradient**.
+L’ensemble de ces variations forme le **gradient**, un vecteur qui indique la direction dans laquelle la loss augmenterait le plus, donc on fait quelque chose de très sophistiqué : on va dans l’autre sens. On modifie légèrement les paramètres, on refait une prédiction, on recalcule l’erreur, puis on recommence. C’est la **descente de gradient**.
 
 <Flow
   steps={['prédiction', 'comparaison avec le vrai contexte', 'calcul de la loss', 'calcul des gradients', 'légère modification des vecteurs']}
@@ -480,7 +479,7 @@ Une opération qui devient cent ou mille fois moins chère ne rend pas seulement
 
 ## Merci quand même
 
-Quelques embeddings, plusieurs milliards de paramètres, des centaines de milliers de comparaisons et une quantité raisonnable d’acharnement plus tard, le problème est à peu près résolu et Cémantix peut enfin quitter définitivement mon quotidien.
+Quelques embeddings, plusieurs milliards de paramètres, des centaines de milliers de comparaisons et une quantité raisonnable d’acharnement plus tard, [le problème est à peu près résolu](https://whippin.ai) et Cémantix peut enfin quitter définitivement mon quotidien.
 
 Mais au final, aucun jeu **daily** ne m’aura autant diverti que lorsque j’ai tout fait pour ne plus jamais avoir à jouer à Cémantix.
 
