@@ -230,23 +230,23 @@ And yet the article isn’t even halfway through. The theory had left out three 
 
 First detail I glossed over. During attention, a word can only listen to what comes before it. This is called the **causal mask**, and it makes sense: the model is trained to guess what comes next, so we’re hardly going to give it away. Let’s take a new sentence:
 
-```text /bank/ /robbed/
-The bank was robbed by a pigeon
+```text /bank/ /account/
+The fisherman’s bank account was empty
 ```
 
 <Arcs
-  caption="When the model computes `bank`, `robbed` hasn’t arrived yet."
-  tokens={['The', 'bank', 'was', 'robbed', 'by', 'a', 'pigeon']}
-  from={1}
-  to={[{ token: 0 }]}
+  caption="When the model computes `bank`, `account` hasn’t arrived yet."
+  tokens={['The', 'fisherman’s', 'bank', 'account', 'was', 'empty']}
+  from={2}
+  to={[{ token: 0 }, { token: 1 }]}
   mask="causal"
 />
 
-When the model computes the **hidden state** of `bank`, it has heard `The`, but it hasn’t heard `robbed` yet. The most useful part of the sentence is invisible to it, and the model knows nothing of the pigeon’s kleptomania. For a word to have read the whole sentence, we have to place it after the sentence:
+When the model computes the **hidden state** of `bank`, it has heard `The` and `fisherman’s`, but it hasn’t heard `account` yet. The most useful part of the sentence is invisible to it, and as far as the model knows, the fisherman is still by the river. For a word to have read the whole sentence, we have to place it after the sentence:
 
 ```text /<TARGET>/ /bank/
 Context:
-The <TARGET> was robbed by a pigeon
+The fisherman’s <TARGET> account was empty
 
 Lexeme:
 bank
