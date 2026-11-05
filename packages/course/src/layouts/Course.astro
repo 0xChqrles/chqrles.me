@@ -1,0 +1,55 @@
+---
+import Levels from '../components/Levels.astro'
+import { getWorld, json } from '../lib/pages'
+import '@chqrles/design/fonts.css'
+import '@fontsource-variable/instrument-sans/wdth.css'
+import '@fontsource-variable/jetbrains-mono/wght.css'
+import '@fontsource-variable/jetbrains-mono/wght-italic.css'
+import 'katex/dist/katex.min.css'
+import '../styles/course.css'
+
+interface Props {
+  title: string
+  description: string
+  // Absent on the 404 page, which has no canonical URL.
+  path?: string
+  // The home page holds the level list in its flow.
+  home?: boolean
+}
+
+const { title, description, path, home } = Astro.props
+const w = await getWorld()
+const canonical = path && new URL(path, Astro.site).href
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {canonical ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/math.css" />
+    <link rel="stylesheet" href="/palette.css" />
+    <script is:inline src="/boot.js"></script>
+  </head>
+  <body class:list={[home ? 'is-home' : 'is-page']}>
+    <slot />
+    {!home && <Levels />}
+    <div id="pop" hidden></div>
+    <svg class="defs" width="0" height="0" aria-hidden="true">
+      <defs>
+        <marker id="fa" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" class="fig-a"></path></marker>
+        <marker id="fam" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" class="fig-am"></path></marker>
+        <marker id="fac" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" class="fig-ac"></path></marker>
+      </defs>
+    </svg>
+    <script is:inline type="application/json" id="monde" set:html={json(w)} />
+    <script>
+      import '../scripts/course'
+    </script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+---
+import Hud from '../components/Hud.astro'
+import Course from '../layouts/Course.astro'
+import { getCourse } from '../lib/pages'
+
+// A missing page has no words of its own: the map is the way back.
+const { cours } = await getCourse()
+---
+
+<Course title="404" description={cours.sousTitre}>
+  <Hud />
+  <main id="main" class="lost">
+    <h1 class="num">404</h1>
+  </main>
+</Course>

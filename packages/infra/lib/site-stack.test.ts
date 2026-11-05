@@ -169,3 +169,60 @@ describe('the site stack', () => {
     expect(success).toBe(true)
   })
 })
+
+describe('a course stack', () => {
+  const COURSE = `demo.${DOMAIN}`
+  // The lookup goes to the apex's zone, so it reads the same cached entry.
+  const courseApp = testApp({
+    [`hosted-zone:account=${env.account}:domainName=${DOMAIN}:region=${env.region}`]: { Id: '/hostedzone/ZTEST', Name: `${DOMAIN}.` },
+  })
+  const courseStack = new SiteStack(courseApp, 'Course', { env, domainName: COURSE, courseOf: DOMAIN, siteDir })
+  const course = Template.fromStack(courseStack)
+  const courseConfig = Object.values(course.findResources('AWS::CloudFront::Distribution'))[0]?.Properties.DistributionConfig
+
+  it('serves its subdomain and nothing else', () => {
+    expect(courseConfig.Aliases).toEqual([COURSE])
+  })
+
+  it('gets a certificate for exactly that name, validated in the apex zone', () => {
+    course.resourceCountIs('AWS::CertificateManager::Certificate', 1)
+    course.hasResourceProperties('AWS::CertificateManager::Certificate', {
+      DomainName: COURSE,
+      SubjectAlternativeNames: Match.absent(),
+      ValidationMethod: 'DNS',
+      DomainValidationOptions: [{ DomainName: COURSE, HostedZoneId: 'ZTEST' }],
+    })
+  })
+
+  it('writes its A and AAAA records into the apex zone, and creates no zone', () => {
+    for (const Type of ['A', 'AAAA']) {
+      course.hasResourceProperties('AWS::Route53::RecordSet', { Type, Name: `${COURSE}.`, HostedZoneId: 'ZTEST', AliasTarget: Match.objectLike({}) })
+    }
+    course.resourceCountIs('AWS::Route53::RecordSet', 2)
+    course.resourceCountIs('AWS::Route53::HostedZone', 0)
+  })
+
+  it('attaches one function, to viewer requests: no language redirect, no cookie', () => {
+    const functions = Object.entries(course.findResources('AWS::CloudFront::Function')) as [string, any][]
+    expect(functions).toHaveLength(1)
+    const [id, fn] = functions[0]!
+    expect(fn.Properties.FunctionCode).toBe(readFileSync(new URL('../functions/course-urls.js', import.meta.url), 'utf8'))
+    expect(fn.Properties.FunctionConfig.Runtime).toBe('cloudfront-js-2.0')
+    expect(courseConfig.DefaultCacheBehavior.FunctionAssociations).toEqual([
+      { EventType: 'viewer-request', FunctionARN: { 'Fn::GetAtt': [id, 'FunctionARN'] } },
+    ])
+  })
+
+  it('answers a missing path with its own /404.html and a 404 status', () => {
+    expect(courseConfig.CustomErrorResponses).toEqual([
+      { ErrorCode: 403, ResponseCode: 404, ResponsePagePath: '/404.html' },
+      { ErrorCode: 404, ResponseCode: 404, ResponsePagePath: '/404.html' },
+    ])
+  })
+
+  it('passes cdk-nag', () => {
+    const { success, violations } = new AwsSolutionsChecks(courseApp).validateScope(courseStack)
+    expect(violations).toEqual([])
+    expect(success).toBe(true)
+  })
+})

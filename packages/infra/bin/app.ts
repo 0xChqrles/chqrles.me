@@ -1,3 +1,4 @@
+import { existsSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { App, Validations } from 'aws-cdk-lib'
@@ -33,3 +34,19 @@ new DeployRoleStack(app, 'ChqrlesMeDeployRole', {
   tags,
   githubSubject: 'repo:0xChqrles@19663399/chqrles.me@1387573502:ref:refs/heads/main',
 })
+
+// A course stack exists only where its build does, so a source folder alone
+// creates nothing, and the blog's own deploy has no course in its app.
+const coursesDir = join(here, '..', '..', 'course', 'dist')
+const built = existsSync(coursesDir)
+  ? readdirSync(coursesDir, { withFileTypes: true }).filter((entry) => entry.isDirectory())
+  : []
+for (const { name: slug } of built) {
+  new SiteStack(app, `ChqrlesMeCourse-${slug}`, {
+    env,
+    tags,
+    domainName: `${slug}.chqrles.me`,
+    courseOf: 'chqrles.me',
+    siteDir: join(coursesDir, slug),
+  })
+}

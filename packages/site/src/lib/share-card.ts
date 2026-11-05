@@ -1,10 +1,10 @@
+import { isLit, MARK, MARK_WIDTH } from '@chqrles/design/mark'
+import { GROUND, INK, LINE_STRONG, RAISE, type Rgb } from '@chqrles/design/palette'
 import type { ImageMetadata } from 'astro'
 import { openSync, type Font } from 'fontkit'
 import { createRequire } from 'node:module'
 import sharp from 'sharp'
 import { lit, toneMap } from './dither'
-import { isLit, MARK, MARK_WIDTH } from './mark'
-import { GROUND, INK, LINE_STRONG, RAISE, type Rgb } from './palette'
 import { SHARE_HEIGHT, SHARE_WIDTH } from './share-image'
 
 // A share image, drawn at build time: a post's photo cropped square on its

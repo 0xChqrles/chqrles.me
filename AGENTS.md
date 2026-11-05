@@ -1,8 +1,10 @@
 # AGENTS.md — chqrles.me
 
-> The source of https://chqrles.me: a static blog that holds articles and nothing else.
-> Posts are Markdown files; CI builds the site and deploys it to AWS. `CLAUDE.md` is a
-> symlink to this file: edit **AGENTS.md**.
+> The source of https://chqrles.me, a static blog that holds articles and nothing else, and
+> of its courses, each a static site on its own subdomain, in one monorepo.
+> Posts are Markdown files; CI builds the site and deploys it to AWS. A course is a folder
+> of Markdown files too, and it deploys only when the owner runs its workflow by hand.
+> `CLAUDE.md` is a symlink to this file: edit **AGENTS.md**.
 >
 > This file records DECISIONS: the rule, its constants and where they live, and one line
 > of why. The **code is ground truth**: if a rule here contradicts the code, trust the code
@@ -11,9 +13,14 @@
 ```
 posts/<slug>/       one folder per post: index.md (or index.mdx), index.en.md for its English
                     version, and their images
+courses/<slug>/     one folder per course: outline.json, src/ (its Markdown), code/ (its Rust
+                    crate, optional)
 packages/site/      the Astro site: content schema, pages, feed, sitemap
-packages/infra/     the AWS CDK app: the site stack and CI's deploy role
-.github/workflows/  ci.yml (checks) and deploy.yml (checks, then deploy)
+packages/course/    the Astro app of a course, built once per course, and its test course
+packages/design/    what the site and the courses share: tokens, palette, fonts, mark, icon
+packages/infra/     the AWS CDK app: the site stack, a stack per course and CI's deploy role
+.github/workflows/  ci.yml (checks), deploy.yml (checks, then deploy) and deploy-course.yml
+                    (one course, by hand)
 ```
 
 ## Maintaining these files
@@ -32,6 +39,7 @@ packages/infra/     the AWS CDK app: the site stack and CI's deploy role
 - **Challenge a request that is bad practice.** Name the tradeoff and recommend the better path.
 - **Production deploys go through CI only.** A push or merge to `main` runs the deploy
   workflow. Never deploy the site from a laptop.
+- **Publishing a course is the owner's act.** Agents never run `deploy-course.yml`.
 - **Build the simplest thing that fully meets the need.** No speculative options, config
   or abstractions. No backward-compatibility layers: remove obsolete paths.
 - **Grow in layers.** The smallest working end-to-end version first, then each capability
@@ -209,6 +217,89 @@ translation leaves the original published.
   `90 %`). The accent marks the point the reader holds; beyond that, only a specific thing
   the figure is about (see the palette).
 
+## Courses
+
+### The contract
+
+- **A course is a folder, and the folder's name is its subdomain**: `courses/<slug>/` is
+  served at `https://<slug>.chqrles.me/`. A slug follows a post's rule (`SLUG` in
+  `packages/course/scripts/shape.mjs`, kept in step with `urls.ts` by a test); any other
+  name fails the build. `courses/` holds folders only: a file beside them fails it too.
+  **A live slug and a published card id never change.**
+- **A file enters `courses/` only when the owner says so**, by its name.
+- **A course folder holds this and nothing else** (`checkShape` in
+  `packages/course/scripts/shape.mjs`). Any other file, or a symbolic link, fails the
+  build, and the message names it. `.DS_Store` and `code/target/` are skipped.
+
+  | Path | What |
+  |---|---|
+  | `outline.json` | required, the course: its titles, its cards and the map |
+  | `src/_accueil.md` | required, the home page, in Markdown or HTML |
+  | `src/<card-id>.md` | a written card, for a card of the outline |
+  | `code/` | optional, a Rust crate: `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `src/**/*.rs`, `tests/**/*.rs` |
+
+- **`outline.json` is validated** (`packages/course/src/lib/course.ts`). Any other field
+  fails the build, and the message names it. Its keys are `cours` (`titre`, `sousTitre`,
+  `court`, `objectif` the card the map leads to, `macros` the KaTeX macros), `quartiers`,
+  `lignes` (8 at most), `cartes` and `aretes`. Every id is a slug, and every reference names
+  something that exists. A card's optional `formules: "gauche"` sets its formulas on the
+  left. One build names every fault.
+- **A card file means written.** With no file, a card is planned: it stays on the map, a
+  `[[link]]` to it is a span, a hash link to it fails the build, and it has no page. There
+  is no draft flag, for a course or for a card.
+- **A card** (`packages/course/src/lib/render-card.ts`) is a front matter block, then
+  Markdown, with `$…$` and `$$…$$` math, `[[id|text]]` links to a card, and the directives
+  `:::figure`, `:::derivation`, `:::piege`, `:::note`, `:::incertain`, `:::code`,
+  `:::marge`, `:::exercice`, `:::reponse` (folded) and `:::quiz`, which nest. An exercise
+  without an answer inside it fails the build. A figure is inline SVG, its `viewBox` at most 480 wide, with `role="img"`,
+  an `aria-label` and a caption, and no `style`, `script` or `foreignObject`. A broken
+  rule fails the build.
+- **The map never moves under the pointer** (`packages/course/src/scripts/map/map.ts`): a
+  region pointed at, or one of its levels, brightens in place, so its links stay whole.
+  **A phone's world is drawn at a step of at least 72** (`PHONE_WORLD` in
+  `packages/course/src/lib/place.ts`) and pans under a drag; a region's zoom is framed as before.
+- **The engine (`packages/course`) holds no course-specific name.** Titles, macros and the
+  card the map leads to live in `outline.json`. A line is `data-ligne="n"`, its place in `lignes`.
+- **A course is French only**: no language segment, no redirect to a language, because it
+  has one language. **A course sets no cookie.**
+
+### URLs
+
+- `https://<slug>.chqrles.me/` is the home page and the map, `/<card-id>/` a written card,
+  and `/tout/` every written card, so a card named `tout` fails the build. The other URLs
+  are files: `/_astro/*`, `/math.css`, `/search.js`, `/favicon.svg`, `/apple-touch-icon.png`.
+- **A missing path is a real 404**, from the course's own `/404.html`, marked `noindex`.
+  A planned card's URL is one.
+
+### Building
+
+- **One Astro app, built once per course** (`packages/course/scripts/build-all.mjs`), into
+  `packages/course/dist/<slug>`: one `site` per build gives each page its canonical URL.
+  `pnpm build:courses` builds every folder of `courses/`, or only the one it names, and
+  each folder passes the shape check first. With no folder and no name, it does nothing.
+- **What a run reads** (`packages/course/src/lib/course-dir.ts`): `courses/<slug>`, from
+  `COURSE_SLUG`, a name and never a path, or else the test course
+  `packages/course/fixture`, never deployed. `COURSE_DIR` previews any folder under
+  `pnpm dev:course` when no course is named, and a build ignores it.
+- **The design is shared** through `@chqrles/design` (`packages/design`), read as source
+  with no build step. A course's own styles are in `packages/course/src/styles/course.css`.
+  `site.css`, the figures and the blog's rendering stay in `packages/site`.
+- **Every written card is its own page, and reads without JavaScript**: the math and the
+  map are drawn at build time.
+- **KaTeX's styles go through `data-k`** (`packages/course/src/lib/math-styles.ts`): each
+  `style` it writes becomes a `data-k` attribute and an `!important` rule in `/math.css`,
+  because the CSP forbids a style attribute. So a course's policy, read off its own build,
+  holds no hash.
+- **Search loads `/search.js` on the first keystroke**: the CSP lets a script load, not a
+  `fetch`.
+
+### Publishing a course
+
+1. Add its files to `courses/<slug>/`, by name.
+2. Merge to `main`. This publishes nothing: `deploy.yml` never deploys a course.
+3. The owner runs `deploy-course.yml` (see *CI/CD*). A card merged later goes live at the
+   next run.
+
 ## Design
 
 Chosen 2026-09-25: **Face B**, the blog as a record sleeve and its liner notes, with the
@@ -217,8 +308,8 @@ dither and the pixel q of the *Instrument* direction. It carries Whippin's DNA
 chrome, one pixel face spent once) without its parts. No light theme. No Whippin face,
 colour, icon or furniture is reused.
 
-- **Tokens** live in `:root` of `packages/site/src/styles/site.css`; the favicon and the
-  share image read the same values from `packages/site/src/lib/palette.ts` (keep both in
+- **Tokens** live in `:root` of `packages/design/src/tokens.css`; the favicon and the
+  share image read the same values from `packages/design/src/palette.ts` (keep both in
   step). Ground `#121110`, raise `#1b1a18` (one step of value: code, placeholders, the
   sleeve's card), hairlines `#2c2a27` and `#6f6a62`, muted `#999489`, ink `#e4e2dc`, the
   body text a step under it, `#d0ccc3` (titles and bold keep the ink), and
@@ -231,7 +322,7 @@ colour, icon or furniture is reused.
   of vectors. Every text colour is at least 4.5:1 on the ground.
 - **Letters are drawn as designed**: `-webkit-font-smoothing: antialiased`, because macOS
   otherwise thickens light text on a dark ground.
-- **Three voices, strict roles** (`packages/site/src/styles/fonts.css`, all self-hosted):
+- **Three voices, strict roles** (`packages/design/src/fonts.css`, all self-hosted):
   Source Serif 4 for every title and the body (21/33.6 on desktop, 19/30 on a phone, a 660px
   column), chosen for its taller lowercase: on a dark ground small letters cost the most;
   IBM Plex Mono for the chrome (11px, uppercase, tracked 0.12em, hierarchy by
@@ -252,7 +343,7 @@ colour, icon or furniture is reused.
   its right; then the track number and the title across the column, the number hanging in
   the left margin from 1040px. The title keeps the column's width, so even a long one
   stays at a few lines instead of a stack of short ones.
-- **The mark is a pixel q** (`packages/site/src/lib/mark.ts`), 5×7 cells at 3px (4px on a
+- **The mark is a pixel q** (`packages/design/src/mark.ts`), 5×7 cells at 3px (4px on a
   wide screen): the only link home. The favicon is the same q in vermilion.
 - **The languages are two codes in the chrome voice** (`packages/site/src/components/LangSwitch.astro`):
   the one you are in in the ink, each other a link to the same page in that language, and
@@ -283,10 +374,11 @@ colour, icon or furniture is reused.
 
 ## Infrastructure
 
-- **One CDK app in TypeScript** (`packages/infra/bin/app.ts`), two stacks, both in account
+- **One CDK app in TypeScript** (`packages/infra/bin/app.ts`), its stacks all in account
   `879381243389` and `us-east-1`, where CloudFront needs its certificate:
-  `ChqrlesMeSite` (the site) and `ChqrlesMeDeployRole` (CI's role). The account is pinned,
-  so CI synthesizes without credentials from the committed `cdk.context.json`.
+  `ChqrlesMeSite` (the site), `ChqrlesMeDeployRole` (CI's role) and one
+  `ChqrlesMeCourse-<slug>` per built course. The account is pinned, so CI synthesizes
+  without credentials from the committed `cdk.context.json`.
 - **The account also runs Whippin.** IAM role and CloudFront policy names are account-wide:
   never reuse Whippin's (`Whippin*Stack`, `whippin-github-deploy`,
   `WhippinSiteSecurityHeaders`, `WhippinCardHeaders`). Stacks here start with `ChqrlesMe`;
@@ -303,6 +395,18 @@ colour, icon or furniture is reused.
   blocked, TLS only, S3-managed encryption, destroyed with the stack); CloudFront with
   Origin Access Control, HTTP/2 and HTTP/3, TLS 1.2_2021, price class 100; a
   DNS-validated certificate for the apex; A and AAAA aliases at the apex. No `www`.
+- **A course has its own stack, `ChqrlesMeCourse-<slug>`**: the site stack with `courseOf`,
+  the apex whose zone holds its records. It has its own bucket, distribution, security
+  headers and uploads, because a 404 page and a CSP cannot vary by host on one
+  distribution. It has one certificate, for exactly `<slug>.chqrles.me`, and A and AAAA
+  records in the existing zone. No wildcard. `packages/infra/bin/app.ts` creates the stack
+  only where a build exists, in `packages/course/dist/<slug>`, so a source folder alone
+  creates nothing and the blog's deploy has no course in its app.
+- **Course URLs** (`packages/infra/functions/course-urls.js`, a CloudFront Function on
+  viewer request, a course's only one): `/<page>/` serves `<page>/index.html`; `/<page>`
+  and `/<page>/index.html` redirect (301) to `/<page>/`, the query string kept; a path
+  whose last segment has a dot is a file and passes through. Repeated slashes collapse
+  first, so a redirect never leaves the site.
 - **Directory URLs and languages** (`packages/infra/functions/directory-urls.js`, a
   CloudFront Function on viewer request): under a language, `/<lang>/<slug>/` serves
   `<lang>/<slug>/index.html`; `/<lang>/<slug>` and `/<lang>/<slug>/index.html` redirect
@@ -333,7 +437,7 @@ colour, icon or furniture is reused.
   keeps every script and stylesheet in a file (`packages/site/astro.config.ts`), except the
   island loader Astro inlines on a page with an interactive figure (two scripts and one
   style, the same on every page, allowed by hash).
-- **Umami Cloud counts the visits**: its official script on every page
+- **Umami Cloud counts the visits**: its official script on every page of the blog
   (`packages/site/src/layouts/Base.astro`), page views only, no cookies. `data-domains`
   keeps it to the live site, so `pnpm dev` and `pnpm preview` send nothing. The website
   id sits in `packages/site/src/site.ts`: every page carries it anyway. Loaded straight
@@ -344,7 +448,7 @@ colour, icon or furniture is reused.
   deleted post disappears), and purges CloudFront (`/*`). `.DS_Store` never leaves the
   laptop. The upload Lambda has 1,024 MB and 2 GiB of disk.
 - **The deploy role** (`packages/infra/lib/deploy-role-stack.ts`) trusts one OIDC subject,
-  a push to `main` of this repo, in GitHub's immutable form (repos created after mid-2026):
+  a run on `main` of this repo, in GitHub's immutable form (repos created after mid-2026):
   `repo:0xChqrles@19663399/chqrles.me@1387573502:ref:refs/heads/main`. It may only assume
   the CDK bootstrap roles (`cdk-hnb659fds-*`) and call `cloudformation:DescribeStacks`.
   Those bootstrap roles deploy with administrator rights, so the deploy job can change any
@@ -355,11 +459,27 @@ colour, icon or furniture is reused.
 ## CI/CD
 
 - **`ci.yml`** runs on pull requests and pushes to `main`: install, typecheck (`astro check`,
-  `tsc`), tests, the production build, `cdk synth`. A newer run cancels the one it supersedes.
-- **`deploy.yml`** runs on pushes to `main` and on demand: a job runs the same checks and
-  the build without AWS access; a second job, on `main` only, installs just the CDK app and
-  runs `cdk deploy ChqrlesMeSite` with OIDC credentials. Runs wait in order
-  (`queue: max`), never cancel. It never deploys `ChqrlesMeDeployRole`.
+  `tsc`), tests, the production build, every course's build, `cargo test --locked` in each
+  course's `code/`, and `cdk synth`. A newer run cancels the one it supersedes.
+- **`deploy.yml`** runs on pushes to `main` and on demand: a job runs the typecheck, the
+  tests and the blog's build without AWS access; a second job, on `main` only, installs
+  just the CDK app and runs `cdk deploy ChqrlesMeSite` with OIDC credentials. Runs wait in
+  order (`queue: max`), never cancel. It never deploys `ChqrlesMeDeployRole`. It never
+  builds a course of `courses/`, so its app has no course stack and a merge cannot
+  publish one.
+- **`deploy-course.yml`** runs by hand only (`workflow_dispatch`), for the one course it
+  is given: `gh workflow run deploy-course.yml -f course=<slug>`. A first job checks the
+  name, runs the typecheck, the tests and `cargo test --locked` in that course's `code/`
+  alone, so another course cannot stop it, and builds the blog (the app's synth needs it)
+  and that course alone, without AWS access. A second job, on `main` only, installs just
+  the CDK app and runs `cdk deploy ChqrlesMeCourse-<slug>` with OIDC credentials. Runs of
+  one course wait in order (`queue: max`), never cancel.
+- **Takedown runs through the same workflow**, with `-f empty=true`:
+  `packages/course/empty/` replaces the build, so every page goes and the cache is purged.
+  Only the hashed `_astro/*` files stay. It needs the course's stack to exist, so a
+  mistyped name creates nothing, and works even if the course's folder is gone.
+- **Never `--all` or a stack glob in a workflow, and never a GitHub `environment` on a
+  job**: an environment changes the OIDC subject, and the role refuses it.
 - **One-time steps, by hand** (done 2026-09-25; see `.github/workflows/README.md`): deploy
   `ChqrlesMeDeployRole`, store its ARN in the secret `AWS_DEPLOY_ROLE_ARN`, make the `Check`
   job a required status check on `main`.
@@ -369,22 +489,32 @@ colour, icon or furniture is reused.
 - **Test contracts, never cosmetics** (figures and code marks are cosmetic). The contracts are the frontmatter schema, the URL
   functions (the site's slug and file-name rules, the CloudFront Functions with their
   choice of language), the infra assertions
-  (including the CSP builder and cdk-nag) and the French-spacing transform. Assert against
-  the rules in this file, not the implementation.
+  (including the CSP builder and cdk-nag), the French-spacing transform, and for a course:
+  the outline and its folder's shape, the folder a run reads, the card renderer's rules,
+  `/math.css`, what can deploy (`packages/infra/lib/deploy-gate.test.ts`) and a real build
+  of the test course under the CSP (`packages/infra/lib/course-build.test.ts`, never run
+  beside a course dev server). Assert against the rules in this file, not the
+  implementation.
 - **A failing contract test is a real regression**: fix the code, never weaken the test.
 - **The build is the content check.** A post with bad frontmatter fails `pnpm typecheck`
-  and `pnpm build`; a missing or undersized image fails `pnpm build`.
+  and `pnpm build`; a missing or undersized image fails `pnpm build`. A course with a
+  fault in its outline or a card, or a stray file, fails `pnpm build:courses`.
 
 ## Do NOT
 
 - Don't edit the author's prose beyond the typo fixes the author asked for, each one reported.
 - Don't rename a published post's folder without keeping its old name in `aliases`: its URL is permanent.
-- Don't deploy the site from a laptop. The one by-hand deploy is `ChqrlesMeDeployRole`.
+- Don't deploy the site or a course from a laptop. The one by-hand deploy is `ChqrlesMeDeployRole`.
+- Don't run `deploy-course.yml`, or give it a trigger other than `workflow_dispatch`.
+- Don't copy a folder into `courses/`: each file enters by its name.
 - Don't create a Route 53 zone or a GitHub OIDC provider: both already exist.
 - Don't let CI deploy `ChqrlesMeDeployRole`.
 - Don't put an inline `style=""` or `on…=""` attribute in a page: the CSP cannot allow it,
   and the synth fails. An inline `<script>` or `<style>` element is allowed by its hash,
   but each one spends part of the 1,783-character CSP budget.
+- Don't let KaTeX's `style=` reach a page: it goes through `data-k` and `/math.css`.
+- Don't add a widget loader, or any loader that scans a folder: a `data-widget` attribute
+  fails the build.
 - Don't give the deploy job's AWS token to more code than it needs.
 - Don't add a tagline, a welcome line or helper copy to the site.
 - Don't add a light theme or reuse anything of Whippin's (face, colour, icon, furniture).
@@ -400,8 +530,14 @@ pnpm build       # the production site in packages/site/dist, drafts excluded
 pnpm preview     # serve that build
 pnpm typecheck   # astro check and tsc
 pnpm test        # the contract tests (Vitest)
-pnpm synth       # cdk synth (needs pnpm build first)
+pnpm synth       # cdk synth (needs pnpm build first), a stack per built course included
 pnpm --filter @chqrles/infra run deploy:role   # by hand, once: CI's deploy role
+
+pnpm dev:course                      # the test course, at http://localhost:4322
+COURSE_SLUG=<slug> pnpm dev:course   # a course of courses/
+COURSE_DIR=<path> pnpm dev:course    # any folder, as a preview
+pnpm build:courses                   # every course, in packages/course/dist/<slug>
+pnpm build:courses <slug>            # that course alone
 ```
 
 `pnpm-workspace.yaml` approves `esbuild`'s build script (`allowBuilds`); pnpm blocks the

@@ -1,5 +1,5 @@
 // The palette, for what CSS cannot reach: the favicon and the share image.
-// Keep in step with the :root tokens in src/styles/site.css.
+// Keep in step with the :root tokens in tokens.css.
 export type Rgb = readonly [number, number, number]
 
 export const GROUND: Rgb = [0x12, 0x11, 0x10]

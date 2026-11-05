@@ -1,0 +1,15 @@
+---
+import Card from '../components/Card.astro'
+import Hud from '../components/Hud.astro'
+import Course from '../layouts/Course.astro'
+import { getCourse } from '../lib/pages'
+
+const { cours, pages } = await getCourse()
+---
+
+<Course title={cours.titre} description={cours.sousTitre} path="/tout/">
+  <Hud />
+  <main id="main">
+    {pages.map((page) => <Card page={page} />)}
+  </main>
+</Course>

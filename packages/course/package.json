@@ -1,0 +1,27 @@
+{
+  "name": "@chqrles/course",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --force",
+    "build": "node scripts/build-all.mjs",
+    "typecheck": "astro check",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@chqrles/design": "workspace:*",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "astro": "^7.3.5",
+    "katex": "0.16.11",
+    "marked": "12.0.2",
+    "polygon-clipping": "0.15.7",
+    "sharp": "^0.35.4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/katex": "^0.16.8",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1"
+  }
+}

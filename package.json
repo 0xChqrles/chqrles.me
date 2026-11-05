@@ -5,7 +5,9 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "pnpm --filter @chqrles/site dev",
+    "dev:course": "pnpm --filter @chqrles/course dev",
     "build": "pnpm --filter @chqrles/site build",
+    "build:courses": "pnpm --filter @chqrles/course build",
     "preview": "pnpm --filter @chqrles/site preview",
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "pnpm -r --if-present run test",

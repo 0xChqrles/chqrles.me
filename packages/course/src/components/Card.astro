@@ -1,0 +1,171 @@
+---
+import type { Page } from '../lib/course'
+import type { Level } from '../lib/game'
+import { getCourse, getWorld } from '../lib/pages'
+import { glyphSvg, miniNode } from '../lib/glyphs'
+import { CHECK, cellsHtml, cellsOf, icon, runs } from '../lib/pixels'
+import { meter as meterOf, mnRow, plateSvg, withIcons } from '../lib/rows'
+
+interface Props {
+  page: Page
+  // The next written level, where the page's foot leads.
+  next?: Level | null
+}
+
+const { page, next } = Astro.props
+const w = await getWorld()
+const byId = new Map(w.levels.map((l) => [l.id, l]))
+const l = byId.get(page.id)!
+const region = w.regions.find((r) => r.id === l.region)!
+const chap = l.chap ? byId.get(l.chap)! : null
+const isChapter = !l.chap && /^\d+$/.test(l.label)
+
+const before = l.prerequis.map((id) => byId.get(id)!).filter(Boolean)
+const after = l.suite.map((id) => byId.get(id)!).filter(Boolean)
+const notions = isChapter ? w.order.filter((id) => byId.get(id)!.chap === l.id).map((id) => byId.get(id)!) : []
+const chapterLevels = isChapter ? [l.id, ...notions.map((n) => n.id)] : chap ? [chap.id, ...w.order.filter((id) => byId.get(id)!.chap === chap.id)] : []
+
+const html = withIcons(page.html)
+const { icones } = await getCourse()
+---
+
+<section class:list={['card', `h${l.hue}`]} id={`c-${page.id}`} data-id={page.id} data-formules={page.formules}>
+  <header class="intro">
+    <a class="i-reg" href="/" data-va={page.id}><i class="chip"></i>{page.quartier}</a>
+    <div class="i-num">
+      {l.icon && <span class="i-ic" set:html={miniNode(icones[l.id] ?? null, l.hue, l.prevu ? 'fog' : 'dispo', 48).replace('<svg ', `<svg data-st="${l.id}" `)} />}
+      {l.label && <span class="num i-n">{l.label}</span>}
+      <span class="i-state" data-etat={page.id}></span>
+    </div>
+    <h1 set:html={page.titre} />
+    <p class="resume" set:html={page.resume} />
+    <div class="i-meta">
+      {
+        l.complexite && (
+          <span>
+            <span class="k">Difficulté</span>
+            <Fragment set:html={cellsHtml(l.complexite)} />
+          </span>
+        )
+      }
+      {l.minutes ? <span class="mn">{l.minutes} min</span> : null}
+      {
+        page.sections.length > 0 && (
+          <span class="nchk">
+            <Fragment set:html={icon('checkpoint', 2)} />
+            <span data-pc={page.id}>{page.sections.length}</span>
+          </span>
+        )
+      }
+    </div>
+    <dl class="i-stats">
+      {
+        before.length > 0 && (
+          <div class="wide">
+            <dt>Avant ça</dt>
+            <dd class="br-l">
+              <ul class="rows mn-rows" set:html={before.map((o) => mnRow(o, icones[o.id] ?? null)).join('')} />
+            </dd>
+          </div>
+        )
+      }
+      {
+        chap && (
+          <div class="wide">
+            <dt>Dans le cours</dt>
+            <dd class="br-l">
+              <ul class="rows mn-rows" set:html={mnRow(chap, icones[chap.id] ?? null)} />
+            </dd>
+          </div>
+        )
+      }
+    </dl>
+    <a class="key cont" data-cont={page.id} href="#" hidden><span>Continuer</span><Fragment set:html={glyphSvg('next', 2)} /></a>
+  </header>
+  {
+    page.sections.length > 0 && (
+      <nav class="chk" aria-label={page.quartier}>
+        <ol>
+          {page.sections.map((s, i) => (
+            <li data-sec={s.id}>
+              <a href={`#${s.id}`}>
+                <Fragment set:html={icon('checkpointOpen', 2, 'f-o') + icon('checkpoint', 2, 'f-f')} />
+                <span class="n">{String(i + 1).padStart(2, '0')}</span>
+                <span class="t" set:html={s.titre} />
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )
+  }
+  <div class="col" set:html={html} />
+  <footer class="fin" data-fin={page.id}>
+    <div class="fin-top">
+      <span class="fin-plate" set:html={plateSvg(l)} />
+      <div class="fin-claim">
+        <div class="fin-won">
+          <span class="eyebrow fin-st">compris</span>
+          <span class="fin-nm">
+            {l.label && <span class="num">{l.label}</span>}
+            <b>{l.nom}</b>
+          </span>
+        </div>
+        <label class="check"><input type="checkbox" id={`lu-${page.id}`} data-lu={page.id} /><svg class="px tick" width="14" height="12" viewBox="0 0 7 6" aria-hidden="true"><path d={runs(cellsOf(CHECK))}></path></svg><span>J’ai compris cette page</span></label>
+        <div class="tally">
+          {
+            page.sections.length > 0 && (
+              <span class="t-chk">
+                <Fragment set:html={icon('checkpoint', 2)} />
+                <span data-pc={page.id}>{page.sections.length}</span>
+              </span>
+            )
+          }
+          <span class="t-reg" title={region.nom}>
+            <i class="chip"></i>
+            <span class="eyebrow t-k">{region.nom}</span>
+            <Fragment set:html={meterOf(region.levels, l.id)} />
+          </span>
+          {
+            chapterLevels.length > 1 && (
+              <span class="t-reg" title={chap ? chap.titre : l.titre}>
+                <Fragment set:html={glyphSvg('chapters', 2)} />
+                <span class="num t-k">{(chap ?? l).label}</span>
+                <Fragment set:html={meterOf(chapterLevels, l.id)} />
+              </span>
+            )
+          }
+        </div>
+      </div>
+    </div>
+    {
+      notions.length > 0 && (
+        <div class="br-l fin-l">
+          <div class="rule"><span class="eyebrow">Les notions de ce chapitre</span></div>
+          <ul set:html={notions.map((o) => mnRow(o, icones[o.id] ?? null)).join('')} />
+        </div>
+      )
+    }
+    {
+      after.length > 0 && (
+        <div class="br-l fin-l">
+          <div class="rule"><span class="eyebrow">Ce que ça débloque</span></div>
+          <ul set:html={after.map((o) => mnRow(o, icones[o.id] ?? null)).join('')} />
+        </div>
+      )
+    }
+    <nav class="fin-go" data-go={page.id}>
+      <a class="key back" href="/" data-va={page.id}><Fragment set:html={glyphSvg('back', 2)} /><span>Carte</span></a>
+      {
+        next && (
+          <a class="key next" href={`/${next.id}/`}>
+            <span>Suivant</span>
+            <span class="lbl-n num">{next.label}</span>
+            <b>{next.nom}</b>
+            <Fragment set:html={glyphSvg('next', 2)} />
+          </a>
+        )
+      }
+    </nav>
+  </footer>
+</section>

@@ -1,0 +1,21 @@
+{
+  "name": "@chqrles/design",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./fonts.css": "./src/fonts.css",
+    "./tokens.css": "./src/tokens.css",
+    "./palette": "./src/palette.ts",
+    "./mark": "./src/mark.ts",
+    "./icon": "./src/icon.ts"
+  },
+  "peerDependencies": {
+    "astro": "^7.3.5"
+  },
+  "dependencies": {
+    "@fontsource-variable/source-serif-4": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/jersey-15": "^5.3.0",
+    "sharp": "^0.35.4"
+  }
+}

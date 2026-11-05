@@ -1,0 +1,42 @@
+---
+import { getWorld } from '../lib/pages'
+import { glyphSvg } from '../lib/glyphs'
+import { icon } from '../lib/pixels'
+import { rowIcon } from '../lib/rows'
+
+// Every level, in the course's order: links for the written ones, words for the
+// planned. It is the map without the drawing, and the search filters it.
+interface Props {
+  // On the home page it sits in the page; elsewhere it opens over the page.
+  inline?: boolean
+}
+const { inline } = Astro.props
+const w = await getWorld()
+const byId = new Map(w.levels.map((l) => [l.id, l]))
+const region = new Map(w.regions.map((r) => [r.id, r.nom]))
+---
+
+<div class:list={['plan', { inline }]} id="planche" role={inline ? undefined : 'dialog'} aria-label={inline ? undefined : 'Plan du cours'}>
+  <div class="plan-tools">
+    <label class="search-w">
+      <Fragment set:html={glyphSvg('search', 2)} />
+      <input class="search" id="q" type="search" placeholder="Chercher un mot…" aria-label="Chercher dans le cours" />
+    </label>
+    <a class="key" href="/tout/"><Fragment set:html={icon('all', 2)} />tout sur une page</a>
+    {!inline && <button class="key close" id="ferme" type="button" aria-label="Fermer">Esc</button>}
+  </div>
+  <ol class="levels" id="nav">
+    {
+      w.order.map((id) => {
+        const l = byId.get(id)!
+        const inner = `${rowIcon(l)}<span class="lbl-n num">${l.label}</span>`
+        const name = `<span class="nm">${l.titre}</span><small>${region.get(l.region) ?? ''}</small>`
+        return (
+          <li class:list={['row', `h${l.hue}`, { chap: !l.chap && l.label && !l.label.includes('-'), prevu: l.prevu }]} id={inline ? `lv-${id}` : undefined} data-nav={id} data-lv={id}>
+            {l.prevu ? <span class="t" set:html={inner + name} /> : <a href={`/${id}/`} set:html={inner + name} />}
+          </li>
+        )
+      })
+    }
+  </ol>
+</div>

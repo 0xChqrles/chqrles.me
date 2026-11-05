@@ -4,33 +4,6 @@
    a reader holds in a figure). Depth is one step of value. Corners stay at
    2px or less. Lines are hairlines. */
 
-:root {
-  color-scheme: dark;
-
-  --ground: #121110; /* the sleeve's black card */
-  --raise: #1b1a18; /* one step up: code, a figure not printed yet */
-  --line: #2c2a27; /* the quiet hairline: a gap between tracks */
-  --line-strong: #6f6a62; /* crop marks, rules that must be seen */
-  --muted: #999489; /* secondary text, 6.24:1 on the ground */
-  --ink: #e4e2dc; /* titles, bold, chrome: everything else, 14.56:1 */
-  --text: #d0ccc3; /* the body text, 11.8:1: a step under the ink */
-  --cue: #ff5a1f; /* vermilion: where you are, 6.05:1 */
-
-  --face-text: 'Source Serif 4 Variable', Georgia, serif;
-  --face-mono: 'IBM Plex Mono', ui-monospace, monospace;
-  --face-pixel: 'Jersey 15', var(--face-mono);
-
-  /* The pixel face at a whole multiple of its 27px grid. */
-  --pixel-1x: 27px;
-  --pixel-2x: 54px;
-
-  --gutter: 16px;
-  --column: 660px;
-  /* On a wide screen the cues and track numbers hang in this margin. */
-  --margin-col: 136px;
-  --margin-gap: 32px;
-}
-
 *,
 *::before,
 *::after {
