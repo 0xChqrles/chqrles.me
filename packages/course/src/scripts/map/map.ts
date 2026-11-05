@@ -13,6 +13,7 @@ import { BEZEL, ETATS, inRings, layout, U8, type Axis, type Box, type Etat, type
 import { chapters, complete, etat as etatOf, L, load, next, reached, S, share, store, written, type Ici, type Vu, WORLD } from '../save'
 import { bevel, D, dpr, halo, icon, oct, octArc, octPath, octStroke, q as drawQ, ring, setDpr, text, W } from './draw'
 import { back, busy, inout, linear, now, out, set, still, T, tick, tw, val } from './motion'
+import { url } from '../../lib/base'
 
 const $ = <E extends Element = HTMLElement>(s: string, r: ParentNode = document) => r.querySelector<E>(s)
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -841,7 +842,7 @@ export function mapPage() {
       const kHere = !!kf && ((kf.k === 'node' && kf.id === n.id) || (kf.k === 'door' && kf.far === n.id && !doors().find((x) => x.link === kf!.link)?.chip))
       const hot = (hov && hov.k === 'node' && hov.id === n.id) || kHere
       // a press: one frame of ink, then the plate drops 3 px (lib: the input's felt response)
-      const lift = val('lift:' + n.id, 0) + val('hop:' + n.id, 0) + (n.id === sel ? 2 : 0) - val('drop:' + n.id, 0)
+      const lift = val('lift:' + n.id, 0) + (n.id === sel ? 2 : 0) - val('drop:' + n.id, 0)
       const sc = val('pr:' + n.id, 1) * val('pop:' + n.id, 1)
       const [x, y0] = S_(n.x, n.y)
       const nope = val('nope:' + n.id, 0)
@@ -1319,13 +1320,6 @@ export function mapPage() {
       if (now_) {
         if (!focus) tw('rh:' + now_, 1, T.hover)
         tw('tab:' + now_, 1, T.panelIn, out, 0)
-        // its levels hop a pixel, in course order, 32 ms apart
-        WORLD.order
-          .filter((id) => onMap(id) && node(id).reg === now_)
-          .forEach((id, i) => {
-            tw('hop:' + id, 1, T.hover, out, 0, Math.min(T.staggerCap, i * T.staggerNode))
-            tw('hop:' + id, 0, T.hover, out, 1, Math.min(T.staggerCap, i * T.staggerNode) + T.hover + 60)
-          })
       }
     }
     // zoomed, a neighbour pointed at (its land, a level of it, a door to it) comes back
@@ -1470,7 +1464,7 @@ export function mapPage() {
       document.body.classList.add('leaving')
     })
     const ici = store.get<Ici | null>('ici', null)
-    at(t + 180, () => (location.href = `/${id}/${ici && ici.c === id && ici.s && !S.lus.has(id) ? '#' + ici.s : ''}`))
+    at(t + 180, () => (location.href = `${url(`${id}/`)}${ici && ici.c === id && ici.s && !S.lus.has(id) ? '#' + ici.s : ''}`))
     kick()
   }
   function route(a: string, b: string): string[] | null {
@@ -1578,7 +1572,7 @@ export function mapPage() {
     }
     if (!focus) for (const r of mapRegions) add({ k: 'region', id: r.id }, `#vue-${r.id}`, r.nom)
     else {
-      for (const id of WORLD.order.filter((i) => onMap(i) && node(i).reg === focus)) add({ k: 'node', id }, `/${id}/`, `${L[id]!.label} ${L[id]!.titre}${stateWord(id) ? ', ' + stateWord(id) : ''}`)
+      for (const id of WORLD.order.filter((i) => onMap(i) && node(i).reg === focus)) add({ k: 'node', id }, url(`${id}/`), `${L[id]!.label} ${L[id]!.titre}${stateWord(id) ? ', ' + stateWord(id) : ''}`)
       const seen = new Set<string>()
       for (const dd of doors()) {
         if (seen.has(dd.far)) continue
@@ -1654,7 +1648,7 @@ export function mapPage() {
       if (said) w = ''
       said = true
     }
-    return `<li class="row h${l.hue}${long ? ' long' : ''}" data-lv="${id}"><a href="/${id}/" data-row="${id}">${mn(id)}<span class="row-n num">${l.label}</span><span class="row-t">${esc(l.nom)}</span><span class="row-s${w === 'Nouveau' ? ' new' : ''}">${w}</span>${long ? `<span class="row-r">${l.resume}</span>` : ''}</a></li>`
+    return `<li class="row h${l.hue}${long ? ' long' : ''}" data-lv="${id}"><a href="${url(`${id}/`)}" data-row="${id}">${mn(id)}<span class="row-n num">${l.label}</span><span class="row-t">${esc(l.nom)}</span><span class="row-s${w === 'Nouveau' ? ' new' : ''}">${w}</span>${long ? `<span class="row-r">${l.resume}</span>` : ''}</a></li>`
   }
   // A KEY EXISTS ONLY WHEN IT ACTS: a level not written shows a state badge in its plate's language
   // (its mini octagon and the state word), never a key off.
@@ -1696,7 +1690,7 @@ export function mapPage() {
       (l.suite.length ? `<div class="br-l"><div class="rule"><span class="eyebrow">Ce que ça débloque</span></div><ul>${l.suite.map((x) => row(x, false, own)).join('')}</ul></div>` : '') +
       `</div>` +
       // the foot: the key where it acts, else the level's state badge (its slot kept)
-      `<div class="br-foot">${btn ? `<a class="btn primary h${r.hue}" href="/${id}/" id="br-go"><span>${btn}</span>${glyphSvg('next', 2)}</a>` : badge(id)}</div>`
+      `<div class="br-foot">${btn ? `<a class="btn primary h${r.hue}" href="${url(`${id}/`)}" id="br-go"><span>${btn}</span>${glyphSvg('next', 2)}</a>` : badge(id)}</div>`
     briefReg = null
     swapBrief(html, was !== id && !!was, () => {
       peek(id, btn)
@@ -1874,7 +1868,7 @@ export function mapPage() {
     const l = L[id]!
     pk.className = `peek h${l.hue}`
     // the key's slot is fixed: the action, or the key off with the level's state
-    pk.innerHTML = `<span class="grip" aria-hidden="true"></span>${mn(id, 40)}<span class="pk-x"><span class="num">${l.label}</span><b>${esc(l.nom)}</b></span>${btn ? `<a class="btn primary h${l.hue}" href="/${id}/"><span>${btn}</span>${glyphSvg('next', 2)}</a>` : badge(id)}`
+    pk.innerHTML = `<span class="grip" aria-hidden="true"></span>${mn(id, 40)}<span class="pk-x"><span class="num">${l.label}</span><b>${esc(l.nom)}</b></span>${btn ? `<a class="btn primary h${l.hue}" href="${url(`${id}/`)}"><span>${btn}</span>${glyphSvg('next', 2)}</a>` : badge(id)}`
     $('a.btn', pk)?.addEventListener('click', (e) => {
       e.preventDefault()
       open(id)
@@ -1944,7 +1938,7 @@ export function mapPage() {
     go.classList.remove('second')
     if (target) {
       go.removeAttribute('aria-disabled')
-      go.href = nx ? `/${nx.id}/${nx.s ? '#' + nx.s : ''}` : `/${own}/`
+      go.href = nx ? `${url(`${nx.id}/`)}${nx.s ? '#' + nx.s : ''}` : url(`${own}/`)
       go.querySelector('span')!.textContent = nx ? nx.label : 'Ouvrir la page'
     } else {
       go.setAttribute('aria-disabled', 'true')

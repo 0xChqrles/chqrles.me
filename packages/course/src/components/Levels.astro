@@ -3,6 +3,7 @@ import { getWorld } from '../lib/pages'
 import { glyphSvg } from '../lib/glyphs'
 import { icon } from '../lib/pixels'
 import { rowIcon } from '../lib/rows'
+import { url } from '../lib/base'
 
 // Every level, in the course's order: links for the written ones, words for the
 // planned. It is the map without the drawing, and the search filters it.
@@ -22,7 +23,7 @@ const region = new Map(w.regions.map((r) => [r.id, r.nom]))
       <Fragment set:html={glyphSvg('search', 2)} />
       <input class="search" id="q" type="search" placeholder="Chercher un mot…" aria-label="Chercher dans le cours" />
     </label>
-    <a class="key" href="/tout/"><Fragment set:html={icon('all', 2)} />tout sur une page</a>
+    <a class="key" href={url('tout/')}><Fragment set:html={icon('all', 2)} />tout sur une page</a>
     {!inline && <button class="key close" id="ferme" type="button" aria-label="Fermer">Esc</button>}
   </div>
   <ol class="levels" id="nav">
@@ -33,7 +34,7 @@ const region = new Map(w.regions.map((r) => [r.id, r.nom]))
         const name = `<span class="nm">${l.titre}</span><small>${region.get(l.region) ?? ''}</small>`
         return (
           <li class:list={['row', `h${l.hue}`, { chap: !l.chap && l.label && !l.label.includes('-'), prevu: l.prevu }]} id={inline ? `lv-${id}` : undefined} data-nav={id} data-lv={id}>
-            {l.prevu ? <span class="t" set:html={inner + name} /> : <a href={`/${id}/`} set:html={inner + name} />}
+            {l.prevu ? <span class="t" set:html={inner + name} /> : <a href={url(`${id}/`)} set:html={inner + name} />}
           </li>
         )
       })

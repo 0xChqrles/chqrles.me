@@ -55,8 +55,8 @@ marks every `chat`, ```` ```text /:/2 ```` only the second colon.
 
 ## Publishing a course
 
-1. Create a folder in `courses/`. Its name is the subdomain: `courses/my-course/` is
-   published at `https://my-course.chqrles.me/`, forever. Lowercase letters, digits and
+1. Create a folder in `courses/`. Its name is its path: `courses/my-course/` is
+   published at `https://learn.chqrles.me/my-course/`, forever. Lowercase letters, digits and
    hyphens.
 2. Write `outline.json`, the home page `src/_accueil.md`, and a `src/<card-id>.md` for each
    written card. A card with no file stays on the map, with no page. A Rust crate goes in

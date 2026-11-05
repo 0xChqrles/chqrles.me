@@ -3,6 +3,7 @@
 // never from time. The map, the lists and the page's foot all paint the same states.
 import type { Level, World } from '../lib/game'
 import type { Etat } from '../lib/tree'
+import { saved } from '../lib/base'
 
 // A private window or blocked site data makes any storage call throw: then the page shows a
 // first visit, and what this page learns lives in memory.
@@ -10,7 +11,7 @@ const memory = new Map<string, string>()
 export const store = {
   get<T>(k: string, d: T): T {
     try {
-      const v = localStorage.getItem(k)
+      const v = localStorage.getItem(saved(k))
       return v === null ? d : JSON.parse(v)
     } catch {
       const v = memory.get(k)
@@ -20,7 +21,7 @@ export const store = {
   set(k: string, v: unknown) {
     memory.set(k, JSON.stringify(v))
     try {
-      localStorage.setItem(k, JSON.stringify(v))
+      localStorage.setItem(saved(k), JSON.stringify(v))
     } catch {}
   },
 }

@@ -2,11 +2,11 @@
 //
 // A course has one language, so unlike directory-urls.js its paths name none.
 //
-// A page's canonical URL ends in a slash: /<page>/. S3 only holds
-// /<page>/index.html, so the canonical form is rewritten to that key and the
-// other forms (/<page> and /<page>/index.html) are redirected to it. Paths whose
-// last segment has a dot are files (/math.css, /_astro/x.css) and pass through
-// untouched.
+// Every course is under its own path, so a page is /<slug>/<page>/. Its canonical
+// URL ends in a slash. S3 only holds <slug>/<page>/index.html, so the canonical
+// form is rewritten to that key and the other forms (no slash, or index.html)
+// are redirected to it. Paths whose last segment has a dot are files
+// (/<slug>/math.css, /<slug>/_astro/x.css) and pass through untouched.
 
 function handler(event) {
   var request = event.request;

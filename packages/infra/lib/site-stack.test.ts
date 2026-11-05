@@ -4,11 +4,12 @@ import { join } from 'node:path'
 import { Match, Template } from 'aws-cdk-lib/assertions'
 import { AwsSolutionsChecks } from 'cdk-nag'
 import { describe, expect, it } from 'vitest'
-import { SiteStack } from './site-stack'
+import { CourseStack, LEARN, LearnStack } from './learn-stack'
+import { APEX, SiteStack } from './site-stack'
 import { testApp } from './test-app'
 
 const env = { account: '111122223333', region: 'us-east-1' }
-const DOMAIN = 'example.com'
+const DOMAIN = APEX
 
 // A stand-in for packages/site/dist, with an inline script to hash and the
 // .DS_Store files a laptop leaves behind.
@@ -29,7 +30,7 @@ for (const [path, body] of Object.entries({
 const app = testApp({
   [`hosted-zone:account=${env.account}:domainName=${DOMAIN}:region=${env.region}`]: { Id: '/hostedzone/ZTEST', Name: `${DOMAIN}.` },
 })
-const stack = new SiteStack(app, 'Site', { env, domainName: DOMAIN, siteDir })
+const stack = new SiteStack(app, 'Site', { env, siteDir })
 const template = Template.fromStack(stack)
 const [distribution] = Object.values(template.findResources('AWS::CloudFront::Distribution'))
 const config = distribution?.Properties.DistributionConfig
@@ -170,59 +171,82 @@ describe('the site stack', () => {
   })
 })
 
-describe('a course stack', () => {
-  const COURSE = `demo.${DOMAIN}`
+describe('the courses', () => {
+  // A stand-in for packages/course/empty: its 404.html is the host's.
+  const emptyDir = mkdtempSync(join(tmpdir(), 'empty-'))
+  writeFileSync(join(emptyDir, 'index.html'), '')
+  writeFileSync(join(emptyDir, '404.html'), '404')
   // The lookup goes to the apex's zone, so it reads the same cached entry.
   const courseApp = testApp({
     [`hosted-zone:account=${env.account}:domainName=${DOMAIN}:region=${env.region}`]: { Id: '/hostedzone/ZTEST', Name: `${DOMAIN}.` },
   })
-  const courseStack = new SiteStack(courseApp, 'Course', { env, domainName: COURSE, courseOf: DOMAIN, siteDir })
+  const learnStack = new LearnStack(courseApp, 'Learn', { env, courseDir: siteDir, emptyDir })
+  const courseStack = new CourseStack(courseApp, 'Course', { env, learn: learnStack, slug: 'demo', siteDir })
+  const learn = Template.fromStack(learnStack)
   const course = Template.fromStack(courseStack)
-  const courseConfig = Object.values(course.findResources('AWS::CloudFront::Distribution'))[0]?.Properties.DistributionConfig
+  const learnConfig = Object.values(learn.findResources('AWS::CloudFront::Distribution'))[0]?.Properties.DistributionConfig
 
-  it('serves its subdomain and nothing else', () => {
-    expect(courseConfig.Aliases).toEqual([COURSE])
+  it('serves every course on one host, and nothing else', () => {
+    expect(LEARN).toBe(`learn.${DOMAIN}`)
+    expect(learnConfig.Aliases).toEqual([LEARN])
   })
 
   it('gets a certificate for exactly that name, validated in the apex zone', () => {
-    course.resourceCountIs('AWS::CertificateManager::Certificate', 1)
-    course.hasResourceProperties('AWS::CertificateManager::Certificate', {
-      DomainName: COURSE,
+    learn.resourceCountIs('AWS::CertificateManager::Certificate', 1)
+    learn.hasResourceProperties('AWS::CertificateManager::Certificate', {
+      DomainName: LEARN,
       SubjectAlternativeNames: Match.absent(),
       ValidationMethod: 'DNS',
-      DomainValidationOptions: [{ DomainName: COURSE, HostedZoneId: 'ZTEST' }],
+      DomainValidationOptions: [{ DomainName: LEARN, HostedZoneId: 'ZTEST' }],
     })
   })
 
   it('writes its A and AAAA records into the apex zone, and creates no zone', () => {
     for (const Type of ['A', 'AAAA']) {
-      course.hasResourceProperties('AWS::Route53::RecordSet', { Type, Name: `${COURSE}.`, HostedZoneId: 'ZTEST', AliasTarget: Match.objectLike({}) })
+      learn.hasResourceProperties('AWS::Route53::RecordSet', { Type, Name: `${LEARN}.`, HostedZoneId: 'ZTEST', AliasTarget: Match.objectLike({}) })
     }
-    course.resourceCountIs('AWS::Route53::RecordSet', 2)
-    course.resourceCountIs('AWS::Route53::HostedZone', 0)
+    learn.resourceCountIs('AWS::Route53::RecordSet', 2)
+    learn.resourceCountIs('AWS::Route53::HostedZone', 0)
   })
 
   it('attaches one function, to viewer requests: no language redirect, no cookie', () => {
-    const functions = Object.entries(course.findResources('AWS::CloudFront::Function')) as [string, any][]
+    const functions = Object.entries(learn.findResources('AWS::CloudFront::Function')) as [string, any][]
     expect(functions).toHaveLength(1)
     const [id, fn] = functions[0]!
     expect(fn.Properties.FunctionCode).toBe(readFileSync(new URL('../functions/course-urls.js', import.meta.url), 'utf8'))
     expect(fn.Properties.FunctionConfig.Runtime).toBe('cloudfront-js-2.0')
-    expect(courseConfig.DefaultCacheBehavior.FunctionAssociations).toEqual([
+    expect(learnConfig.DefaultCacheBehavior.FunctionAssociations).toEqual([
       { EventType: 'viewer-request', FunctionARN: { 'Fn::GetAtt': [id, 'FunctionARN'] } },
     ])
   })
 
-  it('answers a missing path with its own /404.html and a 404 status', () => {
-    expect(courseConfig.CustomErrorResponses).toEqual([
+  it('answers a missing path with the host’s /404.html, uploaded alone and never pruned', () => {
+    expect(learnConfig.CustomErrorResponses).toEqual([
       { ErrorCode: 403, ResponseCode: 404, ResponsePagePath: '/404.html' },
       { ErrorCode: 404, ResponseCode: 404, ResponsePagePath: '/404.html' },
     ])
+    const ups = Object.values(learn.findResources('Custom::CDKBucketDeployment')) as any[]
+    expect(ups).toHaveLength(1)
+    expect(ups[0].Properties.Prune).toBe(false)
+    expect(ups[0].Properties.Exclude).toEqual(['*'])
+    expect(ups[0].Properties.Include).toEqual(['404.html'])
+  })
+
+  it('uploads a course under its own path only: pruned and purged there', () => {
+    const ups = Object.values(course.findResources('Custom::CDKBucketDeployment')) as any[]
+    expect(ups).toHaveLength(2)
+    for (const up of ups) expect(up.Properties.DestinationBucketKeyPrefix).toBe('demo/')
+    const pages = ups.find((up) => up.Properties.Prune !== false)
+    expect(pages.Properties.DistributionPaths).toEqual(['/demo/*'])
+    course.resourceCountIs('AWS::S3::Bucket', 0)
+    course.resourceCountIs('AWS::CloudFront::Distribution', 0)
   })
 
   it('passes cdk-nag', () => {
-    const { success, violations } = new AwsSolutionsChecks(courseApp).validateScope(courseStack)
-    expect(violations).toEqual([])
-    expect(success).toBe(true)
+    for (const scope of [learnStack, courseStack]) {
+      const { success, violations } = new AwsSolutionsChecks(courseApp).validateScope(scope)
+      expect(violations).toEqual([])
+      expect(success).toBe(true)
+    }
   })
 })

@@ -1,6 +1,7 @@
 import type { Level } from './game'
 import { miniNode } from './glyphs'
 import { cellsHtml, cleared, icon, levelIcon, runs, statesSvg } from './pixels'
+import { url } from './base'
 
 // A level's mark in a list: its own icon, coloured by its state (the panel's, the sheet's, the
 // level page's lists and the popover all use it); a card with no icon keeps the state icon.
@@ -9,7 +10,7 @@ export const rowIcon = (o: Level) => (o.icon ? levelIcon(o.icon, 2) : statesSvg(
 // how hard it is, and when it is not written yet.
 export const row = (o: Level, door = false) =>
   `<li class="row h${o.hue}${o.prevu ? ' prevu' : ''}${door ? ' door' : ''}" data-lv="${o.id}">` +
-  (o.prevu ? '<span class="t">' : `<a href="/${o.id}/">`) +
+  (o.prevu ? '<span class="t">' : `<a href="${url(`${o.id}/`)}">`) +
   rowIcon(o) +
   `<span class="lbl-n num">${o.label}</span><span class="nm">${o.nom}</span>` +
   (door ? cellsHtml(o.complexite) + (o.prevu ? '<em>Pas encore écrit.</em>' : '') : '') +
@@ -38,7 +39,7 @@ export function fillRows(s: number): string[] {
 export function mnRow(o: Level, icons: string[] | null): string {
   const mn = miniNode(icons, o.hue, o.prevu ? 'fog' : 'dispo', 32).replace('<svg ', `<svg data-st="${o.id}" `)
   const inner = `${mn}<span class="row-n num">${o.label}</span><span class="row-t">${o.nom}</span><span class="row-s">${o.prevu ? 'Pas encore écrit.' : ''}</span>`
-  return `<li class="row way h${o.hue}" data-lv="${o.id}">${o.prevu ? `<span class="a">${inner}</span>` : `<a href="/${o.id}/">${inner}</a>`}</li>`
+  return `<li class="row way h${o.hue}" data-lv="${o.id}">${o.prevu ? `<span class="a">${inner}</span>` : `<a href="${url(`${o.id}/`)}">${inner}</a>`}</li>`
 }
 // THE CLEAR'S PLATE: the map's plate for a level at the goal's size (96), cut and bevelled as on
 // the map, with the flood, the charge round its frame and the cleared ring drawn inside it. The

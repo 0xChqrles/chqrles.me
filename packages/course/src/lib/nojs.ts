@@ -8,6 +8,7 @@ import { FACE } from './metrics'
 import { INK, mix, MUTED, NEUTRAL, RAISE, SOCKET, TONES } from './palette'
 import { chipOf, facesOf, fitWorld, portAt, runsAt, tableOf, TITLE, type Course } from './place'
 import { BEZEL, layout, type TreeData } from './tree'
+import { url } from './base'
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 const r1 = (n: number) => Math.round(n * 10) / 10
@@ -62,7 +63,7 @@ export function nojsSvg(T: TreeData, w: World): string {
       const at = portAt(LY, l, p.end, v)
       const far = levels.get(p.far)!
       const t = TONES[far.hue]!
-      o += `<a href="/${p.far}/" aria-label="${esc(far.label + ' ' + far.titre)}"><rect x="${X(at[0]) - c / 2 + 0.5}" y="${Y(at[1]) - c / 2 + 0.5}" width="${c - 1}" height="${c - 1}" fill="${RAISE}" stroke="${t.wire}"/><path transform="translate(${X(at[0]) - 5.5} ${Y(at[1]) - 5.5})" d="${runsPath(T.icons[p.far]!)}" fill="${far.prevu ? t.fog : t.ink}"/></a>`
+      o += `<a href="${url(`${p.far}/`)}" aria-label="${esc(far.label + ' ' + far.titre)}"><rect x="${X(at[0]) - c / 2 + 0.5}" y="${Y(at[1]) - c / 2 + 0.5}" width="${c - 1}" height="${c - 1}" fill="${RAISE}" stroke="${t.wire}"/><path transform="translate(${X(at[0]) - 5.5} ${Y(at[1]) - 5.5})" d="${runsPath(T.icons[p.far]!)}" fill="${far.prevu ? t.fog : t.ink}"/></a>`
     }
   // plates, the goal's bezel, numbers
   for (const n of LY.nodes.values()) {
@@ -78,7 +79,7 @@ export function nojsSvg(T: TreeData, w: World): string {
     const fill = open ? mix(SOCKET, t.plate, 0.3) : SOCKET
     const ic = open ? INK : front ? t.fog : t.fogd
     const fw = open || front ? 2 : 1
-    o += `<a href="/${n.id}/" aria-label="${esc(lv.label + ' ' + lv.titre)}">`
+    o += `<a href="${url(`${n.id}/`)}" aria-label="${esc(lv.label + ' ' + lv.titre)}">`
     if (n.size === 'G') o += `<polygon points="${octPts(cx, cy, F + 2 * BEZEL)}" fill="none" stroke="${open ? t.ink : t.rim}" stroke-width="1"/>`
     o += `<polygon class="nf" points="${octPts(cx, cy, F)}" fill="${frame}"/><polygon points="${octPts(cx, cy, F - 2 * fw)}" fill="${fill}"/><path transform="translate(${r1(cx - (11 * cell) / 2)} ${r1(cy - (11 * cell) / 2)}) scale(${cell})" d="${runsPath(T.icons[n.id]!)}" fill="${ic}"/>`
     const lb = f.labels.at.get(n.id)

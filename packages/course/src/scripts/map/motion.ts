@@ -7,7 +7,7 @@ export const easeIn = bezier(0.55, 0, 1, 0.45)
 export const back = bezier(0.34, 1.56, 0.64, 1)
 export const linear = (t: number) => t
 export { inout }
-export const T = { hover: 120, hoverOut: 90, pressDown: 90, pressUp: 180, state: 220, panelIn: 240, panelOut: 140, reveal: 360, camIn: 480, camTravel: 520, camOut: 420, stagger: 24, staggerNode: 32, staggerCap: 240, reward: 1800, bob: 600, breathe: 2400, focusIn: 140 }
+export const T = { hover: 120, hoverOut: 90, pressDown: 90, pressUp: 180, state: 220, panelIn: 240, panelOut: 140, reveal: 360, camIn: 480, camTravel: 520, camOut: 420, stagger: 24, reward: 1800, bob: 600, breathe: 2400, focusIn: 140 }
 
 export const still = matchMedia('(prefers-reduced-motion: reduce)')
 export let now = performance.now()

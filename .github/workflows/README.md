@@ -12,7 +12,8 @@
 - **`deploy-course.yml`** runs by hand only, from `main`, for one course at a time. Its
   first job runs the checks and that course's own code tests, and builds the blog and that
   course, with no AWS access. Its second job, as in `deploy.yml`, runs
-  `cdk deploy ChqrlesMeCourse-<slug>`. Runs of one course wait in order.
+  `cdk deploy ChqrlesMeCourse-<slug>`, which deploys the courses' host, `ChqrlesMeLearn`,
+  first. Runs of one course wait in order.
 
   ```bash
   gh workflow run deploy-course.yml -f course=<slug>              # publish

@@ -6,6 +6,7 @@ import { icon } from '../lib/pixels'
 import { lowerOct } from '../lib/glyphs'
 import { etat, L, load, reached, S, share, store, type Ici, WORLD } from './save'
 import { mapPage } from './map/map'
+import { url } from '../lib/base'
 
 declare global {
   // Set by /search.js: each written card's id and its text.
@@ -205,7 +206,7 @@ function cherche() {
   else if (!charge) {
     charge = true
     const s = document.createElement('script')
-    s.src = '/search.js'
+    s.src = url('search.js')
     s.onload = filtre
     s.onerror = () => {
       charge = false

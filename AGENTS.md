@@ -1,7 +1,8 @@
 # AGENTS.md — chqrles.me
 
 > The source of https://chqrles.me, a static blog that holds articles and nothing else, and
-> of its courses, each a static site on its own subdomain, in one monorepo.
+> of its courses, each a static site under its own path on https://learn.chqrles.me, in one
+> monorepo.
 > Posts are Markdown files; CI builds the site and deploys it to AWS. A course is a folder
 > of Markdown files too, and it deploys only when the owner runs its workflow by hand.
 > `CLAUDE.md` is a symlink to this file: edit **AGENTS.md**.
@@ -18,7 +19,8 @@ courses/<slug>/     one folder per course: outline.json, src/ (its Markdown), co
 packages/site/      the Astro site: content schema, pages, feed, sitemap
 packages/course/    the Astro app of a course, built once per course, and its test course
 packages/design/    what the site and the courses share: tokens, palette, fonts, mark, icon
-packages/infra/     the AWS CDK app: the site stack, a stack per course and CI's deploy role
+packages/infra/     the AWS CDK app: the site stack, the courses' host, a stack per course
+                    and CI's deploy role
 .github/workflows/  ci.yml (checks), deploy.yml (checks, then deploy) and deploy-course.yml
                     (one course, by hand)
 ```
@@ -221,8 +223,8 @@ translation leaves the original published.
 
 ### The contract
 
-- **A course is a folder, and the folder's name is its subdomain**: `courses/<slug>/` is
-  served at `https://<slug>.chqrles.me/`. A slug follows a post's rule (`SLUG` in
+- **Every course is on one host, and a course's folder name is its path**:
+  `courses/<slug>/` is served at `https://learn.chqrles.me/<slug>/`. A slug follows a post's rule (`SLUG` in
   `packages/course/scripts/shape.mjs`, kept in step with `urls.ts` by a test); any other
   name fails the build. `courses/` holds folders only: a file beside them fails it too.
   **A live slug and a published card id never change.**
@@ -265,11 +267,17 @@ translation leaves the original published.
 
 ### URLs
 
-- `https://<slug>.chqrles.me/` is the home page and the map, `/<card-id>/` a written card,
-  and `/tout/` every written card, so a card named `tout` fails the build. The other URLs
-  are files: `/_astro/*`, `/math.css`, `/search.js`, `/favicon.svg`, `/apple-touch-icon.png`.
-- **A missing path is a real 404**, from the course's own `/404.html`, marked `noindex`.
-  A planned card's URL is one.
+- `https://learn.chqrles.me/<slug>/` is the home page and the map, `/<slug>/<card-id>/` a
+  written card, and `/<slug>/tout/` every written card, so a card named `tout` fails the
+  build. The other URLs are files under `/<slug>/`: `_astro/*`, `math.css`, `search.js`,
+  `favicon.svg`, `apple-touch-icon.png`.
+- **Every URL a course writes goes through `url`** (`packages/course/src/lib/base.ts`), which
+  puts the course's path in front (Astro's `base`, set in `packages/course/astro.config.ts`
+  from the folder's name). **Every key a course saves goes through `saved`**, under the same
+  path, since the courses share one origin and so one storage.
+- **A missing path is a real 404**, from the host's one `/404.html`
+  (`packages/course/empty/404.html`), marked `noindex`. A planned card's URL is one.
+  `https://learn.chqrles.me/` itself has no page.
 
 ### Building
 
@@ -376,8 +384,8 @@ colour, icon or furniture is reused.
 
 - **One CDK app in TypeScript** (`packages/infra/bin/app.ts`), its stacks all in account
   `879381243389` and `us-east-1`, where CloudFront needs its certificate:
-  `ChqrlesMeSite` (the site), `ChqrlesMeDeployRole` (CI's role) and one
-  `ChqrlesMeCourse-<slug>` per built course. The account is pinned, so CI synthesizes
+  `ChqrlesMeSite` (the site), `ChqrlesMeDeployRole` (CI's role), `ChqrlesMeLearn` (the
+  courses' host) and one `ChqrlesMeCourse-<slug>` per built course. The account is pinned, so CI synthesizes
   without credentials from the committed `cdk.context.json`.
 - **The account also runs Whippin.** IAM role and CloudFront policy names are account-wide:
   never reuse Whippin's (`Whippin*Stack`, `whippin-github-deploy`,
@@ -395,16 +403,23 @@ colour, icon or furniture is reused.
   blocked, TLS only, S3-managed encryption, destroyed with the stack); CloudFront with
   Origin Access Control, HTTP/2 and HTTP/3, TLS 1.2_2021, price class 100; a
   DNS-validated certificate for the apex; A and AAAA aliases at the apex. No `www`.
-- **A course has its own stack, `ChqrlesMeCourse-<slug>`**: the site stack with `courseOf`,
-  the apex whose zone holds its records. It has its own bucket, distribution, security
-  headers and uploads, because a 404 page and a CSP cannot vary by host on one
-  distribution. It has one certificate, for exactly `<slug>.chqrles.me`, and A and AAAA
-  records in the existing zone. No wildcard. `packages/infra/bin/app.ts` creates the stack
-  only where a build exists, in `packages/course/dist/<slug>`, so a source folder alone
-  creates nothing and the blog's deploy has no course in its app.
+- **The courses' host, `ChqrlesMeLearn`** (`packages/infra/lib/learn-stack.ts`): the site
+  stack's bucket, distribution, security headers and records, for exactly
+  `learn.chqrles.me`, with one certificate for that name and A and AAAA records in the
+  existing zone. No wildcard. Its bucket is named `chqrles-me-learn-<account>`, so each
+  course's stack names it plainly. It holds no course: it uploads only `/404.html`, never
+  pruned. Its CSP is read off a course's build, and every course's is the same, since it
+  holds no hash.
+- **A course has its own stack, `ChqrlesMeCourse-<slug>`**: its build uploaded into the
+  host's bucket under `<slug>/`, as the site stack uploads (assets a year and never pruned,
+  the rest revalidated), pruning and purging only `/<slug>/*`, so a deploy never touches
+  another course. It depends on the host, so deploying it deploys the host first.
+  `packages/infra/bin/app.ts` creates the host and the course stacks only where a build
+  exists, in `packages/course/dist/<slug>`, so a source folder alone creates nothing and the
+  blog's deploy has no course in its app.
 - **Course URLs** (`packages/infra/functions/course-urls.js`, a CloudFront Function on
-  viewer request, a course's only one): `/<page>/` serves `<page>/index.html`; `/<page>`
-  and `/<page>/index.html` redirect (301) to `/<page>/`, the query string kept; a path
+  viewer request, the host's only one): `/<slug>/<page>/` serves `<slug>/<page>/index.html`;
+  `/<slug>/<page>` and `/<slug>/<page>/index.html` redirect (301) to `/<slug>/<page>/`, the query string kept; a path
   whose last segment has a dot is a file and passes through. Repeated slashes collapse
   first, so a redirect never leaves the site.
 - **Directory URLs and languages** (`packages/infra/functions/directory-urls.js`, a
@@ -472,7 +487,8 @@ colour, icon or furniture is reused.
   name, runs the typecheck, the tests and `cargo test --locked` in that course's `code/`
   alone, so another course cannot stop it, and builds the blog (the app's synth needs it)
   and that course alone, without AWS access. A second job, on `main` only, installs just
-  the CDK app and runs `cdk deploy ChqrlesMeCourse-<slug>` with OIDC credentials. Runs of
+  the CDK app and runs `cdk deploy ChqrlesMeCourse-<slug>` with OIDC credentials, which
+  deploys `ChqrlesMeLearn` first. Runs of
   one course wait in order (`queue: max`), never cancel.
 - **Takedown runs through the same workflow**, with `-f empty=true`:
   `packages/course/empty/` replaces the build, so every page goes and the cache is purged.

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { App, Validations } from 'aws-cdk-lib'
 import { AwsSolutionsChecks } from 'cdk-nag'
 import { DeployRoleStack } from '../lib/deploy-role-stack'
+import { CourseStack, LearnStack } from '../lib/learn-stack'
 import { SiteStack } from '../lib/site-stack'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -25,7 +26,6 @@ const tags = { Project: 'chqrles.me', ManagedBy: 'cdk' }
 new SiteStack(app, 'ChqrlesMeSite', {
   env,
   tags,
-  domainName: 'chqrles.me',
   siteDir: join(here, '..', '..', 'site', 'dist'),
 })
 
@@ -35,18 +35,20 @@ new DeployRoleStack(app, 'ChqrlesMeDeployRole', {
   githubSubject: 'repo:0xChqrles@19663399/chqrles.me@1387573502:ref:refs/heads/main',
 })
 
-// A course stack exists only where its build does, so a source folder alone
-// creates nothing, and the blog's own deploy has no course in its app.
+// The courses' host and a stack per course exist only where a course's build does, so a
+// source folder alone creates nothing, and the blog's own deploy has no course in its app.
 const coursesDir = join(here, '..', '..', 'course', 'dist')
 const built = existsSync(coursesDir)
-  ? readdirSync(coursesDir, { withFileTypes: true }).filter((entry) => entry.isDirectory())
+  ? readdirSync(coursesDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
   : []
-for (const { name: slug } of built) {
-  new SiteStack(app, `ChqrlesMeCourse-${slug}`, {
+if (built.length) {
+  const learn = new LearnStack(app, 'ChqrlesMeLearn', {
     env,
     tags,
-    domainName: `${slug}.chqrles.me`,
-    courseOf: 'chqrles.me',
-    siteDir: join(coursesDir, slug),
+    courseDir: join(coursesDir, built[0]!),
+    emptyDir: join(here, '..', '..', 'course', 'empty'),
   })
+  for (const slug of built) {
+    new CourseStack(app, `ChqrlesMeCourse-${slug}`, { env, tags, learn, slug, siteDir: join(coursesDir, slug) })
+  }
 }
