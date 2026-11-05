@@ -1,0 +1,120 @@
+{
+  "cours": {
+    "titre": "Le braquet d'un vélo",
+    "sousTitre": "De la dent au kilomètre",
+    "court": "Braquet",
+    "objectif": "vitesse",
+    "macros": {
+      "\\Ent": "\\mathbb{N}",
+      "\\tours": "\\texttt{tours}"
+    }
+  },
+  "quartiers": [
+    { "id": "chapitres", "nom": "Les chapitres" },
+    { "id": "transmission", "nom": "La transmission" },
+    { "id": "route", "nom": "Sur la route" }
+  ],
+  "lignes": [
+    { "id": "chaine", "nom": "La chaîne" },
+    { "id": "route", "nom": "L'asphalte" },
+    { "id": "atelier", "nom": "L'atelier" }
+  ],
+  "cartes": [
+    {
+      "id": "braquet",
+      "titre": "Ce que fait un braquet",
+      "court": "1. Le braquet",
+      "quartier": "chapitres",
+      "chapitre": 1,
+      "prerequis": [],
+      "notions": ["dents", "rapport"],
+      "resume": "Un tour de pédales fait plus d'un tour de roue.",
+      "complexite": 1,
+      "importance": 3,
+      "col": 1,
+      "rang": 0,
+      "cote": "d"
+    },
+    {
+      "id": "developpement",
+      "titre": "La distance d'un tour de pédales",
+      "court": "2. Le développement",
+      "quartier": "chapitres",
+      "chapitre": 2,
+      "prerequis": ["braquet"],
+      "notions": ["roue"],
+      "resume": "Le rapport multiplié par le tour de roue."
+    },
+    {
+      "id": "cadence",
+      "titre": "Tenir une cadence",
+      "court": "3. La cadence",
+      "quartier": "chapitres",
+      "chapitre": 3,
+      "prerequis": ["developpement"],
+      "notions": ["vitesse"],
+      "resume": "Le nombre de tours de pédales par minute."
+    },
+    {
+      "id": "dents",
+      "titre": "Compter les dents",
+      "court": "Les dents",
+      "quartier": "transmission",
+      "prerequis": ["braquet"],
+      "resume": "Un plateau et un pignon se comptent en dents.",
+      "complexite": 1,
+      "importance": 2,
+      "col": 1,
+      "rang": 1,
+      "cote": "d",
+      "formules": "gauche"
+    },
+    {
+      "id": "rapport",
+      "titre": "Le rapport de transmission",
+      "court": "Le rapport",
+      "quartier": "transmission",
+      "prerequis": ["dents"],
+      "resume": "Les dents du plateau < divisées par > celles du pignon.",
+      "complexite": 2,
+      "importance": 3,
+      "col": 1,
+      "rang": 2,
+      "cote": "g",
+      "carte": "Rapport"
+    },
+    {
+      "id": "roue",
+      "titre": "Le tour de roue",
+      "court": "La roue",
+      "quartier": "route",
+      "prerequis": ["rapport"],
+      "resume": "La circonférence du pneu gonflé.",
+      "complexite": 2,
+      "importance": 1,
+      "col": 3,
+      "rang": 3,
+      "cote": "d"
+    },
+    {
+      "id": "vitesse",
+      "titre": "La vitesse sur la route",
+      "court": "La vitesse",
+      "quartier": "route",
+      "prerequis": ["roue", "rapport"],
+      "resume": "Le développement multiplié par la cadence.",
+      "complexite": 3,
+      "importance": 3,
+      "col": 3,
+      "rang": 4,
+      "cote": "bd"
+    }
+  ],
+  "aretes": [
+    { "a": "braquet", "b": "dents", "ligne": "chaine" },
+    { "a": "dents", "b": "rapport", "ligne": "chaine" },
+    { "a": "rapport", "b": "roue", "ligne": "atelier", "via": [[1, 3]] },
+    { "a": "roue", "b": "vitesse", "ligne": "route" },
+    { "a": "dents", "b": "roue", "ligne": "route", "coupee": true }
+  ]
+}

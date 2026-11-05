@@ -15,18 +15,21 @@ import { contentSecurityPolicy } from './csp'
 const here = dirname(fileURLToPath(import.meta.url))
 
 export interface SiteStackProps extends StackProps {
-  // The apex, served as is. Its Route 53 zone already exists in the account.
+  // The name the site is served at, as is. Its Route 53 zone already exists in
+  // the account: this name's own, or `courseOf`'s.
   domainName: string
+  // The apex whose zone holds this site's records, for a course at a subdomain of it.
+  courseOf?: string
   // The built site (packages/site/dist). The build runs before any synth.
   siteDir: string
 }
 
-// The static site: a private bucket behind CloudFront at the apex, with its
+// A static site: a private bucket behind CloudFront at its own name, with its
 // certificate, its DNS records, its security headers and the upload of the build.
 export class SiteStack extends Stack {
   constructor(scope: Construct, id: string, props: SiteStackProps) {
     super(scope, id, props)
-    const { domainName, siteDir } = props
+    const { domainName, courseOf, siteDir } = props
     if (!existsSync(join(siteDir, 'index.html'))) {
       throw new Error(`No site build at ${siteDir}. Run \`pnpm build\` first.`)
     }
@@ -41,7 +44,7 @@ export class SiteStack extends Stack {
     })
 
     // Looked up, never created: a new zone would get new nameservers and break the domain.
-    const zone = route53.HostedZone.fromLookup(this, 'Zone', { domainName })
+    const zone = route53.HostedZone.fromLookup(this, 'Zone', { domainName: courseOf ?? domainName })
     const certificate = new acm.Certificate(this, 'Certificate', {
       domainName,
       validation: acm.CertificateValidation.fromDns(zone),
@@ -59,19 +62,37 @@ export class SiteStack extends Stack {
       },
     })
 
-    // Astro writes /<lang>/<slug>/index.html, and CloudFront's default root object only works at /.
-    // The same function sends a path with no language to the visitor's language.
-    const directoryUrls = new cloudfront.Function(this, 'DirectoryUrls', {
-      comment: 'Serves /<lang>/<slug>/ from index.html, redirects other forms, and a path with no language to the reader\'s',
-      code: cloudfront.FunctionCode.fromFile({ filePath: join(here, '..', 'functions', 'directory-urls.js') }),
-      runtime: cloudfront.FunctionRuntime.JS_2_0,
-    })
-    // Remembers the language of the last page read, for the function above.
-    const langCookie = new cloudfront.Function(this, 'LangCookie', {
-      comment: 'Sets the lang cookie on a page in a language',
-      code: cloudfront.FunctionCode.fromFile({ filePath: join(here, '..', 'functions', 'lang-cookie.js') }),
-      runtime: cloudfront.FunctionRuntime.JS_2_0,
-    })
+    const edgeFunction = (id: string, comment: string, file: string) =>
+      new cloudfront.Function(this, id, {
+        comment,
+        code: cloudfront.FunctionCode.fromFile({ filePath: join(here, '..', 'functions', file) }),
+        runtime: cloudfront.FunctionRuntime.JS_2_0,
+      })
+    const functionAssociations = courseOf
+      ? [
+          // A course has one language, so it has no redirect to one and no cookie.
+          {
+            function: edgeFunction('CourseUrls', 'Serves /<page>/ from index.html and redirects other forms', 'course-urls.js'),
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+          },
+        ]
+      : [
+          // Astro writes /<lang>/<slug>/index.html, and CloudFront's default root object only works at /.
+          // The same function sends a path with no language to the visitor's language.
+          {
+            function: edgeFunction(
+              'DirectoryUrls',
+              'Serves /<lang>/<slug>/ from index.html, redirects other forms, and a path with no language to the reader\'s',
+              'directory-urls.js',
+            ),
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+          },
+          // Remembers the language of the last page read, for the function above.
+          {
+            function: edgeFunction('LangCookie', 'Sets the lang cookie on a page in a language', 'lang-cookie.js'),
+            eventType: cloudfront.FunctionEventType.VIEWER_RESPONSE,
+          },
+        ]
 
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       comment: domainName,
@@ -87,10 +108,7 @@ export class SiteStack extends Stack {
         // Honours each file's Cache-Control, set by the uploads below.
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         responseHeadersPolicy: securityHeaders,
-        functionAssociations: [
-          { function: directoryUrls, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST },
-          { function: langCookie, eventType: cloudfront.FunctionEventType.VIEWER_RESPONSE },
-        ],
+        functionAssociations,
       },
       // Not a single-page app: a missing path is a real 404. With Origin Access
       // Control the bucket answers 403 for a missing key, so both map to /404.html.

@@ -1,6 +1,6 @@
 # chqrles.me
 
-The source of https://chqrles.me.
+The source of https://chqrles.me and of its courses.
 
 ## Publishing a post
 
@@ -53,6 +53,24 @@ AGENTS.md lists what each takes.
 To mark words in a code block, name them after its language: ```` ```text /chat/ ````
 marks every `chat`, ```` ```text /:/2 ```` only the second colon.
 
+## Publishing a course
+
+1. Create a folder in `courses/`. Its name is the subdomain: `courses/my-course/` is
+   published at `https://my-course.chqrles.me/`, forever. Lowercase letters, digits and
+   hyphens.
+2. Write `outline.json`, the home page `src/_accueil.md`, and a `src/<card-id>.md` for each
+   written card. A card with no file stays on the map, with no page. A Rust crate goes in
+   `code/`. Any other file fails the build, with a message that names it.
+3. Merge to `main`. This publishes nothing.
+4. Run the workflow by hand, from `main`:
+
+   ```bash
+   gh workflow run deploy-course.yml -f course=my-course                # publish
+   gh workflow run deploy-course.yml -f course=my-course -f empty=true  # take down
+   ```
+
+A card merged later goes live at the next run.
+
 ## Commands
 
 ```bash
@@ -61,6 +79,10 @@ pnpm dev         # http://localhost:4321, drafts included
 pnpm build       # packages/site/dist, drafts excluded
 pnpm test
 pnpm typecheck
+
+pnpm dev:course                      # http://localhost:4322, the test course
+COURSE_DIR=<path> pnpm dev:course    # any folder, as a preview
+pnpm build:courses                   # packages/course/dist/<slug>
 ```
 
 The rules for working on this repo are in [AGENTS.md](AGENTS.md).

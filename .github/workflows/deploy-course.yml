@@ -1,0 +1,136 @@
+name: Deploy course
+
+# By hand only, from main. A merge never runs this file.
+on:
+  workflow_dispatch:
+    inputs:
+      course:
+        description: The course's folder name
+        required: true
+        type: string
+      empty:
+        description: Replace the course's pages with the empty build
+        required: false
+        type: boolean
+        default: false
+
+# Deploys of one course never overlap and never cancel each other: runs wait in order.
+concurrency:
+  group: deploy-course-${{ inputs.course }}
+  cancel-in-progress: false
+  queue: max
+
+permissions:
+  contents: read
+
+# The inputs reach a shell through these two names only.
+env:
+  COURSE: ${{ inputs.course }}
+  EMPTY: ${{ inputs.empty }}
+
+jobs:
+  # The checks and the build run without any AWS access.
+  build:
+    name: Check and build
+    runs-on: ubuntu-latest
+    steps:
+      # Before anything uses the name.
+      - name: Course name
+        run: '[[ "$COURSE" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]'
+
+      - uses: actions/checkout@v7
+
+      # The version comes from the root packageManager field.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        if: ${{ !inputs.empty }}
+        run: pnpm typecheck
+
+      - name: Test
+        if: ${{ !inputs.empty }}
+        run: pnpm test
+
+      # This course's code only: another course cannot stop this deploy.
+      - name: Test course code
+        if: ${{ !inputs.empty && hashFiles(format('courses/{0}/code/Cargo.toml', inputs.course)) != '' }}
+        run: cd "courses/$COURSE/code" && cargo test --locked
+
+      # The app's synth needs the blog's build, and deploys only the stack named below.
+      - name: Build the blog
+        run: pnpm build
+
+      - name: Build the course
+        run: |
+          if [ "$EMPTY" = true ]; then
+            mkdir -p "packages/course/dist/$COURSE"
+            cp packages/course/empty/* "packages/course/dist/$COURSE/"
+          else
+            pnpm build:courses "$COURSE"
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: packages/site/dist
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: course
+          path: packages/course/dist/${{ inputs.course }}
+          if-no-files-found: error
+
+  # Only this job can assume the AWS role, and it installs only the CDK app's
+  # dependencies. A GitHub environment on it would change the OIDC subject, and the
+  # role would refuse it.
+  deploy:
+    name: Deploy
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # the OIDC token that assumes the AWS deploy role
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --filter @chqrles/infra
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: site
+          path: packages/site/dist
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: course
+          path: packages/course/dist/${{ inputs.course }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      # A takedown replaces a live course: a name with no stack stops here.
+      - name: The course is live
+        if: ${{ inputs.empty }}
+        run: aws cloudformation describe-stacks --stack-name "ChqrlesMeCourse-$COURSE" > /dev/null
+
+      - name: Deploy
+        run: pnpm --filter @chqrles/infra exec cdk deploy "ChqrlesMeCourse-$COURSE" --require-approval never

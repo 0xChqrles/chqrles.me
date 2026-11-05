@@ -1,0 +1,64 @@
+---
+import type { Level } from '../lib/game'
+import { glyphSvg } from '../lib/glyphs'
+import { getCourse } from '../lib/pages'
+import { icon } from '../lib/pixels'
+
+// The head over a page, the map's own: the way back to the map, the level, its checkpoints,
+// the pages before and after it, the plan.
+interface Props {
+  level?: Level
+  region?: string
+  sections?: { id: string; titre: string }[]
+  prev?: Level | null
+  next?: Level | null
+}
+const { level: l, region, sections = [], prev, next } = Astro.props
+const { cours } = await getCourse()
+const plain = (html: string) => html.replace(/<[^>]+>/g, '')
+---
+
+<header class:list={['hud', 'page-hud', l && `h${l.hue}`]}>
+  <a class="key back" href="/" data-va={l?.id}><Fragment set:html={glyphSvg('back', 2)} /><span>Carte</span></a>
+  {
+    l ? (
+      <span class="hud-id">
+        {l.label && <span class="num">{l.label}</span>}
+        <b>{l.nom}</b>
+        <span class="hud-reg">
+          <i class="chip"></i>
+          {region}
+        </span>
+      </span>
+    ) : (
+      <span class="hud-id">
+        <b>{cours.titre}</b>
+      </span>
+    )
+  }
+  {
+    sections.length > 0 && (
+      <span class="hud-chk" aria-hidden="true"><Fragment set:html={icon('checkpoint', 2)} /></span>
+      <ol class="pips" aria-hidden="true">
+        {sections.map((s) => (
+          <li data-sec={s.id}>
+            <a href={`#${s.id}`} tabindex="-1" title={plain(s.titre)} />
+          </li>
+        ))}
+      </ol>
+    )
+  }
+  <nav class="hud-pn">
+    {prev ? (
+      <a class="key" href={`/${prev.id}/`} rel="prev" aria-label={`Précédent : ${prev.nom}`} set:html={glyphSvg('back', 2)} />
+    ) : (
+      <span class="key off" set:html={glyphSvg('back', 2)} />
+    )}
+    {next ? (
+      <a class="key" href={`/${next.id}/`} rel="next" aria-label={`Suivant : ${next.nom}`} set:html={glyphSvg('next', 2)} />
+    ) : (
+      <span class="key off" set:html={glyphSvg('next', 2)} />
+    )}
+  </nav>
+  <button class="key" id="plan" type="button" aria-expanded="false" aria-controls="planche" aria-label="Plan du cours" set:html={glyphSvg('search', 2)} />
+</header>

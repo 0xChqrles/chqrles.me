@@ -42,6 +42,14 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # Each folder of courses/ into packages/course/dist/<slug>. None: nothing to do.
+      - name: Build courses
+        run: pnpm build:courses
+
+      - name: Test course code
+        if: hashFiles('courses/*/code/Cargo.toml') != ''
+        run: for crate in courses/*/code; do (cd "$crate" && cargo test --locked); done
+
       # cdk-nag findings fail here. No AWS credentials: the zone lookup comes
       # from the committed cdk.context.json.
       - name: Synth
