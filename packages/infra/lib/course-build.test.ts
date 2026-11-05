@@ -1,12 +1,16 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { contentSecurityPolicy, CSP_MAX_LENGTH } from './csp'
 
 const SITE = 'https://demo.example.com'
-const out = mkdtempSync(join(tmpdir(), 'course-build-'))
+const course = join(import.meta.dirname, '..', '..', 'course')
+// Astro moves its files into the output by renaming them, which fails across disks (a CI
+// runner's /tmp is not the checkout's), so the output sits beside the app, in its own cache.
+const cache = join(course, 'node_modules', '.cache')
+mkdirSync(cache, { recursive: true })
+const out = mkdtempSync(join(cache, 'course-build-'))
 
 const files = (extension: string) =>
   readdirSync(out, { recursive: true, withFileTypes: true })
@@ -17,7 +21,7 @@ const page = (path: string) => readFileSync(join(out, path), 'utf8')
 // A real build of the test course: never run it beside a course dev server.
 beforeAll(() => {
   execFileSync('pnpm', ['exec', 'astro', 'build', '--force', '--site', SITE, '--outDir', out], {
-    cwd: join(import.meta.dirname, '..', '..', 'course'),
+    cwd: course,
     env: { ...process.env, NODE_ENV: 'production', COURSE_SLUG: '' },
     stdio: 'pipe',
   })
