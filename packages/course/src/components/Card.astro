@@ -5,6 +5,7 @@ import { getCourse, getWorld } from '../lib/pages'
 import { glyphSvg, miniNode } from '../lib/glyphs'
 import { CHECK, cellsHtml, cellsOf, icon, runs } from '../lib/pixels'
 import { meter as meterOf, mnRow, plateSvg, withIcons } from '../lib/rows'
+import { url } from '../lib/base'
 
 interface Props {
   page: Page
@@ -31,7 +32,7 @@ const { icones } = await getCourse()
 
 <section class:list={['card', `h${l.hue}`]} id={`c-${page.id}`} data-id={page.id} data-formules={page.formules}>
   <header class="intro">
-    <a class="i-reg" href="/" data-va={page.id}><i class="chip"></i>{page.quartier}</a>
+    <a class="i-reg" href={url()} data-va={page.id}><i class="chip"></i>{page.quartier}</a>
     <div class="i-num">
       {l.icon && <span class="i-ic" set:html={miniNode(icones[l.id] ?? null, l.hue, l.prevu ? 'fog' : 'dispo', 48).replace('<svg ', `<svg data-st="${l.id}" `)} />}
       {l.label && <span class="num i-n">{l.label}</span>}
@@ -155,10 +156,10 @@ const { icones } = await getCourse()
       )
     }
     <nav class="fin-go" data-go={page.id}>
-      <a class="key back" href="/" data-va={page.id}><Fragment set:html={glyphSvg('back', 2)} /><span>Carte</span></a>
+      <a class="key back" href={url()} data-va={page.id}><Fragment set:html={glyphSvg('back', 2)} /><span>Carte</span></a>
       {
         next && (
-          <a class="key next" href={`/${next.id}/`}>
+          <a class="key next" href={url(`${next.id}/`)}>
             <span>Suivant</span>
             <span class="lbl-n num">{next.label}</span>
             <b>{next.nom}</b>

@@ -7,6 +7,7 @@ import '@fontsource-variable/jetbrains-mono/wght.css'
 import '@fontsource-variable/jetbrains-mono/wght-italic.css'
 import 'katex/dist/katex.min.css'
 import '../styles/course.css'
+import { url } from '../lib/base'
 
 interface Props {
   title: string
@@ -19,7 +20,7 @@ interface Props {
 
 const { title, description, path, home } = Astro.props
 const w = await getWorld()
-const canonical = path && new URL(path, Astro.site).href
+const canonical = path && new URL(url(path), Astro.site).href
 ---
 
 <!doctype html>
@@ -30,11 +31,11 @@ const canonical = path && new URL(path, Astro.site).href
     <title>{title}</title>
     <meta name="description" content={description} />
     {canonical ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/math.css" />
-    <link rel="stylesheet" href="/palette.css" />
-    <script is:inline src="/boot.js"></script>
+    <link rel="icon" href={url('favicon.svg')} type="image/svg+xml" />
+    <link rel="apple-touch-icon" href={url('apple-touch-icon.png')} />
+    <link rel="stylesheet" href={url('math.css')} />
+    <link rel="stylesheet" href={url('palette.css')} />
+    <script is:inline src={url('boot.js')}></script>
   </head>
   <body class:list={[home ? 'is-home' : 'is-page']}>
     <slot />

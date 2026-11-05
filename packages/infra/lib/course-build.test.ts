@@ -22,7 +22,8 @@ const page = (path: string) => readFileSync(join(out, path), 'utf8')
 beforeAll(() => {
   execFileSync('pnpm', ['exec', 'astro', 'build', '--force', '--site', SITE, '--outDir', out], {
     cwd: course,
-    env: { ...process.env, NODE_ENV: 'production', COURSE_SLUG: '' },
+    // Vitest's own BASE_URL would stand in for the course's path: a real build has none.
+    env: { ...process.env, BASE_URL: undefined, NODE_ENV: 'production', COURSE_SLUG: '' },
     stdio: 'pipe',
   })
 }, 120_000)
@@ -48,8 +49,14 @@ describe('a course build', () => {
     expect(readdirSync(join(out, '_astro')).filter((name) => /^KaTeX_.*\.woff2$/.test(name))).not.toEqual([])
   })
 
-  it('takes its canonical URLs from the site it is built for', () => {
-    expect(page('index.html')).toContain(`<link rel="canonical" href="${SITE}/">`)
-    expect(page('braquet/index.html')).toContain(`<link rel="canonical" href="${SITE}/braquet/">`)
+  it('takes its canonical URLs from the site it is built for, under the course’s path', () => {
+    expect(page('index.html')).toContain(`<link rel="canonical" href="${SITE}/fixture/">`)
+    expect(page('braquet/index.html')).toContain(`<link rel="canonical" href="${SITE}/fixture/braquet/">`)
+  })
+
+  it('writes every link and file it points at under the course’s path', () => {
+    for (const file of files('.html')) {
+      for (const [, path] of readFileSync(file, 'utf8').matchAll(/(?:href|src)="(\/[^"]*)"/g)) expect(path, file).toMatch(/^\/fixture\//)
+    }
   })
 })

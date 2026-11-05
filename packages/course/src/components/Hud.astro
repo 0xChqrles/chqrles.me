@@ -3,6 +3,7 @@ import type { Level } from '../lib/game'
 import { glyphSvg } from '../lib/glyphs'
 import { getCourse } from '../lib/pages'
 import { icon } from '../lib/pixels'
+import { url } from '../lib/base'
 
 // The head over a page, the map's own: the way back to the map, the level, its checkpoints,
 // the pages before and after it, the plan.
@@ -19,7 +20,7 @@ const plain = (html: string) => html.replace(/<[^>]+>/g, '')
 ---
 
 <header class:list={['hud', 'page-hud', l && `h${l.hue}`]}>
-  <a class="key back" href="/" data-va={l?.id}><Fragment set:html={glyphSvg('back', 2)} /><span>Carte</span></a>
+  <a class="key back" href={url()} data-va={l?.id}><Fragment set:html={glyphSvg('back', 2)} /><span>Carte</span></a>
   {
     l ? (
       <span class="hud-id">
@@ -50,12 +51,12 @@ const plain = (html: string) => html.replace(/<[^>]+>/g, '')
   }
   <nav class="hud-pn">
     {prev ? (
-      <a class="key" href={`/${prev.id}/`} rel="prev" aria-label={`Précédent : ${prev.nom}`} set:html={glyphSvg('back', 2)} />
+      <a class="key" href={url(`${prev.id}/`)} rel="prev" aria-label={`Précédent : ${prev.nom}`} set:html={glyphSvg('back', 2)} />
     ) : (
       <span class="key off" set:html={glyphSvg('back', 2)} />
     )}
     {next ? (
-      <a class="key" href={`/${next.id}/`} rel="next" aria-label={`Suivant : ${next.nom}`} set:html={glyphSvg('next', 2)} />
+      <a class="key" href={url(`${next.id}/`)} rel="next" aria-label={`Suivant : ${next.nom}`} set:html={glyphSvg('next', 2)} />
     ) : (
       <span class="key off" set:html={glyphSvg('next', 2)} />
     )}

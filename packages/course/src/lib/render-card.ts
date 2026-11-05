@@ -2,6 +2,7 @@ import katex from 'katex'
 import { marked } from 'marked'
 import type { Outline } from './course'
 import { extractStyles } from './math-styles'
+import { url } from './base'
 
 export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 export const apos = <S extends string | undefined>(s: S) => (s && s.replace(/'/g, '’')) as S
@@ -78,7 +79,7 @@ export function cardRenderer(outline: Outline, written: (id: string) => boolean)
 
   // A card with no source file is planned: it stays on the map with its definition, but it has no page yet.
   const notion = (id: string, text: string) =>
-    written(id) ? `<a class="c" href="/${id}/" data-c="${id}">${text}</a>` : `<span class="c prevu" tabindex="0" data-c="${id}">${text}</span>`
+    written(id) ? `<a class="c" href="${url(`${id}/`)}" data-c="${id}">${text}</a>` : `<span class="c prevu" tabindex="0" data-c="${id}">${text}</span>`
 
   function renderMath(id: string, tex: string, display: boolean): string {
     try {
@@ -103,9 +104,9 @@ export function cardRenderer(outline: Outline, written: (id: string) => boolean)
   function finish(id: string, html: string): string {
     if (/data-widget=["']/.test(html)) err(id, 'attribut data-widget')
     return html.replace(/href="#([^"]*)"/g, (link, target: string) => {
-      if (target === 'accueil') return 'href="/"'
+      if (target === 'accueil') return `href="${url()}"`
       if (!ids.has(target)) return link
-      if (written(target)) return `href="/${target}/"`
+      if (written(target)) return `href="${url(`${target}/`)}"`
       err(id, `lien vers carte prévue ${target}`)
       return link
     })

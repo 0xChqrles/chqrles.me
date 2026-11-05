@@ -6,6 +6,7 @@ import { glyphSvg, qSvg } from '../lib/glyphs'
 import { nojsSvg } from '../lib/nojs'
 import { getCourse, getWorld, json } from '../lib/pages'
 import { esc } from '../lib/render-card'
+import { url } from '../lib/base'
 
 const course = await getCourse()
 const w = await getWorld()
@@ -29,7 +30,7 @@ const first = chapters[0]!
 const list = chapters
   .map((c) => {
     const inner = `<span class="num">${c.chapitre}</span><span><b>${esc(c.titre)}</b><small>${c.resume}</small></span>`
-    return `<li>${c.prevu ? `<span class="t prevu">${inner}</span>` : `<a href="/${c.id}/">${inner}</a>`}</li>`
+    return `<li>${c.prevu ? `<span class="t prevu">${inner}</span>` : `<a href="${url(`${c.id}/`)}">${inner}</a>`}</li>`
   })
   .join('')
 const home = course.home.replace(/<ol\b[^>]*\bid="chapitres"[^>]*>/, (open) => open + list)
@@ -38,7 +39,7 @@ const home = course.home.replace(/<ol\b[^>]*\bid="chapitres"[^>]*>/, (open) => o
 <Course title={cours.titre} description={cours.sousTitre} path="/" home>
   <div class="app" id="app">
     <header class="head">
-      <a class="brand" href="/" aria-label={cours.titre}>
+      <a class="brand" href={url()} aria-label={cours.titre}>
         <Fragment set:html={qSvg(3)} />
         <span class="t">{cours.titre}</span>
         <span class="ts">{cours.court}</span>
@@ -47,7 +48,7 @@ const home = course.home.replace(/<ol\b[^>]*\bid="chapitres"[^>]*>/, (open) => o
         <span class="count" aria-label="compris"><Fragment set:html={glyphSvg('check', 2)} /><b class="num" id="n-lus">0/{onMap.length}</b></span>
         <span class="count" aria-label={quest?.nom}><Fragment set:html={glyphSvg('chapters', 2)} /><b class="num" id="n-chap">0/{chapters.length}</b></span>
       </div>
-      <a class="btn primary" id="go" href={first.prevu ? '#plan' : `/${first.id}/`}><span>Commencer ici</span><Fragment set:html={glyphSvg('next', 2)} /></a>
+      <a class="btn primary" id="go" href={first.prevu ? '#plan' : url(`${first.id}/`)}><span>Commencer ici</span><Fragment set:html={glyphSvg('next', 2)} /></a>
       <a class="key" id="cherche" href="#plan" aria-label="Chercher dans le cours" aria-controls="plan" aria-expanded="false"><Fragment set:html={glyphSvg('search', 2)} /></a>
     </header>
     <main class="pane" id="pane">
@@ -77,7 +78,7 @@ const home = course.home.replace(/<ol\b[^>]*\bid="chapitres"[^>]*>/, (open) => o
             const l = byId.get(c.id)!
             return (
               <li class:list={['seg', `h${l.hue}`, { prevu: l.prevu }]} data-ch={c.id}>
-                <a href={l.prevu ? `#lv-${c.id}` : `/${c.id}/`} aria-label={c.titre}>
+                <a href={l.prevu ? `#lv-${c.id}` : url(`${c.id}/`)} aria-label={c.titre}>
                   <Fragment set:html={qSvg(2)} />
                   <span class="num">{l.label}</span>
                   <span class="seg-b"><span class="seg-f"></span></span>
