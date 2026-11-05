@@ -7,8 +7,8 @@
 import { EARLY } from '../../lib/camera'
 import { glyphSvg, miniNode } from '../../lib/glyphs'
 import { FACE, textW } from '../../lib/metrics'
-import { FIELD, GROUND, HUD, INK, LINE_STRONG, MUTED, NEUTRAL, PERIPH, RAISE, rgba, SOCKET, TEXT, TONES, mix, type Tone } from '../../lib/palette'
-import { CARD, cardAt, cardSegs, chipOf, clearOf, colourRuns, contentBox, labels, runPx, facesOf, fitWorld, fmaxOf, panWorld, frameRegion, GUTTER, labelled, plateDrawn, plateF, portAt, qBox, qCellAt, qKey, qSink, reach, runsAt, safe, scene, sizeIn, spanOf, tableOf, tagAt, tagW, textK, TITLE, ZBAR, type Course as PlaceCourse, type Door, type Fit, type Labels, type Pan, type Pane, type Title, type View } from '../../lib/place'
+import { FIELD, GROUND, HUD, INK, LINE_STRONG, MUTED, NEUTRAL, RAISE, rgba, SOCKET, TEXT, TONES, mix, type Tone } from '../../lib/palette'
+import { CARD, cardAt, cardSegs, chipOf, clearOf, colourRuns, contentBox, labels, runPx, facesOf, fitWorld, GUTTER, labelled, plateF, portAt, qBox, qCellAt, qKey, qSink, reach, runsAt, safe, scene, sizeIn, tableOf, tagAt, tagW, textK, ZBAR, type Course as PlaceCourse, type Fit, type Labels, type Pane, type View } from '../../lib/place'
 import { BEZEL, ETATS, inRings, layout, U8, type Axis, type Box, type Etat, type Layout, type Link, type Node, type Pt, type TreeData } from '../../lib/tree'
 import { chapters, complete, etat as etatOf, L, load, next, reached, S, share, store, written, type Ici, type Vu, WORLD } from '../save'
 import { bevel, D, dpr, halo, icon, oct, octArc, octPath, octStroke, q as drawQ, ring, setDpr, text, W } from './draw'
@@ -95,54 +95,64 @@ export function mapPage() {
   let pw = 0
   let ph = 0
   let fit: Fit | null = null
-  let pan: Pan | null = null // a phone's world drawn larger than the pane: it pans
   let world: Cam = { s: 80, tx: 0, ty: 0 }
   let cam: Cam = { ...world }
   let focus: string | null = null
-  let zt = false // the zoomed table (semantic zoom), switched at half the flight
-  let zoomed: ReturnType<typeof frameRegion> | null = null
+  let zt = false // the sector bar is up (a region in focus), switched at half the flight
   let sel: string | null = null // the chosen level: the reticle, the briefing
-  type Tg = { k: 'node' | 'region' | 'door' | 'relay'; id: string; far?: string; link?: string }
+  type Tg = { k: 'node' | 'region' | 'relay'; id: string; far?: string; link?: string }
   let hov: Tg | null = null
   let kf: Tg | null = null
   let down: Tg | null = null
-  let flight: { a: Cam; b: Cam; t0: number; dur: number; pivot: Pt; to: string | null; switched: boolean; reveal: boolean } | null = null
-  let names = 0
+  let flight: { a: Cam; b: Cam; t0: number; dur: number; pivot: Pt; to: string | null; switched: boolean } | null = null
   const queue: { t: number; fn: () => void }[] = []
   const at = (ms: number, fn: () => void) => queue.push({ t: now + (still.matches ? 0 : ms), fn })
   const s0 = () => fit?.s0 ?? 80
   const kind = () => fit?.kind ?? 'wide'
-  // zoomed: the region's own k (lib/place.ts's `frameRegion`), its neighbours one class below
-  const zf = () => zoomed?.v.focus ?? focus
-  const view = (z = zt): View => ({ axis, kind: kind(), z, s: z ? (zoomed?.v.s ?? 2 * s0()) : (pan?.s ?? s0()), s0: s0(), focus: z ? zf() : null, home, fmax: z && zf() ? fmaxOf(LY, zf()!) : null })
-  const F = (n: Node, z = zt) => plateF(n, view(z))
-  const CELL = (n: Node, z = zt) => tableOf(view(z))[sizeIn(n, view(z))][1]
-  const footOf = () => (desk() ? 0 : sheetH)
+  // ONE MAP, ONE CAMERA. The map is laid out once, at the world's fitted step; the camera only
+  // moves and scales it, its scale over that step a pixel ratio (`inMap`): nothing is placed again,
+  // everything (plates, chips, labels, lines) grows and shrinks together, on whole device pixels.
+  // A level is named by its card, its briefing or its sheet, never by a zoom.
+  const view = (): View => ({ axis, kind: kind(), z: false, s: s0(), s0: s0(), focus: null, home })
+  const F = (n: Node) => plateF(n, view())
+  const CELL = (n: Node) => tableOf(view())[sizeIn(n, view())][1]
+  // the camera's scale over the detail drawn (1 outside `inMap`)
+  let qf = 1
+  const footOf = () => (desk() ? 0 : sheetH) / qf
   const paneOf = (z: boolean): Pane => ({ w: pw, h: ph, top: z ? ZBAR : 0, foot: footOf(), gutter: axis === 'v' ? GUTTER.phone : z ? GUTTER.zoom : GUTTER.desk })
   // the pane the layout is made for (the sheet at its peek): sizes and k never change with the sheet
   const layoutPane = (z: boolean): Pane => ({ ...paneOf(z), foot: desk() ? 0 : PEEK })
   const scr = (x: number, y: number, c: Cam = cam): Pt => [c.tx + x * c.s, c.ty + y * c.s]
-  // The labels of the view on screen (world or zoomed), and the titles.
-  const labelsNow = (): Labels | null => (zt ? (zoomed?.labels ?? null) : (pan?.labels ?? fit?.labels ?? null))
-  const titlesNow = (): Title[] => (!zt && axis === 'h' ? (fit?.titles ?? []) : [])
-
-  const tone = (hue: number, reg: string): Tone => {
-    const p = val('per:' + reg, 0)
-    if (p <= 0) return TONES[hue]!
-    if (p >= 1) return PERIPH[hue]!
-    const k = `${hue}:${Math.round(p * 20)}`
-    let t = toneMix.get(k)
-    if (!t) {
-      t = Object.fromEntries(Object.keys(TONES[hue]!).map((key) => [key, mix(TONES[hue]![key as keyof Tone], PERIPH[hue]![key as keyof Tone], Math.round(p * 20) / 20)])) as Tone
-      toneMix.set(k, t)
+  // The labels on the map. A region is named in no place of its own on the map: it is named by its
+  // sector bar once in focus, and by its link for the keyboard.
+  const labelsNow = (): Labels | null => fit?.labels ?? null
+  // The map's own space: the camera swapped for the detail's, the pane and the pixel ratio scaled
+  // by the camera's scale over it. Drawing and hit-testing run in it.
+  function inMap<T>(fn: () => T): T {
+    const f = cam.s / view().s
+    const keep = { cam, pw, ph, d: dpr }
+    cam = { s: view().s, tx: cam.tx / f, ty: cam.ty / f }
+    pw /= f
+    ph /= f
+    qf = f
+    setDpr(keep.d * f)
+    try {
+      return fn()
+    } finally {
+      cam = keep.cam
+      pw = keep.pw
+      ph = keep.ph
+      qf = 1
+      setDpr(keep.d)
     }
-    return t
   }
-  const toneMix = new Map<string, Tone>()
+
+  // every region keeps its own tones at every view: nothing is dimmed by the camera
+  const tone = (hue: number, _reg: string): Tone => TONES[hue]!
 
   // ---------------------------------------------------------------- the field and the lands
-  // A dot every half step outside every land (a quarter zoomed); inside a land its texture, every
-  // eighth step (a sixteenth zoomed), in its tone. Each grid point holds the index of its land.
+  // A dot every half step outside every land; inside a land its texture, every eighth step, in its
+  // tone. Each grid point holds the index of its land.
   type Grid = { n: number; i0: number; j0: number; w: number; h: number; reg: Int8Array }
   let grids: Grid[] = []
   let regIds: string[] = []
@@ -150,7 +160,7 @@ export function mapPage() {
     regIds = [...LY.lands.keys()]
     const lands = [...LY.lands.values()]
     const [x0, y0, x1, y1] = LY.box
-    grids = [8, 16].map((n) => {
+    grids = [8].map((n) => {
       const i0 = Math.floor((x0 - 3) * n)
       const j0 = Math.floor((y0 - 3) * n)
       const w = Math.ceil((x1 + 3) * n) - i0 + 1
@@ -165,38 +175,50 @@ export function mapPage() {
   // ---------------------------------------------------------------- framing
   function fitAll() {
     fit = fitWorld(LY, layoutPane(false), home, course(), faces)
-    pan = panWorld(LY, fit, home, course(), faces)
-    const sa = safe(layoutPane(false))
-    const b = worldBox()
-    if (!pan) {
-      world = { s: fit.s0, tx: whole((sa[0] + sa[2]) / 2 - (b[0] + b[2]) / 2), ty: whole((sa[1] + sa[3]) / 2 - (b[1] + b[3]) / 2) }
-      return
-    }
-    // a panning world opens on the level to read next (else the first), its edges kept on the pane's
-    const n = node(rec ?? home ?? WORLD.order.find(onMap)!)
-    world = clampWorld({ s: pan.s, tx: (sa[0] + sa[2]) / 2 - n.x * pan.s, ty: (sa[1] + sa[3]) / 2 - n.y * pan.s })
+    world = worldCam()
   }
-  const worldBox = (): Box => pan?.box ?? fit!.box
-  // A panning world's camera: on each axis the box centred if it fits, else its edges kept on the
-  // pane's (the sheet's peek is part of the pane's foot).
-  function clampWorld(c: Cam): Cam {
-    const sa = safe(paneOf(false))
-    const b = worldBox()
+  // THE CAMERA'S RANGE: from the world at rest (the whole map fitted; a phone's at PHONE_REST at the
+  // least, so its levels keep their size) to MAX_K times the world's step.
+  const PHONE_REST = 72
+  const minS = () => (axis === 'v' ? Math.max(s0(), PHONE_REST) : s0())
+  const MAX_K = 4
+  const maxS = () => MAX_K * s0()
+  // The map's box at a scale: the world's, scaled from its step.
+  const boxAt = (sc: number): Box => fit!.box.map((v) => (v * sc) / s0()) as Box
+  // The camera kept on the map: on each axis the box centred if it fits the safe area, else its
+  // edges kept on the safe area's.
+  function clampCam(c: Cam): Cam {
+    const sa = safe(paneOf(!!focus))
+    const b = boxAt(c.s)
     const one = (t: number, lo: number, hi: number, b0: number, b1: number) => (b1 - b0 <= hi - lo ? (lo + hi) / 2 - (b0 + b1) / 2 : Math.max(hi - b1, Math.min(lo - b0, t)))
-    return { s: c.s, tx: whole(one(c.tx, sa[0], sa[2], b[0], b[2])), ty: whole(one(c.ty, sa[1], sa[3], b[1], b[3])) }
+    return { s: c.s, tx: one(c.tx, sa[0], sa[2], b[0], b[2]), ty: one(c.ty, sa[1], sa[3], b[1], b[3]) }
   }
-  function framed(reg: string) {
-    const r = frameRegion(LY, reg, s0(), layoutPane(true), home, course(), faces, desk())
-    return { ...r, cam: { s: r.cam.s, tx: whole(r.cam.tx), ty: whole(r.cam.ty) } }
+  const settled = (c: Cam): Cam => ({ s: c.s, tx: whole(c.tx), ty: whole(c.ty) })
+  // The world at rest: the map centred; where it is larger than the pane (a phone), the level to
+  // read next centred.
+  function worldCam(): Cam {
+    const s = minS()
+    const sa = safe(layoutPane(false))
+    const n = node(rec ?? home ?? WORLD.order.find(onMap)!)
+    return settled(clampCam({ s, tx: (sa[0] + sa[2]) / 2 - n.x * s, ty: (sa[1] + sa[3]) / 2 - n.y * s }))
   }
-  // A relay's stub (and its port's chip) shows where its own plate is drawn and its chip stands whole
-  // in the pane.
-  function stubShown(l: Link, end: 'a' | 'b', v: View, drawn: (id: string) => boolean) {
-    if (!drawn(end === 'a' ? l.a : l.b)) return false
-    const q = portAt(LY, l, end, v)
-    const [x, y] = scr(q[0], q[1])
-    const c = chipOf(v) / 2 + 4
-    return x - c >= 0 && x + c <= pw && y - c >= (zt ? ZBAR : 0) && y + c <= ph - footOf()
+  // A REGION IN FOCUS: the camera on its box (its coast, its plates and labels), as large as fits
+  // under the sector bar, between the world at rest and REGION_K times the world's step. A region
+  // larger than the pane at that scale is centred on the level chosen.
+  const REGION_K = 3
+  function regionCam(reg: string, on?: string): Cam {
+    const k = s0()
+    const sa = safe(layoutPane(true))
+    let b: Box = [Infinity, Infinity, -Infinity, -Infinity]
+    const add = (x: Box) => (b = [Math.min(b[0], x[0]), Math.min(b[1], x[1]), Math.max(b[2], x[2]), Math.max(b[3], x[3])])
+    for (const r of LY.lands.get(reg)!.rings) for (const [x, y] of r) add([x * k, y * k, x * k, y * k])
+    for (const [id, lb] of fit!.labels.boxes) if (node(id).reg === reg) add(lb)
+    const fitS = k * Math.min((sa[2] - sa[0]) / (b[2] - b[0]), (sa[3] - sa[1]) / (b[3] - b[1]))
+    const s = Math.max(minS(), Math.min(fitS, REGION_K * k))
+    const f = s / k
+    const big = (b[2] - b[0]) * f > sa[2] - sa[0] || (b[3] - b[1]) * f > sa[3] - sa[1]
+    const [cx, cy] = big && on ? [node(on).x * s, node(on).y * s] : [((b[0] + b[2]) / 2) * f, ((b[1] + b[3]) / 2) * f]
+    return settled(clampCam({ s, tx: (sa[0] + sa[2]) / 2 - cx, ty: (sa[1] + sa[3]) / 2 - cy }))
   }
   // How much of the pane's foot the sheet covers (0 on a desktop).
   const overlap = () => {
@@ -205,22 +227,17 @@ export function mapPage() {
     const br = brief.getBoundingClientRect()
     return Math.max(0, Math.round(pr.bottom - br.top))
   }
-  // The camera at rest for the view (the world, or the region in focus), in the pane less the sheet:
-  // its box centred in what is left, or (larger than that) the chosen level centred, the box's edges
-  // kept on the pane's.
+  // The camera after the sheet moved: where it is, with the level chosen kept clear of the sheet.
   function restCam(): Cam {
-    const base = focus && zoomed ? zoomed.cam : world
-    if (desk() || sheetH <= PEEK) return { ...base }
+    const c = clampCam({ ...cam })
+    if (desk() || sheetH <= PEEK) return settled(c)
     const sa = safe(paneOf(!!focus))
-    if (sa[3] - sa[1] < 96) return { ...base }
-    const box = focus && zoomed ? zoomed.box : worldBox()
     const n = node(sel ?? home)
-    const one = (lo: number, hi: number, b0: number, b1: number, c: number, t0: number) => {
-      if (b1 - b0 <= hi - lo) return (lo + hi) / 2 - (b0 + b1) / 2
-      const t = (lo + hi) / 2 - c
-      return Math.max(hi - b1, Math.min(lo - b0, Number.isFinite(t) ? t : t0))
-    }
-    return { s: base.s, tx: base.tx, ty: whole(one(sa[1], sa[3], box[1], box[3], n.y * base.s, base.ty)) }
+    const y = c.ty + n.y * c.s
+    const r = 48
+    if (y < sa[1] + r) c.ty += sa[1] + r - y
+    else if (y > sa[3] - r) c.ty -= y - (sa[3] - r)
+    return settled(c)
   }
   // At rest the camera's offset is a whole number of device pixels.
   function whole(v: number) {
@@ -230,10 +247,10 @@ export function mapPage() {
   // Re-lay the view after a change of state (a counter, the q, « Nouveau »): titles and labels.
   function relayout() {
     fitAll()
-    if (focus) zoomed = framed(focus)
   }
 
   // ---------------------------------------------------------------- the canvas pane
+  let sized = false
   function sizePane() {
     const r = pane.getBoundingClientRect()
     const d = devicePixelRatio || 1
@@ -243,6 +260,10 @@ export function mapPage() {
     cv.width = Math.round(pw * d)
     cv.height = Math.round(ph * d)
     const ax: Axis = tallQ.matches ? 'v' : 'h'
+    // a new layout (the first, or the axis turned) puts the camera at rest; any other resize (a
+    // phone's toolbar folding) keeps it where the reader left it
+    const fresh_ = !sized || ax !== axis
+    sized = true
     if (ax !== axis) {
       axis = ax
       LY = layout(DATA, levels, axis)
@@ -258,11 +279,8 @@ export function mapPage() {
       mini.height = Math.round(mr.height * d)
     }
     if (!desk() && !drag) sheetH = overlap()
-    if (focus) {
-      zoomed = framed(focus)
-      cam = restCam()
-      flight = null
-    } else if (!flight) cam = restCam()
+    flight = null
+    cam = fresh_ ? (focus ? regionCam(focus, sel ?? undefined) : world) : settled(clampCam(cam))
     drawMini()
     placeLinks()
     kick()
@@ -270,8 +288,8 @@ export function mapPage() {
 
   // ---------------------------------------------------------------- flights
   // Scale in log space, the target's centre straight across the screen, one ease-in-out; the
-  // first frame covers EARLY of the way; a new target mid-flight starts from the current pose;
-  // sizes switch table at half the flight, names fade in from 60 to 85 %.
+  // first frame covers EARLY of the way; a new target mid-flight starts from the current pose; the
+  // HUD swaps at half the flight. The map itself is only moved and scaled.
   const P0 = (() => {
     let p = 0
     while (inout(p) < EARLY) p += 0.002
@@ -282,19 +300,13 @@ export function mapPage() {
       cam = b
       flight = null
       zt = !!to
-      names = to ? 1 : 0
-      for (const r of mapRegions) {
-        set('per:' + r.id, to && r.id !== to ? 1 : 0)
-        set('sec:' + r.id, to && r.id !== to ? 0 : 1)
-      }
       afterFlight()
       return
     }
     const a = { ...cam }
     const dist = Math.hypot(b.tx - a.tx, b.ty - a.ty) + Math.abs(Math.log(b.s / a.s)) * 400
     const d = flight ? Math.max(240, Math.min(dur, dist)) : dur
-    flight = { a, b, t0: now - P0 * d, dur: d, pivot, to, switched: zt === !!to, reveal: !!to }
-    if (!to) names = 0
+    flight = { a, b, t0: now - P0 * d, dur: d, pivot, to, switched: zt === !!to }
     frames = 0
     kick()
   }
@@ -317,13 +329,8 @@ export function mapPage() {
     if (!flight.switched && p >= 0.5) {
       flight.switched = true
       zt = !!flight.to
-      for (const r of mapRegions) {
-        tw('per:' + r.id, flight.to && r.id !== flight.to ? 1 : 0, T.state)
-        tw('sec:' + r.id, flight.to && r.id !== flight.to ? 0 : 1, T.state)
-      }
       syncHud()
     }
-    if (flight.reveal) names = Math.max(0, Math.min(1, (p - 0.6) / 0.25))
     if (p >= 1) {
       cam = flight.b
       flight = null
@@ -331,7 +338,6 @@ export function mapPage() {
     }
   }
   function afterFlight() {
-    if (!focus) zoomed = null
     point(last ? hit(last[0], last[1]) : null)
     placeLinks()
     syncHud()
@@ -341,15 +347,7 @@ export function mapPage() {
     if (!R.get(reg)!.levels.some(onMap)) return
     const was = focus
     focus = reg
-    zoomed = framed(reg)
-    fly(zoomed.cam, reg, was ? T.camTravel : T.camIn, centreOf(reg))
-    // a trip between regions: the region left steps back and the one reached comes forward, at
-    // half the flight (a flight in from the world switches them with the table)
-    if (was && was !== reg)
-      for (const r of mapRegions) {
-        tw('per:' + r.id, r.id === reg ? 0 : 1, T.state, out, undefined, T.camTravel * 0.5)
-        tw('sec:' + r.id, r.id === reg ? 1 : 0, T.state, out, undefined, T.camTravel * 0.5)
-      }
+    fly(regionCam(reg, pick ?? (sel && node(sel)?.reg === reg ? sel : pickIn(reg))), reg, was ? T.camTravel : T.camIn, centreOf(reg))
     point(null)
     if (pick) choose(pick)
     else if (!sel || node(sel)?.reg !== reg) choose(pickIn(reg))
@@ -368,10 +366,6 @@ export function mapPage() {
     tw('left:' + from, 0, T.state, out, 1, 600)
     fly(world, null, T.camOut, centreOf(from))
     point(null)
-    for (const r of mapRegions) {
-      tw('per:' + r.id, 0, T.state, out, undefined, T.camOut * 0.5)
-      tw('sec:' + r.id, 1, T.state, out, undefined, T.camOut * 0.5)
-    }
     sel = null
     showBrief(rec ?? WORLD.order[0]!)
     if (push && location.hash) history.pushState({}, '', location.pathname + location.search)
@@ -405,7 +399,6 @@ export function mapPage() {
     for (const l of LY.links) if (l.a === id) out.set(l.id, 1)
     return out
   }
-  const doors = (): Door[] => (focus && zoomed ? zoomed.doors : [])
   let headLog: { link: string; from: number; to: number; cuts: number[]; a: number; b: number } | null = null
 
   // ---------------------------------------------------------------- effects
@@ -426,7 +419,6 @@ export function mapPage() {
   const hvTo = new Map<string, boolean>()
   const progEdge = new Map<string, number>()
   let flashLog: { id: string; at: number }[] = []
-  let tagId: string | null = null
   let qLog: { x: number; foot: number; c: number } | null = null
   let ghostLog: { id: string; x: number; y: number } | null = null
   const fxMax = { wave: 0, part: Infinity, parts: 0, span: 0, reach: 0 }
@@ -461,7 +453,12 @@ export function mapPage() {
   }
 
   // ---------------------------------------------------------------- render
+  // The map in its own space (`inMap`), then the HUD's frame on the screen's.
   function render() {
+    inMap(drawMap)
+    drawFrame()
+  }
+  function drawMap() {
     const d = dpr
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.fillStyle = GROUND
@@ -482,30 +479,25 @@ export function mapPage() {
     const S_ = (x: number, y: number): Pt => [Math.round((cam.tx + ox + x * cam.s) * d), Math.round((cam.ty + oy + y * cam.s) * d)]
     const chain = sel ? chainOf(sel) : new Map<string, number>()
     const hovChain = hov && hov.k === 'node' && hov.id !== sel ? chainOf(hov.id) : new Map<string, number>()
-    const hovReg = hov && hov.k === 'region' ? hov.id : hov && hov.k === 'node' && (!focus || node(hov.id).reg !== focus) ? node(hov.id).reg : null
+    const hovReg = hov && hov.k === 'region' ? hov.id : hov && hov.k === 'node' ? node(hov.id).reg : null
     const kReg = kf && kf.k === 'region' ? kf.id : null
-    const pointedDoorReg = hov && (hov.k === 'door' || hov.k === 'relay') ? node(hov.far!).reg : hovReg && focus && hovReg !== focus ? hovReg : null
-    // A region pointed at (its land or one of its levels), or focused by the keyboard, on the
-    // world: its tint and rim brighten in place. Nothing moves, so the routes stay whole.
-    const sectorOn = (reg: string) => val('sec:' + reg, 1)
+    const wayReg = hov && hov.k === 'relay' ? node(hov.far!).reg : hovReg && focus && hovReg !== focus ? hovReg : null
+    // A region pointed at (its land or one of its levels), or focused by the keyboard: its tint and
+    // rim brighten in place. Nothing moves, so the routes stay whole.
 
     // L0 + L1: the field, the lands (tint, texture, rim, corner marks)
-    const G = grids[zt ? 1 : 0]!
-    const fieldEvery = G.n / (zt ? 4 : 2)
+    const G = grids[0]!
+    const fieldEvery = G.n / 2
     const ia = Math.max(0, Math.floor((-cam.tx / cam.s) * G.n) - G.i0 - 1)
     const ib = Math.min(G.w - 1, Math.ceil(((pw - cam.tx) / cam.s) * G.n) - G.i0 + 1)
     const ja = Math.max(0, Math.floor((-cam.ty / cam.s) * G.n) - G.j0 - 1)
     const jb = Math.min(G.h - 1, Math.ceil(((ph - cam.ty) / cam.s) * G.n) - G.j0 + 1)
     for (const [id, land] of LY.lands) {
-      const on = sectorOn(id)
-      if (on <= 0) continue
       const t = TONES[land.hue]!
       landPath(land.rings, ox, oy)
-      ctx.globalAlpha = on
       // pointed or focused: the tint rises 4 % (90 ms)
       ctx.fillStyle = mix(t.tint, t.tintHi, 0.8 * val('rh:' + id, 0))
       ctx.fill('evenodd')
-      ctx.globalAlpha = 1
     }
     const swX = new Map(
       sweeps.map((sw) => {
@@ -517,29 +509,24 @@ export function mapPage() {
     )
     const cols = regIds.map((id) => {
       const t = tone(R.get(id)!.hue, id)
-      const hot = id === hovReg || id === kReg || (id === pointedDoorReg && focus !== id)
+      const hot = id === hovReg || id === kReg || (id === wayReg && focus !== id)
       const lf = val('left:' + id, 0)
       return hot ? t.dotHi : lf > 0 ? mix(t.dot, t.dotHi, lf) : t.dot
     })
     const d1 = Math.max(1, Math.round(d))
     const d2 = D(2)
-    // a neighbour's presence zoomed: 0 at rest (rim at 30 %), 1 when pointed (rim and texture)
-    const nbA = regIds.map((id) => (sectorOn(id) >= 1 ? 1 : 1 - val('per:' + id, 0)))
     // no dot inside a label's or a title's keyline box (2 px round it), at rest
     const LBd = labelsNow()
     const keep: Box[] =
       flight || !LBd
         ? []
-        : [...[...LBd.boxes.values()], ...titlesNow().map((t) => t.box)].map((b) => [Math.round((cam.tx + ox + b[0] - 2) * d), Math.round((cam.ty + oy + b[1] - 2) * d), Math.round((cam.tx + ox + b[2] + 2) * d), Math.round((cam.ty + oy + b[3] + 2) * d)] as Box)
+        : [...LBd.boxes.values()].map((b) => [Math.round((cam.tx + ox + b[0] - 2) * d), Math.round((cam.ty + oy + b[1] - 2) * d), Math.round((cam.tx + ox + b[2] + 2) * d), Math.round((cam.ty + oy + b[3] + 2) * d)] as Box)
     for (let a = ia; a <= ib; a++)
       for (let b = ja; b <= jb; b++) {
         const k = G.reg[a + b * G.w]!
         const gi = G.i0 + a
         const gj = G.j0 + b
         if (k < 0 && (gi % fieldEvery !== 0 || gj % fieldEvery !== 0)) continue
-        // DOTS ONLY INSIDE A DRAWN RIM: a neighbour (zoomed) is its rim at 30 %, no texture, until
-        // it is pointed at
-        if (k >= 0 && nbA[k]! <= 0.01) continue
         const lx = gi / G.n
         const ly = gj / G.n
         const id = k >= 0 ? regIds[k]! : null
@@ -553,28 +540,14 @@ export function mapPage() {
         ctx.fillRect(x - (sz >> 1), y - (sz >> 1), sz, sz)
       }
     for (const [id, land] of LY.lands) {
-      const on = sectorOn(id)
       const t = TONES[land.hue]!
-      if (on <= 0) {
-        // a neighbour zoomed: its rim alone, at 30 %, brought up to full by pointing
-        const a = 0.3 + 0.7 * nbA[regIds.indexOf(id)]!
-        landPath(land.rings, ox, oy, W(2))
-        ctx.globalAlpha = a
-        ctx.strokeStyle = tone(land.hue, id).wire
-        ctx.lineWidth = W(2)
-        ctx.lineJoin = 'miter'
-        ctx.stroke()
-        ctx.globalAlpha = 1
-        continue
-      }
       const done = R.get(id)!.levels.filter(onMap).every((x) => S.lus.has(x) && !held.has(x))
-      ctx.globalAlpha = on
       // the rim: one continuous 2-px stroke in the wire; pointed, it brightens within its own hue,
       // to the region's light tone (never toward the ink: that is the selection's)
       const rh = val('rh:' + id, 0)
       landPath(land.rings, ox, oy, W(2))
       // focused by the keyboard: the rim goes to the ink (the focus drawn on the thing itself)
-      ctx.strokeStyle = kReg === id && !zt ? INK : done ? t.ink : mix(t.wire, t.ink, rh)
+      ctx.strokeStyle = (kReg === id || regSel === id) && !focus ? INK : done ? t.ink : mix(t.wire, t.ink, rh)
       ctx.lineWidth = W(2)
       ctx.lineJoin = 'miter'
       ctx.stroke()
@@ -699,35 +672,17 @@ export function mapPage() {
       return a >= 0 && a <= pw * d && b >= D(top0) && b <= D(ph - footOf())
     })
     const top0 = focus && zt ? ZBAR : 0
-    // A LINK ENDS ON A DRAWN PLATE OR A DRAWN CHIP (lib/place.ts, `spanOf`): zoomed, a link of the
-    // region whose far plate the pane cuts stops at its door's chip; a link between two other levels
-    // with an undrawn end is not drawn
-    const pz = paneOf(zt)
-    const drawnNow = (id: string) => plateDrawn(node(id), v, cam, pz)
     spanLog = []
+    // what each link's runs are drawn in, for its arrowhead (drawn once every link is down)
+    const drawnRuns: { l: Link; ch: number; share: number; runs: { pts: Pt[]; from: number; len: number; col: string; lit: string; chain: string }[] }[] = []
     for (const l of LY.links) {
       // the link's colour runs (lib/place.ts): a colour changes only on a drawn edge
       let runs = colourRuns(l, LY, v).map((r) => ({ reg: r.tone && r.tone !== 'p:' ? r.tone.replace(/^p:/, '') : null, pts: r.pts }))
-      const sp = zt && focus && !flight ? spanOf(l, v, drawnNow, doors()) : null
-      if (sp?.hidden) continue
-      if (sp?.to) runs = cutRuns(runs, l, sp.to, sp.from)
-      // a relay's stub ends on its port's chip: zoomed, a stub whose plate is not drawn, or whose chip
-      // the pane would cut, is not drawn (nor its chip)
-      if (l.relay && zt && focus && !flight) {
-        const keep = l.ports.filter((p) => stubShown(l, p.end, v, drawnNow)).map((p) => p.end)
-        if (!keep.length) continue
-        if (keep.length < l.ports.length) {
-          const pt = portAt(LY, l, keep[0]!, v)
-          const m = node(keep[0] === 'a' ? l.a : l.b)
-          const on = (q: Pt) => Math.abs((pt[0] - m.x) * (q[1] - m.y) - (pt[1] - m.y) * (q[0] - m.x)) < 1e-6 && (q[0] - m.x) * (pt[0] - m.x) + (q[1] - m.y) * (pt[1] - m.y) >= -1e-9
-          runs = runs.filter((r) => on(r.pts[Math.floor(r.pts.length / 2)]!) && on(r.pts[0]!))
-        }
-      }
-      spanLog.push({ link: l.id, ends: runs.length ? [runs[0]!.pts[0]!, runs[runs.length - 1]!.pts[runs[runs.length - 1]!.pts.length - 1]!].map((q) => scr(q[0], q[1])) : [], cut: !!sp?.to })
+      spanLog.push({ link: l.id, ends: runs.length ? [runs[0]!.pts[0]!, runs[runs.length - 1]!.pts[runs[runs.length - 1]!.pts.length - 1]!].map((q) => scr(q[0], q[1])) : [], cut: false })
       const open = linkOpen(l)
       const ch = Math.max(chain.get(l.id) ?? 0, hovChain.get(l.id) ?? 0)
       const share_ = lit.has(l.id) ? lit.get(l.id)! : open ? 1 : 0
-      const doorHot = !!pointedDoorReg && !!focus && (node(l.a).reg === pointedDoorReg || node(l.b).reg === pointedDoorReg) && (l.ra === focus || l.rb === focus)
+      const wayHot = !!wayReg && !!focus && (node(l.a).reg === wayReg || node(l.b).reg === wayReg) && (l.ra === focus || l.rb === focus)
       const regHot = !!hovReg && !focus && l.ra === hovReg && l.rb === hovReg
       const total = runs.reduce((a, p) => a + lenOf(p.pts), 0)
       const near = !l.relay && !inPane(runs.flatMap((r) => r.pts)) ? 2 : Infinity
@@ -744,15 +699,18 @@ export function mapPage() {
         return out
       }
       let acc = 0
+      const mine: (typeof drawnRuns)[number] = { l, ch, share: share_, runs: [] }
+      drawnRuns.push(mine)
       runs.forEach((pc, i) => {
         const len = lenOf(pc.pts)
         const t = pc.reg ? tone(R.get(pc.reg)!.hue, pc.reg) : null
         let chan = t ? t.wire : NEUTRAL
         if (!t && focus) chan = mix(NEUTRAL, GROUND, 0.35)
-        if (doorHot || regHot) chan = mix(chan, INK, doorHot ? 0.45 : 0.25)
+        if (wayHot || regHot) chan = mix(chan, INK, wayHot ? 0.45 : 0.25)
         strokePts(pc.pts, core, chan)
         edge(pc.pts, mix(chan, INK, 0.3))
         const litCol = t ? t.ink : INK
+        mine.runs.push({ pts: pc.pts, from: acc, len, col: chan, lit: litCol, chain: t ? t.ink : mix(NEUTRAL, INK, 0.6) })
         const a0 = acc / total
         const a1 = (acc + len) / total
         if (share_ > a0) {
@@ -769,8 +727,68 @@ export function mapPage() {
           }
         acc += len
       })
-      // a pointed door's link carries the head toward the far region (in its ink)
-      if (doorHot && !ch && !still.matches && !l.relay && near === Infinity) headOn(l, runs, TONES[R.get(pointedDoorReg!)!.hue]!.ink)
+      // a link toward a pointed neighbour carries the head toward the far region (in its ink)
+      if (wayHot && !ch && !still.matches && !l.relay && near === Infinity) headOn(l, runs, TONES[R.get(wayReg!)!.hue]!.ink)
+    }
+    arrowheads()
+    // THE DIRECTION OF A LINK is told where it plugs into the level it opens: an arrowhead, its tip
+    // on that plate's edge, in the colour of the route's last run (lit, or on a chain, as drawn).
+    // A relay's or a warp's stub into its level ends the same way; a stub out of its level ends on
+    // its port's chip with the head on the chip's edge. Heads drawn twice in one place (links that
+    // share their last stretch) are one.
+    function arrowheads() {
+      const done = new Set<string>()
+      const head = (tip: Pt, u: Pt, col: string) => {
+        const [px, py] = S_(tip[0], tip[1])
+        const k = `${Math.round(px)}|${Math.round(py)}|${Math.round(u[0] * 4)}|${Math.round(u[1] * 4)}`
+        if (done.has(k)) return
+        done.add(k)
+        const h = D(6)
+        const w = D(4)
+        ctx.beginPath()
+        ctx.moveTo(px, py)
+        ctx.lineTo(px - u[0] * h - u[1] * w, py - u[1] * h + u[0] * w)
+        ctx.lineTo(px - u[0] * h + u[1] * w, py - u[1] * h - u[0] * w)
+        ctx.closePath()
+        ctx.fillStyle = col
+        ctx.fill()
+      }
+      const unit = (a: Pt, b: Pt): Pt => {
+        const h = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+        return [(b[0] - a[0]) / h, (b[1] - a[1]) / h]
+      }
+      // a plate's edge along u, from its centre (its bezel's for the goal), in steps
+      const edgeOf = (n: Node) => (F(n) / 2 + (sizeIn(n, v) === 'G' ? BEZEL + 1 : 0)) / v.s
+      const chipEdge = chipOf(v) / 2 / v.s
+      for (const d of drawnRuns) {
+        const l = d.l
+        const colOf = (r: (typeof d.runs)[number]) => (d.ch === 1 ? r.chain : d.share >= 1 ? r.lit : r.col)
+        if (!l.relay) {
+          const pts = runsAt(l, LY, v).flatMap((x, i) => (i ? x.pts.slice(1) : x.pts))
+          const b = node(l.b)
+          const u = unit(pts[pts.length - 2]!, pts[pts.length - 1]!)
+          head([b.x - u[0] * edgeOf(b), b.y - u[1] * edgeOf(b)], u, colOf(d.runs[d.runs.length - 1]!))
+          continue
+        }
+        for (const p of l.ports) {
+          const m = node(p.end === 'a' ? l.a : l.b)
+          const q = portAt(LY, l, p.end, v)
+          // the run of this stub: the one ending nearest its port
+          const run = d.runs.reduce((best, r) => {
+            const e = r.pts[r.pts.length - 1]!
+            const s0_ = r.pts[0]!
+            const dd = Math.min(Math.hypot(e[0] - q[0], e[1] - q[1]), Math.hypot(s0_[0] - q[0], s0_[1] - q[1]))
+            return dd < best.dd ? { r, dd } : best
+          }, { r: d.runs[0]!, dd: Infinity }).r
+          if (p.end === 'b') {
+            const u = unit(q, [m.x, m.y])
+            head([m.x - u[0] * edgeOf(m), m.y - u[1] * edgeOf(m)], u, colOf(run))
+          } else {
+            const u = unit([m.x, m.y], q)
+            head([q[0] - u[0] * chipEdge, q[1] - u[1] * chipEdge], u, colOf(run))
+          }
+        }
+      }
     }
     // AT REST the cue lives on the recommended plate (its breathing halo) only: no head on a link.
     function headOn(l: Link, runs: { pts: Pt[] }[], col: string) {
@@ -815,18 +833,16 @@ export function mapPage() {
     const chipSz = chipOf(v)
     for (const l of LY.links)
       for (const p of l.ports) {
-        if (zt && focus && !flight && !stubShown(l, p.end, v, drawnNow)) continue
         const far = node(p.far)
         const ft = tone(far.hue, far.reg)
         const mine = node(p.end === 'a' ? l.a : l.b)
         const pa = portAt(LY, l, p.end, v)
         const [x, y] = S_(pa[0], pa[1])
-        const hot = (hov && (hov.k === 'relay' || hov.k === 'door') && hov.link === l.id) || (kf && kf.k === 'door' && kf.link === l.id)
-        // a chip is whole or not drawn: never cut, never faded
-        if (x / d - chipSz / 2 - 4 < 0 || x / d + chipSz / 2 + 4 > pw || y / d - chipSz / 2 - 4 < (focus && zt ? ZBAR : 0) || y / d + chipSz / 2 + 4 > ph - footOf()) continue
+        const hot = hov && hov.k === 'relay' && hov.link === l.id
+        const chosen = selVia === `${l.id}|${p.end}` && sel === p.far
         chip(x, y, D(chipSz), D(4), hot ? ft.ink : ft.wire, hot ? mix(HUD, ft.ink, 0.25) : RAISE)
-        icon(ctx, p.far, DATA.icons[p.far]!, x, y, Math.max(1, Math.round((zt && axis === 'h' ? 2 : 1) * d)), etat(p.far) === 'fog' ? ft.fog : ft.ink)
-        if (kf && kf.k === 'door' && kf.link === l.id) brackets(x - D(chipSz / 2 + 4), y - D(chipSz / 2 + 4), x + D(chipSz / 2 + 4), y + D(chipSz / 2 + 4))
+        icon(ctx, p.far, DATA.icons[p.far]!, x, y, Math.max(1, Math.round(d)), etat(p.far) === 'fog' ? ft.fog : ft.ink)
+        if (chosen) brackets(x - D(chipSz / 2 + 4), y - D(chipSz / 2 + 4), x + D(chipSz / 2 + 4), y + D(chipSz / 2 + 4))
         ctx.globalAlpha = 1
       }
 
@@ -839,7 +855,7 @@ export function mapPage() {
     for (const n of order) {
       const t = tone(n.hue, n.reg)
       const st = etat(n.id)
-      const kHere = !!kf && ((kf.k === 'node' && kf.id === n.id) || (kf.k === 'door' && kf.far === n.id && !doors().find((x) => x.link === kf!.link)?.chip))
+      const kHere = !!kf && kf.k === 'node' && kf.id === n.id
       const hot = (hov && hov.k === 'node' && hov.id === n.id) || kHere
       // a press: one frame of ink, then the plate drops 3 px (lib: the input's felt response)
       const lift = val('lift:' + n.id, 0) + (n.id === sel ? 2 : 0) - val('drop:' + n.id, 0)
@@ -849,12 +865,10 @@ export function mapPage() {
       const xx = x + Math.round(Math.sin(nope * Math.PI * 6) * D(3) * (1 - nope) * (nope > 0 && nope < 1 ? 1 : 0))
       const y = y0 - D(lift)
       const Fd = Math.round((F(n) * sc * d) / 2) * 2
-      // a sprite is whole or not drawn: a plate the pane (or the sector bar, or the sheet) would cut
-      // is left out; only text fades
-      const ph_ = F(n) / 2 + (sizeIn(n, v) === 'G' ? BEZEL + 4 : 0) + 4
-      const whole = xx / d - ph_ >= 0 && xx / d + ph_ <= pw && y / d - ph_ >= top && y / d + ph_ <= bottom
-      fades.set(n.id, whole ? 1 : 0)
-      if (!whole) continue
+      // the map is cut by the pane's edge like any map: a plate off it is only skipped
+      const ph_ = F(n) / 2 + (sizeIn(n, v) === 'G' ? BEZEL + 4 : 0) + 8
+      fades.set(n.id, 1)
+      if (xx / d + ph_ < 0 || xx / d - ph_ > pw || y / d + ph_ < 0 || y / d - ph_ > ph) continue
       const fw = st === 'fog' || st === 'soft' ? W(1) : W(2)
       const cell = Math.max(1, Math.round(CELL(n) * d))
       if (n.id === rec && !held.size) {
@@ -958,19 +972,16 @@ export function mapPage() {
         octArc(ctx, xx, y, Fd + 2 * D(4), out(p), W(2), INK)
       }
       if (n.id === home) Object.assign(qPos, { x: xx, y, F: Fd, id: n.id })
-      // its label, by lib/place.ts's rule; faded over the last 24 px of the pane; a pointed level
-      // whose card has no free side shows its compact tag in the label's place instead
+      // its label, by lib/place.ts's rule; a pointed level whose card has no free side shows its
+      // compact tag in the label's place instead
       const lb = LB?.at.get(n.id)
-      if (lb && labelled(v) && tagId !== n.id) {
+      if (lb && labelled(v)) {
         const [cx, cy] = scr(n.x, n.y)
         const bx = [cx + lb.box[0] + ox, cy + lb.box[1] + oy - lift, cx + lb.box[2] + ox, cy + lb.box[3] + oy - lift]
-        const fade = fadeOf(bx as Box, top, bottom)
         const key = keyAt((bx[0]! + bx[2]!) / 2, (bx[1]! + bx[3]!) / 2)
-        const ta = lb.form === 'num' ? 1 : Math.max(0, Math.min(1, names * 1.25 - Math.hypot(n.x - centreOf(focus ?? n.reg)[0], n.y - centreOf(focus ?? n.reg)[1]) * 0.08))
         for (const ln of lb.lines) {
-          const named = ln.face === 'name'
           const eye = ln.face === 'eyebrow'
-          const a = fade * (named && focus === n.reg ? ta : 1)
+          const a = 1
           const col = ln.face === 'num' ? t.num : eye ? t.ink : st === 'fog' ? MUTED : TEXT
           const f = FACE[ln.face]
           const lk = ln.k ?? 1
@@ -986,90 +997,6 @@ export function mapPage() {
       }
     }
 
-    // region titles (a wide world): an eyebrow on its land's rim, a 2-px tick in its ink
-    if (!zt && axis === 'h') {
-      const ta = flight && !flight.to ? Math.max(0, Math.min(1, ((now - flight.t0) / flight.dur - 0.6) / 0.3)) : flight ? 0 : 1
-      if (ta > 0)
-        for (const tt of titlesNow()) {
-          const r = R.get(tt.reg)!
-          const t = TONES[r.hue]!
-          const rh = val('rh:' + tt.reg, 0)
-          const hot = rh > 0.5
-          const x = cam.tx + ox + tt.box[0]
-          const y = cam.ty + oy + tt.box[1]
-          // the title's size from the table's text step (11 px, 13 on the largest world)
-          const tk = textK(v)
-          const th = Math.round(12 * tk)
-          ctx.globalAlpha = ta
-          ctx.fillStyle = t.ink
-          ctx.fillRect(Math.round(x * d), Math.round((y + 2) * d), W(2), D(th))
-          ctx.globalAlpha = 1
-          const key = tt.inside ? mix(t.tint, t.tintHi, 0.8 * rh) : GROUND
-          const e = FACE.eyebrow
-          const nm = r.nom.toLocaleUpperCase('fr')
-          const focusT = kReg === tt.reg
-          text(ctx, nm, Math.round((x + TITLE.tick + TITLE.gap) * d), Math.round((y + th) * d), e.css.replace('11px', `${Math.round(11 * tk * d)}px`), focusT ? INK : mix(t.ink, INK, rh), ta, key, e.track * e.px * tk * d)
-          const nw = tt.box[2] - tt.box[0] - (TITLE.count + textW(counter(r.id), 'num')) * tk
-          text(ctx, counter(r.id), Math.round((x + nw + TITLE.count * tk) * d), Math.round((y + th) * d), FACE.num.css.replace('11px', `${Math.round(11 * tk * d)}px`), hot || focusT ? INK : MUTED, ta, key)
-        }
-    }
-
-    // a region focused by the keyboard: the focus is drawn on the thing itself, its rim in the ink
-    // (above) and its title in the ink, or its tab shown (below); never brackets round a bounding box
-    // a region with no title on the world is named in its tab while it is pointed at or focused:
-    // placed by the title rule (lib/place.ts: clear of lands, links, labels), cut 8 TL and BR, in its
-    // ink, the words in the ground
-    const tabReg = !zt && !flight ? (hovReg ?? kReg) : null
-    const tab = tabReg && !titlesNow().some((t) => t.reg === tabReg) ? fit?.tabs.find((t) => t.reg === tabReg) : null
-    if (tab) {
-      const r = R.get(tab.reg)!
-      const t = TONES[r.hue]!
-      const e = FACE.eyebrow
-      const nm = r.nom.toLocaleUpperCase('fr')
-      const cnt = counter(r.id)
-      const x0 = Math.round((cam.tx + tab.box[0]) * d)
-      const y0 = Math.round((cam.ty + tab.box[1]) * d)
-      const x1 = Math.round((cam.tx + tab.box[2]) * d)
-      const y1 = Math.round((cam.ty + tab.box[3]) * d)
-      const a = val('tab:' + tab.reg, 1)
-      ctx.globalAlpha = a
-      ctx.beginPath()
-      ctx.moveTo(x0 + D(8), y0)
-      ctx.lineTo(x1, y0)
-      ctx.lineTo(x1, y1 - D(8))
-      ctx.lineTo(x1 - D(8), y1)
-      ctx.lineTo(x0, y1)
-      ctx.lineTo(x0, y0 + D(8))
-      ctx.closePath()
-      ctx.fillStyle = t.ink
-      ctx.fill()
-      ctx.globalAlpha = 1
-      const tk = textK(v)
-      text(ctx, nm, x0 + D(12), y0 + D(Math.round(16 * tk)), e.css.replace('11px', `${Math.round(11 * tk * d)}px`), GROUND, a, t.ink, e.track * e.px * tk * d)
-      text(ctx, cnt, x0 + D(12 + (textW(r.nom, 'eyebrow') + 8) * tk), y0 + D(Math.round(16 * tk)), FACE.num.css.replace('11px', `${Math.round(11 * tk * d)}px`), GROUND, a, t.ink)
-    }
-
-    // doors of the region in focus: a chip on its groove at the edge, the far level's icon
-    if (focus && zt) {
-      for (const dd of doors()) {
-        if (!dd.chip || LY.links.find((l) => l.id === dd.link)!.relay) continue
-        const ft = TONES[R.get(dd.farReg)!.hue]!
-        const hot = (hov && hov.k === 'door' && hov.link === dd.link) || (kf && kf.k === 'door' && kf.link === dd.link) || pointedDoorReg === dd.farReg
-        const nudge = hot && !still.matches ? Math.round(Math.sin(((now % 600) / 600) * Math.PI) * 2) : 0
-        const [x, y] = S_(dd.at[0], dd.at[1])
-        const u = U8[dd.dir]!
-        const gx = x + D(Math.round(u[0] * nudge))
-        const gy = y + D(Math.round(u[1] * nudge))
-        const sz = chipOf(v)
-        // a chip is whole or not drawn: never cut, never faded
-        if (gx / d - sz / 2 - 4 < 0 || gx / d + sz / 2 + 4 > pw || gy / d - sz / 2 - 4 < top || gy / d + sz / 2 + 4 > bottom) continue
-        chip(gx, gy, D(sz), D(4), hot ? INK : ft.ink, hot ? ft.ink : HUD)
-        icon(ctx, dd.far, DATA.icons[dd.far]!, gx, gy, Math.max(1, Math.round((axis === 'h' ? 2 : 1) * d)), hot ? GROUND : etat(dd.far) === 'fog' ? ft.fog : ft.ink)
-        if (kf && kf.k === 'door' && kf.link === dd.link) brackets(gx - D(sz / 2 + 4), gy - D(sz / 2 + 4), gx + D(sz / 2 + 4), gy + D(sz / 2 + 4))
-        ctx.globalAlpha = 1
-      }
-    }
-
     // L4: the q stands ON its plate (its feet QSINK px into the top face), wholly inside its land; the
     // camera keeps it in the safe area or it is not drawn. The ghost q stands on a trip's landing
     // level, only when that level and the ghost are wholly in view.
@@ -1080,19 +1007,19 @@ export function mapPage() {
       return x / d + b[0] >= sa[0] && x / d + b[2] <= sa[2] && y / d + b[1] >= sa[1] && y / d + b[3] <= sa[3]
     }
     qLog = null
-    if (qPos.id && fades.get(qPos.id) && inSafe(qPos.x, qPos.y, qPos.F, cq)) {
+    if (qPos.id) {
       const bob = !still.matches && !flight && Math.floor(now / T.bob) % 2 ? D(1) : 0
       const foot = qPos.y - qPos.F / 2 + D(qSink(qPos.F / d, cq)) - bob - D(val('qhop', 0))
       drawQ(ctx, qPos.x, foot, Math.max(1, Math.round(cq * d)), INK, false, qKey(cq))
       qLog = { x: qPos.x / d, foot: foot / d, c: cq }
     }
-    const ghost = ghostAt(pointedDoorReg, hov)
+    const ghost = ghostAt(wayReg, hov)
     ghostLog = null
     if (ghost && ghost !== home) {
       const n = node(ghost)
       const [x, y] = S_(n.x, n.y)
       const Fd = Math.round((F(n) * d) / 2) * 2
-      if (fades.get(ghost) && inSafe(x, y, Fd, cq)) {
+      if (fades.get(ghost)) {
         drawQ(ctx, x, y - Fd / 2 + D(qSink(Fd / d, cq)), Math.max(1, Math.round(cq * d)), TONES[n.hue]!.ink, true, qKey(cq))
         ghostLog = { id: ghost, x: x / d, y: y / d }
       }
@@ -1151,7 +1078,7 @@ export function mapPage() {
       const n = node(cardBox.id)
       const [px, py] = scr(n.x, n.y)
       const r = reach(n, v) + 2
-      const b = cardBox.box
+      const b = cardBox.box.map((x) => x / qf) as Box
       ctx.fillStyle = TONES[n.hue]!.wire
       const w1 = W(1)
       if (b[0] >= px + r) ctx.fillRect(D(px + r), D(py) - (w1 >> 1), D(b[0]) - D(px + r), w1)
@@ -1159,7 +1086,12 @@ export function mapPage() {
       else if (b[1] >= py + r) ctx.fillRect(D(px) - (w1 >> 1), D(py + r), w1, D(b[1]) - D(py + r))
       else if (b[3] <= py - r) ctx.fillRect(D(px) - (w1 >> 1), D(b[3]), w1, D(py - r) - D(b[3]))
     }
-    // the HUD's frame: four 1-px corner brackets, 8 in from the pane's corners
+    ctx.globalAlpha = 1
+  }
+  // the HUD's frame: four 1-px corner brackets, 8 in from the pane's corners
+  function drawFrame() {
+    const top = focus && zt ? ZBAR : 0
+    const bottom = ph - footOf()
     const fy0 = D(top + 8)
     const fy1 = D(bottom - 8)
     const fx0 = D(8)
@@ -1171,9 +1103,8 @@ export function mapPage() {
       ctx.fillRect(sx > 0 ? x : x - arm, sy > 0 ? y : y - w1, arm, w1)
       ctx.fillRect(sx > 0 ? x : x - w1, sy > 0 ? y : y - arm, w1, arm)
     }
-    ctx.globalAlpha = 1
-
-    function chip(x: number, y: number, sz: number, cut: number, frameCol: string, fill: string) {
+  }
+  function chip(x: number, y: number, sz: number, cut: number, frameCol: string, fill: string) {
       const half = sz >> 1
       const path = (i: number, c: number) => {
         ctx.beginPath()
@@ -1215,7 +1146,6 @@ export function mapPage() {
           const q = W(2)
           for (let i = 0; i < 3; i++) ctx.fillRect(Math.round(cx + sx * i * W(1) - q / 2 + (sx > 0 ? 0 : -1)), Math.round(cy + sy * i * W(1) - q / 2 + (sy > 0 ? 0 : -1)), q, q)
         }
-    }
   }
   // A label fades to nothing over the last 24 px of the pane (under the sector bar zoomed, over the
   // sheet's peek), never clipped mid-glyph.
@@ -1225,7 +1155,7 @@ export function mapPage() {
   const keyAt = (px: number, py: number) => {
     const x = (px - cam.tx) / cam.s
     const y = (py - cam.ty) / cam.s
-    for (const [id, land] of LY.lands) if (val('sec:' + id, 1) > 0.5 && inRings(land.rings, x, y)) return Math.round(2 * val('rh:' + id, 0)) ? TONES[land.hue]!.tintHi : TONES[land.hue]!.tint
+    for (const [id, land] of LY.lands) if (inRings(land.rings, x, y)) return Math.round(2 * val('rh:' + id, 0)) ? TONES[land.hue]!.tintHi : TONES[land.hue]!.tint
     return GROUND
   }
   function landPath(rings: Pt[][], ox: number, oy: number, w = W(1)) {
@@ -1259,15 +1189,18 @@ export function mapPage() {
     return l.prerequis.length ? 1 + Math.max(...l.prerequis.filter(onMap).map(depthOf), 0) : 0
   }
   function ghostAt(reg: string | null, h: Tg | null): string | null {
-    if (h && (h.k === 'door' || h.k === 'relay')) return h.far!
+    if (h && h.k === 'relay') return h.far!
     if (!reg || !focus || reg === focus) return null
-    const dd = doors().find((x) => x.farReg === reg)
-    return dd ? dd.far : pickIn(reg)
+    return pickIn(reg)
   }
 
   // ---------------------------------------------------------------- input
   function hit(px: number, py: number): Tg | null {
     if (focus && zt && py < ZBAR) return null
+    const f = cam.s / view().s
+    return inMap(() => hitAt(px / f, py / f))
+  }
+  function hitAt(px: number, py: number): Tg | null {
     let best: Tg | null = null
     let bd = Infinity
     for (const n of LY.nodes.values()) {
@@ -1287,16 +1220,9 @@ export function mapPage() {
         const [x, y] = scr(pa[0], pa[1])
         if (Math.abs(px - x) <= c && Math.abs(py - y) <= c) return { k: 'relay', id: l.id, far: p.far, link: l.id }
       }
-    if (focus && zt)
-      for (const dd of doors()) {
-        if (!dd.chip) continue
-        const [x, y] = scr(dd.at[0], dd.at[1])
-        if (Math.abs(px - x) <= c && Math.abs(py - y) <= c) return { k: 'door', id: dd.link, far: dd.far, link: dd.link }
-      }
-    if (!zt) for (const t of titlesNow()) if (px >= cam.tx + t.box[0] - 4 && px <= cam.tx + t.box[2] + 4 && py >= cam.ty + t.box[1] - 4 && py <= cam.ty + t.box[3] + 4) return { k: 'region', id: t.reg }
     const lx = (px - cam.tx) / cam.s
     const ly = (py - cam.ty) / cam.s
-    for (const [id, land] of LY.lands) if (id !== focus && inRings(land.rings, lx, ly)) return { k: 'region', id }
+    for (const [id, land] of LY.lands) if (inRings(land.rings, lx, ly)) return { k: 'region', id }
     return null
   }
   const same = (a: Tg | null, b: Tg | null) => !!a && !!b && a.k === b.k && a.id === b.id && a.link === b.link
@@ -1307,61 +1233,99 @@ export function mapPage() {
     if (old && old.k === 'node') tw('lift:' + old.id, 0, T.hover)
     if (t && t.k === 'node') tw('lift:' + t.id, 2, T.hover)
     const was = old && old.k === 'region' ? old.id : null
-    const now_ = t && t.k === 'region' ? t.id : t && t.k === 'node' && !focus ? node(t.id).reg : null
+    const now_ = t && t.k === 'region' ? t.id : t && t.k === 'node' ? node(t.id).reg : null
     if (now_ !== was) {
-      // a region named nowhere on the world (no title, no room for its tab) is named by the
-      // briefing while it is pointed at
-      const unnamed = (r: string | null) => !!r && !titlesNow().some((x) => x.reg === r) && !fit?.tabs.some((x) => x.reg === r)
-      if (!focus && desk()) {
-        if (unnamed(now_)) showRegion(now_!)
-        else if (unnamed(was) && !kf) showBrief(rec ?? WORLD.order[0]!)
-      }
       if (was) tw('rh:' + was, 0, T.hover)
       if (now_) {
-        if (!focus) tw('rh:' + now_, 1, T.hover)
-        tw('tab:' + now_, 1, T.panelIn, out, 0)
+        tw('rh:' + now_, 1, T.hover)
       }
     }
-    // zoomed, a neighbour pointed at (its land, a level of it, a door to it) comes back
-    // from the peripheral tone
-    const nb = (x: Tg | null) => (!focus || !x ? null : x.k === 'region' ? x.id : x.k === 'node' ? node(x.id).reg : x.far ? node(x.far).reg : null)
-    const nbWas = nb(old)
-    const nbNow = nb(t)
-    if (nbWas !== nbNow) {
-      if (nbWas && nbWas !== focus) tw('per:' + nbWas, 1, T.hover)
-      if (nbNow && nbNow !== focus) tw('per:' + nbNow, 0, T.hover)
-    }
-    cv.style.cursor = t ? 'pointer' : focus ? 'zoom-out' : 'default'
+    cv.style.cursor = t ? 'pointer' : 'grab'
     showTip(t)
     lightRow(t && t.k === 'node' ? t.id : null)
     syncBar()
     kick()
   }
   let last: Pt | null = null
-  // A panning world follows a drag; past 6 px a press is a drag, never a tap.
-  let panAt: { x: number; y: number; tx: number; ty: number; on: boolean } | null = null
+  // THE CAMERA IN HAND: one pointer drags the map, two scale it about the point between them, the
+  // wheel (or a trackpad's pinch) about the pointer. Past 6 px a press is a drag, never a tap.
+  const touches = new Map<number, Pt>()
+  let hand: { a: Cam; p0: Pt; d0: number; moved: boolean } | null = null
+  const clampS = (v: number) => Math.max(minS(), Math.min(maxS(), v))
+  const at_ = (e: PointerEvent): Pt => {
+    const r = cv.getBoundingClientRect()
+    return [e.clientX - r.left, e.clientY - r.top]
+  }
+  // the camera at scale `sc`, the map point under `from` (at camera `a`) moved under `to`
+  const about = (a: Cam, sc: number, from: Pt, to: Pt): Cam => {
+    const wx = (from[0] - a.tx) / a.s
+    const wy = (from[1] - a.ty) / a.s
+    return clampCam({ s: sc, tx: to[0] - wx * sc, ty: to[1] - wy * sc })
+  }
+  const mid = (): [Pt, number] => {
+    const [p, q] = [...touches.values()] as [Pt, Pt]
+    return [[(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], Math.hypot(p[0] - q[0], p[1] - q[1])]
+  }
+  function grabMap() {
+    flight = null
+    if (touches.size >= 2) {
+      const [m, d0] = mid()
+      hand = { a: { ...cam }, p0: m, d0, moved: true }
+    } else {
+      const p = [...touches.values()][0]!
+      hand = { a: { ...cam }, p0: p, d0: 0, moved: hand?.moved ?? false }
+    }
+  }
+  // A camera moved by hand: zoomed back out to the world, the region in focus is let go.
+  function moved() {
+    if (focus && cam.s <= minS() * 1.02) {
+      focus = null
+      zt = false
+      sel = null
+      showBrief(rec ?? WORLD.order[0]!)
+      if (location.hash) history.replaceState({}, '', location.pathname + location.search)
+      buildAnchors()
+      syncHud()
+      syncBar()
+    }
+    placeLinks()
+    drawMini()
+    kick()
+  }
+  function unpress() {
+    if (down && down.k === 'node') tw('drop:' + down.id, 0, T.pressUp, back)
+    if (down && down.k === 'region') R.get(down.id)!.levels.filter(onMap).forEach((id) => tw('drop:' + id, 0, T.pressUp, back))
+    down = null
+  }
   cv.addEventListener('pointermove', (e) => {
-    if (panAt) {
-      const dx = e.clientX - panAt.x
-      const dy = e.clientY - panAt.y
-      if (!panAt.on && Math.hypot(dx, dy) > 6) {
-        panAt.on = true
-        cv.setPointerCapture(e.pointerId)
-        if (down && down.k === 'node') tw('drop:' + down.id, 0, T.pressUp, back)
-        if (down && down.k === 'region') R.get(down.id)!.levels.filter(onMap).forEach((id) => tw('drop:' + id, 0, T.pressUp, back))
-        down = null
-        point(null)
-      }
-      if (panAt.on) {
-        world = clampWorld({ s: world.s, tx: panAt.tx + dx, ty: panAt.ty + dy })
-        cam = { ...world }
-        kick()
-        return
+    if (touches.has(e.pointerId)) {
+      touches.set(e.pointerId, at_(e))
+      if (hand) {
+        if (touches.size >= 2) {
+          const [m, d] = mid()
+          cam = about(hand.a, clampS((hand.a.s * d) / Math.max(1, hand.d0)), hand.p0, m)
+        } else {
+          const p = touches.get(e.pointerId)!
+          const dx = p[0] - hand.p0[0]
+          const dy = p[1] - hand.p0[1]
+          if (!hand.moved && Math.hypot(dx, dy) > 6) {
+            hand.moved = true
+            cv.setPointerCapture(e.pointerId)
+            cv.style.cursor = 'grabbing'
+            unpress()
+            point(null)
+          }
+          if (hand.moved) cam = clampCam({ s: hand.a.s, tx: hand.a.tx + dx, ty: hand.a.ty + dy })
+        }
+        if (hand.moved) {
+          placeLinks()
+          kick()
+          return
+        }
       }
     }
     if (e.pointerType === 'touch') return
-    const r = cv.getBoundingClientRect()
-    last = [e.clientX - r.left, e.clientY - r.top]
+    last = at_(e)
     point(flight ? null : hit(last[0], last[1]))
   })
   cv.addEventListener('pointerleave', () => {
@@ -1369,19 +1333,45 @@ export function mapPage() {
     point(null)
   })
   cv.addEventListener('pointerdown', (e) => {
-    const r = cv.getBoundingClientRect()
-    const t = hit(e.clientX - r.left, e.clientY - r.top)
+    const p = at_(e)
+    touches.set(e.pointerId, p)
+    grabMap()
+    if (touches.size >= 2) {
+      unpress()
+      point(null)
+      return kick()
+    }
+    const t = hit(p[0], p[1])
     down = t
-    panAt = pan && !focus && !flight ? { x: e.clientX, y: e.clientY, tx: world.tx, ty: world.ty, on: false } : null
     // a press: one frame of ink on the plate, then it drops 3 px; a region's levels drop 2
     if (t && t.k === 'node') pressNode(t.id, 3)
     if (t && t.k === 'region') R.get(t.id)!.levels.filter(onMap).forEach((id) => pressNode(id, 2))
     kick()
   })
+  const release = (e: PointerEvent) => {
+    if (!touches.delete(e.pointerId)) return false
+    const was = hand
+    if (touches.size) {
+      // a pinch ends with one finger left: it drags on from here, and the release is no tap
+      grabMap()
+      hand!.moved = true
+      return true
+    }
+    hand = null
+    if (was?.moved) {
+      cv.style.cursor = 'grab'
+      cam = settled(cam)
+      moved()
+      return true
+    }
+    return false
+  }
+  cv.addEventListener('pointercancel', (e) => {
+    release(e)
+    unpress()
+  })
   addEventListener('pointerup', (e) => {
-    const dragged = !!panAt?.on
-    panAt = null
-    if (dragged) return kick()
+    if (release(e)) return kick()
     const r = cv.getBoundingClientRect()
     const t = e.target === cv ? hit(e.clientX - r.left, e.clientY - r.top) : null
     const d0 = down
@@ -1391,40 +1381,70 @@ export function mapPage() {
     if (e.target !== cv) return
     if (same(t, d0) && t) act(t)
     else if (!t && !d0 && focus) toWorld()
+    else if (!t && !d0 && (sel || regSel)) {
+      sel = null
+      regSel = null
+      showBrief(rec ?? WORLD.order[0]!)
+      kick()
+    }
     kick()
   })
   function pressNode(id: string, by: number) {
     tw('pf:' + id, 0, 17, linear, 1)
     tw('drop:' + id, by, T.pressDown, out, 0, 17)
   }
-  let wheelAt = 0
+  let wheelEnd = 0
   cv.addEventListener(
     'wheel',
     (e) => {
       e.preventDefault()
-      if (now - wheelAt < 400) return
-      wheelAt = now
-      const r = cv.getBoundingClientRect()
-      if (e.deltaY < 0 && !focus) {
-        const t = hit(e.clientX - r.left, e.clientY - r.top)
-        const reg = t ? (t.k === 'region' ? t.id : t.k === 'node' ? node(t.id).reg : null) : null
-        if (reg) zoomTo(reg)
-      } else if (e.deltaY > 0 && focus) toWorld()
+      flight = null
+      const p = at_(e as unknown as PointerEvent)
+      // a trackpad's pinch comes as a wheel with ctrl held, in small steps; a line is 16 px
+      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1)
+      cam = about(cam, clampS(cam.s * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015))), p, p)
+      placeLinks()
+      kick()
+      clearTimeout(wheelEnd)
+      wheelEnd = window.setTimeout(() => {
+        cam = settled(cam)
+        moved()
+        if (last) point(hit(last[0], last[1]))
+      }, 120)
     },
     { passive: false },
   )
+  // A LEVEL PRESSED, on its plate or on a port's chip that shows it, is chosen (its reticle, its
+  // briefing or sheet); pressed again, it opens. A REGION PRESSED, its land, is chosen the same way
+  // (its rim in the ink, its summary in the briefing or sheet). A press never moves the camera.
   function act(t: Tg) {
-    if (t.k === 'node') {
-      const n = node(t.id)
-      if (!focus || n.reg !== focus) zoomTo(n.reg, t.id)
-      else if (sel === t.id) open(t.id)
-      else choose(t.id)
-    } else if (t.k === 'region') {
-      if (!focus || t.id !== focus) zoomTo(t.id)
-    } else zoomTo(node(t.far!).reg, t.far)
+    if (t.k === 'region') {
+      chooseRegion(t.id)
+      return
+    }
+    regSel = null
+    const id = t.k === 'node' ? t.id : t.far!
+    const via = t.k === 'relay' ? `${t.link}|${LY.links.find((x) => x.id === t.link)!.ports.find((p) => p.far === id)!.end}` : null
+    if (sel === id && selVia === via) return open(id)
+    choose(id)
+    selVia = via
+    kick()
+  }
+  // the port's chip a level was chosen by (its reticle is drawn there as well as on the plate)
+  let selVia: string | null = null
+  // the region chosen (its land pressed): its rim in the ink, its summary shown
+  let regSel: string | null = null
+  function chooseRegion(reg: string) {
+    sel = null
+    selVia = null
+    regSel = reg
+    briefReg = null
+    showRegion(reg)
+    kick()
   }
   function choose(id: string) {
     if (sel === id) return
+    selVia = null
     sel = id
     tw('ret:' + id, 0, T.focusIn, back, 1)
     showBrief(id)
@@ -1530,8 +1550,8 @@ export function mapPage() {
   })
 
   // ---------------------------------------------------------------- the link layer
-  // One <a> per region, level and door, transparent over its drawn box: Tab reaches the regions
-  // (world); zoomed, the region's levels in course order, then its doors, then the other regions.
+  // One <a> per region and level, transparent over its drawn box: Tab reaches the regions, then
+  // every level in course order; a level reached is chosen, and Enter opens it.
   function buildAnchors() {
     linksEl.textContent = ''
     const add = (t: Tg, href: string, label: string) => {
@@ -1545,7 +1565,10 @@ export function mapPage() {
         // a focus moved by a pointer's action (the camera's) chooses but shows no ring
         const vis = a.matches(':focus-visible')
         if (vis) kf = t
-        if (t.k === 'node' && focus && node(t.id).reg === focus) choose(t.id)
+        if (t.k === 'node' && vis) {
+          regSel = null
+          choose(t.id)
+        }
         if (!vis) return kick()
         if (t.k === 'node') tw('ret:' + t.id, 0, T.focusIn, back, 1)
         if (t.k === 'region' && !focus) {
@@ -1565,26 +1588,18 @@ export function mapPage() {
       })
       a.addEventListener('click', (e) => {
         e.preventDefault()
-        if (t.k === 'node' && focus && node(t.id).reg === focus) open(t.id)
-        else act(t)
+        act(t)
       })
       linksEl.append(a)
     }
-    if (!focus) for (const r of mapRegions) add({ k: 'region', id: r.id }, `#vue-${r.id}`, r.nom)
-    else {
-      for (const id of WORLD.order.filter((i) => onMap(i) && node(i).reg === focus)) add({ k: 'node', id }, url(`${id}/`), `${L[id]!.label} ${L[id]!.titre}${stateWord(id) ? ', ' + stateWord(id) : ''}`)
-      const seen = new Set<string>()
-      for (const dd of doors()) {
-        if (seen.has(dd.far)) continue
-        seen.add(dd.far)
-        add({ k: 'door', id: dd.link, far: dd.far, link: dd.link }, `#vue-${dd.farReg}`, `${L[dd.far]!.label} ${L[dd.far]!.titre}, ${R.get(dd.farReg)!.nom}`)
-      }
-      for (const r of mapRegions) if (r.id !== focus) add({ k: 'region', id: r.id }, `#vue-${r.id}`, r.nom)
-    }
+    for (const r of mapRegions) add({ k: 'region', id: r.id }, `#vue-${r.id}`, r.nom)
+    for (const id of WORLD.order.filter(onMap)) add({ k: 'node', id }, url(`${id}/`), `${L[id]!.label} ${L[id]!.titre}${stateWord(id) ? ', ' + stateWord(id) : ''}`)
     placeLinks()
   }
   const anchorOf = (k: string, id: string) => linksEl.querySelector<HTMLAnchorElement>(`a[data-k="${k}"][data-id="${id}"]`)
   function placeLinks() {
+    // sizes are the detail's, scaled by the camera's scale over it
+    const f = cam.s / view().s
     for (const a of linksEl.children as unknown as HTMLAnchorElement[]) {
       const k = a.dataset.k!
       const id = a.dataset.id!
@@ -1592,28 +1607,11 @@ export function mapPage() {
       if (k === 'node') {
         const n = node(id)
         const [x, y] = scr(n.x, n.y)
-        const h = Math.max(12, F(n) / 2)
+        const h = Math.max(12, (F(n) / 2) * f)
         box = [x - h, y - h, x + h, y + h]
-      } else if (k === 'door') {
-        // a door's anchor is its chip, or (a far level near and in view is its own door) that level
-        const dd = doors().find((x) => x.link === a.dataset.link)
-        const c = chipOf(view()) / 2
-        if (dd && dd.chip) {
-          const [x, y] = scr(dd.at[0], dd.at[1])
-          box = [x - c, y - c, x + c, y + c]
-        } else if (dd) {
-          const n = node(dd.far)
-          const [x, y] = scr(n.x, n.y)
-          const h = Math.max(12, F(n) / 2)
-          box = [x - h, y - h, x + h, y + h]
-        }
       } else {
-        const t = titlesNow().find((x) => x.reg === id)
-        if (t && !zt) box = [cam.tx + t.box[0], cam.ty + t.box[1], cam.tx + t.box[2], cam.ty + t.box[3]]
-        else {
-          const ps = R.get(id)!.levels.filter(onMap).map((x) => scr(node(x).x, node(x).y))
-          box = [Math.min(...ps.map((p) => p[0])) - 16, Math.min(...ps.map((p) => p[1])) - 16, Math.max(...ps.map((p) => p[0])) + 16, Math.max(...ps.map((p) => p[1])) + 16]
-        }
+        const ps = R.get(id)!.levels.filter(onMap).map((x) => scr(node(x).x, node(x).y))
+        box = [Math.min(...ps.map((p) => p[0])) - 16, Math.min(...ps.map((p) => p[1])) - 16, Math.max(...ps.map((p) => p[0])) + 16, Math.max(...ps.map((p) => p[1])) + 16]
       }
       a.style.transform = `translate(${Math.round(box[0])}px,${Math.round(box[1])}px)`
       a.style.width = `${Math.round(box[2] - box[0])}px`
@@ -1755,6 +1753,12 @@ export function mapPage() {
         zoomTo(reg)
       })
     })
+    // the sheet's peek names the region (its counter over its name), as it names a level
+    const pk = $('#peek')
+    if (pk) {
+      pk.className = `peek h${r.hue}`
+      pk.innerHTML = `<span class="grip" aria-hidden="true"></span><span class="pk-x"><span class="num">${counter(r.id)}</span><b>${esc(r.nom)}</b></span>`
+    }
   }
   const stateKey = () => [...S.lus].join() + [...held.keys()].join()
   // two-way hover: a row lights its node on the map; a node pointed lights its row
@@ -1776,88 +1780,82 @@ export function mapPage() {
   function lightRow(id: string | null) {
     for (const r of brief.querySelectorAll<HTMLElement>('.row')) r.classList.toggle('lit', r.dataset.lv === id)
   }
-  // THE CARD beside a level pointed at (lib/place.ts's rule): its region, number, name, difficulty;
-  // else the compact tag in its label's place; both keep clear of plates, labels, titles, chips,
-  // links and rims. Where neither has a free place THE HUD NAMES IT, never a floating chip: zoomed,
-  // the sector bar's right slot (› number, name); on the world, the briefing (its title line).
-  let hudName: string | null = null
-  let previewOf: string | null = null
+  // THE TOOLTIP on a level pointed at (its plate, or a port's chip that shows it), and only there:
+  // its card (region, number, name, difficulty) where one has a free place (lib/place.ts's rule),
+  // else its compact tag beside it, clear of every label, else that tag beside it all the same.
+  // Pointing never changes the briefing nor the sector bar: a level's summary comes with a press.
+  // The card is measured in a hidden copy of the tip, so the tip on screen only ever shows what it
+  // stands for: a tag fading out stays a tag, and a card never flashes in a tag's place.
+  const probe = tip.cloneNode(false) as HTMLElement
+  probe.removeAttribute('id')
+  probe.setAttribute('aria-hidden', 'true')
+  probe.style.visibility = 'hidden'
+  tip.after(probe)
   function showTip(t: Tg | null) {
-    const id = t && t.k === 'node' ? t.id : t && (t.k === 'relay' || t.k === 'door') ? t.far! : null
-    const was = tagId
-    tagId = null
+    const id = t && t.k === 'node' ? t.id : t && t.k === 'relay' ? t.far! : null
     cardBox = null
-    const hudWas = hudName
-    hudName = null
-    const hide = () => {
-      tip.classList.remove('on', 'tag')
-      tip.dataset.box = ''
-    }
     if (!id || axis === 'v' || flight) {
-      hide()
-      endPreview()
-      if (was || hudWas) kick()
-      if (hudWas) syncBar()
+      tip.classList.remove('on')
+      tip.dataset.box = ''
       return
     }
     const l = L[id]!
     const r = R.get(l.region)!
-    const n = node(id)
+    // the thing pointed: the level's plate, or the chip of the port pointed (a small plate there)
+    const port = t!.k === 'relay' ? portAt(LY, LY.links.find((x) => x.id === t!.link)!, LY.links.find((x) => x.id === t!.link)!.ports.find((p) => p.far === id)!.end, view()) : null
+    const n: Node = port ? { ...node(id), x: port[0], y: port[1], size: 'S' } : node(id)
     const sc = scene(LY, view())
+    const f = cam.s / view().s
     const pz = paneOf(!!focus && zt)
-    const all = clearOf(sc, labelsNow(), titlesNow(), doors(), cam)
-    tip.className = `tip h${l.hue}`
-    tip.style.width = ''
-    tip.innerHTML = `<span class="tip-h"><span class="eyebrow">${esc(r.nom)}</span><span class="num">${l.label}</span></span><b>${esc(l.nom)}</b><span class="tip-s">${l.complexite ? pips(l.complexite) : ''}${l.minutes ? `<span class="num">${l.minutes} min</span>` : ''}<span class="tip-w">${id === briefId ? '' : stateWord(id)}</span></span>`
-    const size: [number, number] = [Math.min(CARD.w, tip.offsetWidth || CARD.w), Math.min(CARD.h, tip.offsetHeight || CARD.h)]
-    const c = cardAt(n, cam, view(), pz, size, all, cardSegs(sc, cam))
-    if (c.box) {
-      endPreview()
-      tip.style.transform = `translate(${c.box[0]}px,${c.box[1]}px)`
-      tip.dataset.box = c.box.join(',')
-      cardBox = { id, box: c.box }
-      void tip.offsetWidth
-      tip.classList.add('on')
-      if (hudWas) syncBar()
-      kick()
-      return
-    }
-    // the compact tag: TAG.h tall, its width from the metrics (lib/place.ts), in its label's place
-    // or beside the plate
-    const nm = DATA.names[id] ?? l.nom
-    const w = tagW(l.label, nm)
-    const box = tagAt(n, cam, view(), pz, w, labelsNow()?.at.get(id) ?? null, clearOf(sc, labelsNow(), titlesNow(), doors(), cam, id))
-    if (box) {
-      endPreview()
-      tip.className = `tip tag h${l.hue}`
-      tip.innerHTML = `<span class="num">${l.label}</span><b>${esc(nm)}</b>`
-      tip.style.width = `${w}px`
+    const qz = { ...pz, w: pz.w / f, h: pz.h / f, top: pz.top / f, foot: pz.foot / f }
+    const toScreen = (b: Box | null) => (b ? (b.map((x) => Math.round(x * f)) as Box) : null)
+    const card = `<span class="tip-h"><span class="eyebrow">${esc(r.nom)}</span><span class="num">${l.label}</span></span><b>${esc(l.nom)}</b><span class="tip-s">${l.complexite ? pips(l.complexite) : ''}${l.minutes ? `<span class="num">${l.minutes} min</span>` : ''}<span class="tip-w">${id === briefId ? '' : stateWord(id)}</span></span>`
+    probe.className = `tip h${l.hue}`
+    probe.innerHTML = card
+    const size: [number, number] = [Math.min(CARD.w, probe.offsetWidth || CARD.w), Math.min(CARD.h, probe.offsetHeight || CARD.h)]
+    const show = (box: Box) => {
       tip.style.transform = `translate(${box[0]}px,${box[1]}px)`
       tip.dataset.box = box.join(',')
-      tagId = id
       void tip.offsetWidth
       tip.classList.add('on')
-      if (hudWas) syncBar()
       kick()
-      return
     }
-    hide()
-    hudName = id
-    if (focus && zt) {
-      endPreview()
-      syncBar()
-    } else if (desk() && t && t.k === 'node') {
-      // the world: the briefing shows the pointed level while it is pointed
-      previewOf = id
-      showBrief(id)
+    const cb = toScreen(inMap(() => cardAt(n, cam, view(), qz, [size[0] / f, size[1] / f], clearOf(sc, labelsNow(), [], [], cam), cardSegs(sc, cam)).box))
+    if (cb) {
+      tip.className = `tip h${l.hue}`
+      tip.style.width = ''
+      tip.innerHTML = card
+      cardBox = { id, box: cb }
+      return show(cb)
     }
-    kick()
-  }
-  // the briefing comes back to the level chosen (or recommended) when a preview ends
-  function endPreview() {
-    if (!previewOf) return
-    previewOf = null
-    if (!kf || kf.k !== 'region') showBrief(sel ?? rec ?? WORLD.order[0]!)
+    // the compact tag: TAG.h tall, its width from the metrics (lib/place.ts)
+    const nm = DATA.names[id] ?? l.nom
+    const w = tagW(l.label, nm)
+    tip.className = `tip tag h${l.hue}`
+    tip.innerHTML = `<span class="num">${l.label}</span><b>${esc(nm)}</b>`
+    tip.style.width = `${w}px`
+    // beside the plate (or chip), clear of every label its own included: a tooltip never takes a
+    // label's place, so no number ever goes while a level is pointed
+    const box = toScreen(inMap(() => tagAt(n, cam, view(), qz, w / f, null, clearOf(sc, labelsNow(), [], [], cam))))
+    if (box) return show(box)
+    // no free place: beside the thing pointed all the same (right, left, over, under, then a step
+    // further out), the first that keeps its own number in sight, in the pane
+    const [cx, cy] = scr(n.x, n.y)
+    const rr = (reach(n, view()) + 6) * f
+    const lb = port ? null : labelsNow()?.at.get(id)
+    const mine: Box | null = lb ? [cx + lb.box[0] * f, cy + lb.box[1] * f, cx + lb.box[2] * f, cy + lb.box[3] * f] : null
+    const fits = (b: Box) => b[0] >= 8 && b[2] <= pw - 8 && b[1] >= 8 && b[3] <= ph - footOf() - 8
+    const clearOfMine = (b: Box) => !mine || !(b[0] < mine[2] && mine[0] < b[2] && b[1] < mine[3] && mine[1] < b[3])
+    const spots: Box[] = []
+    for (const k of [0, 12, 24, 36])
+      spots.push(
+        [cx + rr + k, cy - 12, cx + rr + k + w, cy + 12],
+        [cx - rr - k - w, cy - 12, cx - rr - k, cy + 12],
+        [cx - w / 2, cy - rr - k - 24, cx + w / 2, cy - rr - k],
+        [cx - w / 2, cy + rr + k, cx + w / 2, cy + rr + k + 24],
+      )
+    const pick = spots.find((b) => fits(b) && clearOfMine(b)) ?? spots.find(fits) ?? spots[0]!
+    show(pick.map(Math.round) as Box)
   }
   let cardBox: { id: string; box: Box } | null = null
   // THE CAPTION LINE over the track: a chapter pointed at, or a level whose card has no free side.
@@ -1874,8 +1872,8 @@ export function mapPage() {
       open(id)
     })
   }
-  // THE SECTOR BAR, zoomed: « Carte », the region's tick, name, counter and segments (one per
-  // level in its state); a pointed neighbour or door is named after a ›.
+  // THE SECTOR BAR, a region in focus: « Carte », the region's tick, name, counter and segments (one
+  // per level in its state).
   function syncBar() {
     // the HUD swaps with the size table, at half the flight
     document.body.classList.toggle('zoomed', !!focus && zt)
@@ -1888,17 +1886,6 @@ export function mapPage() {
       .filter((id) => onMap(id) && node(id).reg === focus)
       .map((id) => `<i class="e-${etat(id)}${id === sel ? ' sel' : ''}" data-seg="${id}">${pipSvg}</i>`)
       .join('')
-    const to = $('#zb-to', zbar)!
-    const far = hov && (hov.k === 'door' || hov.k === 'relay') ? hov.far! : hudName
-    const reg = hov && hov.k === 'region' && hov.id !== focus ? hov.id : hov && hov.k === 'node' && node(hov.id).reg !== focus ? node(hov.id).reg : null
-    if (far) {
-      const l = L[far]!
-      to.className = `zb-to on h${l.hue}`
-      to.innerHTML = `${glyphSvg('next', 2)}<span class="num">${l.label}</span><span class="zb-tn">${esc(DATA.names[far] ?? l.nom)}</span>`
-    } else if (reg) {
-      to.className = `zb-to on h${R.get(reg)!.hue}`
-      to.innerHTML = `${glyphSvg('next', 2)}<span class="eyebrow">${esc(R.get(reg)!.nom)}</span>`
-    } else to.className = 'zb-to'
   }
   $('#carte-k', zbar)!.addEventListener('click', () => toWorld())
   // a level's state in a strip: a small octagon (the plate's family), never a square
@@ -2395,27 +2382,21 @@ export function mapPage() {
       sizePane()
       const m = location.hash.match(/^#vue-(.+)$/)
       const pending = cleared.filter((id) => onMap(id)).pop()
-      const zoomIn = (reg: string) => {
+      const zoomIn = (reg: string, on?: string) => {
         focus = reg
         zt = true
-        names = 1
-        zoomed = framed(reg)
-        cam = zoomed.cam
-        for (const r of mapRegions) {
-          set('per:' + r.id, r.id !== focus ? 1 : 0)
-          set('sec:' + r.id, r.id !== focus ? 0 : 1)
-        }
+        cam = regionCam(reg, on)
       }
       if (pending) {
-        zoomIn(node(pending).reg)
+        zoomIn(node(pending).reg, pending)
         sel = pending
         showBrief(pending)
         playReward(pending)
         buildAnchors()
         at(260, runReward)
       } else if (m && R.has(m[1]!)) {
-        zoomIn(m[1]!)
-        sel = pickIn(focus!)
+        sel = pickIn(m[1]!)
+        zoomIn(m[1]!, sel)
         showBrief(sel)
         buildAnchors()
       } else {
@@ -2430,7 +2411,7 @@ export function mapPage() {
 
   // ---------------------------------------------------------------- the audit's hooks (interact.mjs)
   ;(window as unknown as { __map: unknown }).__map = {
-    state: () => ({ focus, sel, home, rec, zt, cam, s0: s0(), kind: kind(), world, pw, ph, axis, titles: titlesNow().map((t) => ({ reg: t.reg, box: [t.box[0] + cam.tx, t.box[1] + cam.ty, t.box[2] + cam.tx, t.box[3] + cam.ty], inside: t.inside })), hov, kf, flight: !!flight, frames, fresh: [...fresh], reward: !!reward && !rewardDone, opened: reward?.opened ?? [], sheet: sheetStep }),
+    state: () => ({ focus, sel, home, rec, zt, cam, s0: s0(), kind: kind(), world, pw, ph, axis, hov, kf, flight: !!flight, frames, fresh: [...fresh], reward: !!reward && !rewardDone, opened: reward?.opened ?? [], sheet: sheetStep }),
     nodes: () =>
       [...LY.nodes.values()].map((n) => {
         const [x, y] = scr(n.x, n.y)
@@ -2438,7 +2419,6 @@ export function mapPage() {
         const box: Box | null = lb ? [lb.box[0] + x, lb.box[1] + y, lb.box[2] + x, lb.box[3] + y] : null
         return { id: n.id, x, y, F: F(n), cell: CELL(n), icon: DATA.icons[n.id], size: n.size, etat: etat(n.id), reg: n.reg, reach: reach(n, view()), fade: fades.get(n.id) ?? 1, label: lb && box ? { side: lb.side, form: lb.form, box, lines: lb.lines.map((l) => l.t), lx: lb.lines.map((l) => [x + l.x, textW(l.face === 'eyebrow' ? l.t.toLocaleUpperCase('fr') : l.t, l.face) * (l.k ?? 1)]), fade: fadeOf(box, focus && zt ? ZBAR : 0, ph - footOf()) } : null }
       }),
-    doors: () => doors().map((dd) => ({ ...dd, scr: scr(dd.at[0], dd.at[1]), size: chipOf(view()) })),
     ports: () => LY.links.flatMap((l) => l.ports.map((p) => ({ link: l.id, far: p.far, scr: scr(...portAt(LY, l, p.end, view())), size: chipOf(view()) }))),
     links: () => LY.links.map((l) => ({ id: l.id, relay: l.relay, runs: runsAt(l, LY, view()).map((p) => ({ reg: p.reg, pts: p.pts.map((q) => scr(q[0], q[1])) })) })),
     spans: () => spanLog,
@@ -2447,7 +2427,7 @@ export function mapPage() {
       const rs = colourRuns(l, LY, view())
       return rs.slice(0, -1).filter((r, i) => !r.b && r.tone !== rs[i + 1]!.tone).map((r) => ({ link: l.id, at: scr(...r.pts[r.pts.length - 1]!) }))
     }),
-    drawn: (id: string) => plateDrawn(node(id), view(), cam, paneOf(zt)),
+    camera: () => ({ ...cam }),
     lands: () => [...LY.lands.entries()].map(([id, l]) => ({ id, rings: l.rings.map((r) => r.map((q) => scr(q[0], q[1]))) })),
     labelFaults: () => [...(labelsNow()?.faults ?? [])],
     zoomTo: (r: string) => zoomTo(r),
@@ -2460,14 +2440,8 @@ export function mapPage() {
       store.set('lus', [...S.lus])
       focus = node(id).reg
       zt = true
-      names = 1
       flight = null
-      zoomed = framed(focus)
-      cam = zoomed.cam
-      for (const r of mapRegions) {
-        set('per:' + r.id, r.id !== focus ? 1 : 0)
-        set('sec:' + r.id, r.id !== focus ? 0 : 1)
-      }
+      cam = regionCam(focus, id)
       sel = id
       showBrief(id)
       buildAnchors()
@@ -2507,20 +2481,15 @@ export function mapPage() {
     },
     head: () => headLog,
     colour: () => LY.links.map((l) => ({ id: l.id, relay: l.relay, runs: colourRuns(l, LY, view()).map((r) => ({ tone: r.tone, a: r.a, b: r.b, px: runPx(r, l, LY, view()) })) })),
-    tabs: () => (fit?.tabs ?? []).map((t) => ({ reg: t.reg, box: [t.box[0] + cam.tx, t.box[1] + cam.ty, t.box[2] + cam.tx, t.box[3] + cam.ty] })),
     qbox: () => (qLog ? { box: qBox(F(node(home)), qLog.c), x: qLog.x, y: scr(node(home).x, node(home).y)[1] } : null),
     toasts: () => [...toastLog],
     tokens: () => [...tokenLog],
-    hudName: () => hudName,
-    preview: () => previewOf,
     bands: () => [...bandLog],
     flashes: () => flashLog.splice(0),
     progEdge: (id: string) => progEdge.get(id) ?? null,
     q: () => qLog,
     ghost: () => ghostLog,
-    tag: () => tagId,
-    view: () => ({ k: zoomed ? zoomed.k : null, s: view().s, side: zoomed?.side ?? null, empty: zoomed?.empty ?? null, ring: zoomed?.ring ?? null }),
-    zbox: () => (zoomed ? { box: zoomed.box, cam: zoomed.cam, named: zoomed.named } : null),
+    view: () => ({ s: view().s, cam: cam.s }),
     caption: () => (cap.classList.contains('on') && cap.dataset.k === 'lv' ? cap.textContent : null),
     emitters: () => (rec && !held.size ? 1 : 0) + (home ? 1 : 0) + (sel ? 1 : 0),
   }

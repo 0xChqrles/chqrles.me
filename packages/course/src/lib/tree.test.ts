@@ -11,7 +11,7 @@ import { inputOf, inRing, lands, MIN_EDGE, MIN_GUTTER, RELAY_RUN, STRAIT } from 
 import { textW } from './metrics'
 import { nojsSvg } from './nojs'
 import { chroma, contrast, deltaE, GROUND, INK, INKS, NEUTRAL, NEUTRAL_CHROMA, NEUTRAL_DE, paletteFaults, PERIPH, TONES, WIRE_CHROMA } from './palette'
-import { blocked, cardAt, cardOthers, CARD, clipIn, colourRuns, facesOf, labelGap, NEAR_LABEL, reach, tagAt, type Clear, fitWorld, forms, frameRegion, GUTTER, halves, MIN_RUN, NEAR, qCellAt, runPx, safe, scene, segBox, sideOf, ZBAR, type Course as PlaceCourse } from './place'
+import { blocked, cardAt, cardOthers, CARD, clipIn, colourRuns, facesOf, labelGap, NEAR_LABEL, reach, tagAt, type Clear, fitWorld, forms, GUTTER, halves, MIN_RUN, NEAR, qCellAt, runPx, safe, scene, segBox, sideOf, ZBAR, type Course as PlaceCourse } from './place'
 import { CELL, GOAL_CELL, layout, runsOf, SIZE_RATIO, sizeOf, tableAt, ZOOM_K, type Kind, type Pt } from './tree'
 
 const FIXTURE = join(import.meta.dirname, '..', '..', 'fixture')
@@ -58,10 +58,7 @@ describe.each(courses)('the tree of %s', (dir) => {
       const LY = layout(T, levels, P.axis)
       const f = fitWorld(LY, { w: P.w, h: P.h, top: 0, foot: P.foot, gutter: P.axis === 'v' ? GUTTER.phone : GUTTER.desk }, null, C(LY), facesOf(LY))
       expect(qCellAt(LY, { axis: P.axis, kind: f.kind, z: false, s: f.s0, focus: null, home: null }).bad).toEqual([])
-      for (const r of new Set([...LY.nodes.values()].map((n) => n.reg))) {
-        const z = frameRegion(LY, r, f.s0, { w: P.w, h: P.h, top: ZBAR, foot: P.foot, gutter: P.axis === 'v' ? GUTTER.phone : GUTTER.zoom }, null, C(LY), facesOf(LY), P.desk)
-        expect(qCellAt(LY, z.v).bad).toEqual([])
-      }
+
     }
   })
 
@@ -78,11 +75,11 @@ describe.each(courses)('the tree of %s', (dir) => {
     }
   })
 
-  it('changes a link’s colour only on a drawn edge: no colour run under MIN_RUN px, world or zoomed', () => {
+  it('changes a link’s colour only on a drawn edge: no colour run under MIN_RUN px', () => {
     for (const P of PANES) {
       const LY = layout(T, levels, P.axis)
       const f = fitWorld(LY, { w: P.w, h: P.h, top: 0, foot: P.foot, gutter: P.axis === 'v' ? GUTTER.phone : GUTTER.desk }, null, C(LY), facesOf(LY))
-      const views = [{ axis: P.axis, kind: f.kind, z: false, s: f.s0, focus: null, home: null }, ...[...new Set([...LY.nodes.values()].map((n) => n.reg))].map((r) => frameRegion(LY, r, f.s0, { w: P.w, h: P.h, top: ZBAR, foot: P.foot, gutter: GUTTER.zoom }, null, C(LY), facesOf(LY), P.desk).v)]
+      const views = [{ axis: P.axis, kind: f.kind, z: false, s: f.s0, focus: null, home: null }]
       for (const v of views)
         for (const l of LY.links)
           for (const r of colourRuns(l, LY, v)) {
@@ -90,9 +87,6 @@ describe.each(courses)('the tree of %s', (dir) => {
             const px = runPx(r, l, LY, v)
             if (px > 0) expect(px, `${l.id} ${v.focus ?? 'world'}`).toBeGreaterThanOrEqual((P.axis === 'v' ? MIN_RUN.phone : MIN_RUN.desk) - 1e-6)
           }
-      // zoomed, a link leaving the region in focus is one tone outside it
-      for (const v of views.filter((x) => x.z))
-        for (const l of LY.links.filter((x) => !x.relay && (x.ra === v.focus) !== (x.rb === v.focus))) expect(colourRuns(l, LY, v).filter((r) => r.tone !== v.focus).length).toBe(1)
     }
   })
 
@@ -185,33 +179,6 @@ describe.each(courses)('the tree of %s', (dir) => {
     }
   })
 
-  it('names a region on its land’s rim, never over a label or another land', () => {
-    const LY = layout(T, levels, 'h')
-    const P = PANES[0]!
-    const f = fitWorld(LY, { w: P.w, h: P.h, top: 0, foot: 0, gutter: GUTTER.desk }, null, C(LY), facesOf(LY))
-    for (const t of f.titles) for (const b of f.labels.boxes.values()) expect(t.box[0] < b[2] && b[0] < t.box[2] && t.box[1] < b[3] && b[1] < t.box[3]).toBe(false)
-  })
-
-  it('frames a region zoomed under the sector bar, at its own k (1.5 to 3), its names on one side', () => {
-    const LY = layout(T, levels, 'h')
-    const P = PANES[0]!
-    const pane = { w: P.w, h: P.h, top: ZBAR, foot: 0, gutter: GUTTER.zoom }
-    for (const r of new Set([...LY.nodes.values()].map((n) => n.reg))) {
-      const z = frameRegion(LY, r, 80, pane, null, C(LY), facesOf(LY))
-      expect(z.faults).toEqual([])
-      expect(z.k).toBeGreaterThanOrEqual(ZOOM_K[0])
-      expect(z.k).toBeLessThanOrEqual(ZOOM_K[1])
-      expect(z.cam.s).toBe(z.k * 80)
-      expect(z.box[1] + z.cam.ty).toBeGreaterThanOrEqual(ZBAR + GUTTER.zoom - 1)
-      expect(z.box[3] + z.cam.ty).toBeLessThanOrEqual(P.h - GUTTER.zoom + 1)
-      // every level of the region named, within NEAR_LABEL of its plate, inside its coast
-      for (const n of [...LY.nodes.values()].filter((x) => x.reg === r)) {
-        const lb = z.labels.at.get(n.id)!
-        expect(lb.form).not.toBe('num')
-      }
-    }
-  })
-
   it('makes every land whole cells: no coast past a cell, the goal’s chamber apart, one piece a region', () => {
     const L = lands(inputOf(course, w))
     expect(L.faults).toEqual([])
@@ -247,28 +214,6 @@ describe.each(courses)('the tree of %s', (dir) => {
     }
   })
 
-  it('zoomed, names every level of a region or none, and puts a chip only on a far level more than NEAR steps off', () => {
-    for (const axis of ['h', 'v'] as const) {
-      const LY = layout(T, levels, axis)
-      for (const reg of new Set([...LY.nodes.values()].map((n) => n.reg))) {
-        const z = frameRegion(LY, reg, axis === 'h' ? 80 : 48, { w: 1056, h: 780, top: ZBAR, foot: 0, gutter: 24 }, null, C(LY), facesOf(LY))
-        const forms_ = [...z.labels.at].filter(([id]) => LY.nodes.get(id)!.reg === reg).map(([, l]) => l.form)
-        if (axis === 'h' && z.named) expect(forms_).not.toContain('num')
-        else expect(new Set(forms_)).toEqual(new Set(['num']))
-        const named = new Set<string>()
-        for (const d of z.doors.filter((x) => x.chip)) {
-          const f = LY.nodes.get(d.far)!
-          // a chip names a far level more than NEAR steps off, unless its plate is not drawn (the
-          // link stops at the chip) or it is a relay's port (RELAY_RUN)
-          const relay = LY.links.find((l) => l.id === d.link)!.relay
-          if (!d.cut) expect(Math.hypot(f.x - d.at[0], f.y - d.at[1])).toBeGreaterThan(relay ? RELAY_RUN : NEAR)
-          expect(named.has(d.far)).toBe(false)
-          named.add(d.far)
-        }
-      }
-    }
-  })
-
   it('never lets a card cover a plate, a number or a title on the world', () => {
     const LY = layout(T, levels, 'h')
     const P = PANES[0]!
@@ -277,14 +222,14 @@ describe.each(courses)('the tree of %s', (dir) => {
     const sa = safe(pane)
     const cam = { s: f.s0, tx: Math.round((sa[0] + sa[2]) / 2 - (f.box[0] + f.box[2]) / 2), ty: Math.round((sa[1] + sa[3]) / 2 - (f.box[1] + f.box[3]) / 2) }
     const v = { axis: 'h' as const, kind: f.kind, z: false, s: f.s0, focus: null, home: null }
-    const others = cardOthers(scene(LY, v), f.labels, f.titles, [], cam)
+    const others = cardOthers(scene(LY, v), f.labels, [], [], cam)
     for (const n of LY.nodes.values()) {
       const c = cardAt(n, cam, v, pane, [CARD.w, CARD.h], others)
       if (c.box) for (const o of others) expect(c.box[0] < o[2] && o[0] < c.box[2] && c.box[1] < o[3] && o[1] < c.box[3], n.id).toBe(false)
     }
   })
 
-  it('draws the page without a script: every level a link, the goal’s bezel, the region titles', () => {
+  it('draws the page without a script: every level a link, the goal’s bezel', () => {
     const svg = nojsSvg(T, w)
     for (const c of onMap) expect(svg).toContain(`href="/${c.id}/"`)
     expect(svg).not.toMatch(/\sstyle=/)

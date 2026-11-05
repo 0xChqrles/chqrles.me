@@ -258,8 +258,28 @@ translation leaves the original published.
   rule fails the build.
 - **The map never moves under the pointer** (`packages/course/src/scripts/map/map.ts`): a
   region pointed at, or one of its levels, brightens in place, so its links stay whole.
-  **A phone's world is drawn at a step of at least 72** (`PHONE_WORLD` in
-  `packages/course/src/lib/place.ts`) and pans under a drag; a region's zoom is framed as before.
+- **The map is laid out once and a camera moves over it**: a drag pans, the wheel or two
+  fingers zoom about the point under them; only the minimap (and a region's own key in its
+  summary) flies the camera to a region.
+  A zoom places nothing again: the camera's scale is a pixel ratio over the layout, so every
+  plate, chip, label and line grows and shrinks together on whole device pixels, and the
+  pane's edge cuts the map like any map. The camera ranges from the world at rest (a phone's at
+  a step of 72 at the least) to 4 times the world's step.
+- **A press never moves the camera.** A level pressed, on its plate or on a link chip that shows
+  it, is chosen (its reticle there, its briefing or sheet); pressed again, it opens. A region's
+  land pressed is chosen the same way (its rim in the ink, its summary). The ground pressed lets
+  either go. The keyboard reaches every region, then every level in course order.
+- **Pointing only shows the tooltip** (its card, else its tag, beside the plate or chip pointed,
+  never in a label's place: every number stays in sight): the briefing, the sheet and the sector
+  bar change on a press, never on a point.
+- **A region has no name on the map**: no title, no counter, no tab, since not every region has
+  room for one. It is named by its sector bar once in focus, and by its link for the keyboard.
+- **A link shows its direction where it plugs in**: an arrowhead, its tip on the edge of the
+  level it opens, in the colour of the route's last run (lit, or on a chain, as the route is);
+  a stub out of its level ends with the head on its chip's edge. Nothing is drawn along a route.
+- **Link chips never stack** (`portsAt` in `packages/course/src/lib/place.ts`, `PORT_GAP` in
+  `packages/course/src/lib/lattice.ts`): each cut link into a level comes in from its own side,
+  and the audit fails two chips that meet or a chip over a plate.
 - **The engine (`packages/course`) holds no course-specific name.** Titles, macros and the
   card the map leads to live in `outline.json`. A line is `data-ligne="n"`, its place in `lignes`.
 - **A course is French only**: no language segment, no redirect to a language, because it

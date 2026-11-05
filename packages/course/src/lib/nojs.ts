@@ -1,12 +1,11 @@
 // THE MAP WITHOUT A SCRIPT: the wide world as a static SVG, at the step a 1440 × 900 screen
 // gives, laid out by the page's own rules (lib/place.ts): lands, grooves, relay ports, plates in
-// their first-visit state, the goal's bezel, numbers and region titles. Every level, port and
-// title is a link. Without a script there is no save: a written level shows open.
+// their first-visit state, the goal's bezel and numbers. Every level and port is a link. Without a script there is no save: a written level shows open.
 import type { World } from './game'
 import { runsPath } from './glyphs'
 import { FACE } from './metrics'
 import { INK, mix, MUTED, NEUTRAL, RAISE, SOCKET, TONES } from './palette'
-import { chipOf, facesOf, fitWorld, portAt, runsAt, tableOf, TITLE, type Course } from './place'
+import { chipOf, facesOf, fitWorld, portAt, runsAt, tableOf, type Course } from './place'
 import { BEZEL, layout, type TreeData } from './tree'
 import { url } from './base'
 
@@ -31,7 +30,6 @@ export function nojsSvg(T: TreeData, w: World): string {
   const v = { axis: 'h' as const, kind: f.kind, z: false, s: f.s0, focus: null, home }
   const pad = 24
   let box = f.box
-  for (const t of f.titles) box = [Math.min(box[0], t.box[0]), Math.min(box[1], t.box[1]), Math.max(box[2], t.box[2]), Math.max(box[3], t.box[3])]
   const ox = pad - box[0]
   const oy = pad - box[1]
   const Wd = Math.ceil(box[2] - box[0] + 2 * pad)
@@ -85,16 +83,6 @@ export function nojsSvg(T: TreeData, w: World): string {
     const lb = f.labels.at.get(n.id)
     if (lb) for (const ln of lb.lines) o += `<text x="${r1(cx + ln.x)}" y="${r1(cy + ln.base)}" font-family="JetBrains Mono Variable" font-weight="500" font-size="${FACE.num.px}" fill="${t.num}">${esc(ln.t)}</text>`
     o += '</a>'
-  }
-  // region titles: the tick, the name, the counter
-  for (const tt of f.titles) {
-    const r = regs.find((x) => x.id === tt.reg)!
-    const t = TONES[r.hue]!
-    const x = r1(tt.box[0] + ox)
-    const y = r1(tt.box[1] + oy)
-    const first = w.order.find((id) => levels.get(id)!.region === r.id && LY.nodes.has(id))
-    const cnt = `0/${r.levels.filter((id) => LY.nodes.has(id)).length}`
-    o += `<a href="#lv-${first}" aria-label="${esc(r.nom)}"><rect x="${x}" y="${y + 2}" width="2" height="12" fill="${t.ink}"/><text x="${x + TITLE.tick + TITLE.gap}" y="${y + 12}" font-family="Instrument Sans Variable" font-weight="600" font-size="11" letter-spacing="0.88" fill="${t.ink}">${esc(r.nom.toLocaleUpperCase('fr'))}</text><text x="${r1(x + tt.box[2] - tt.box[0] - cnt.length * 6.6)}" y="${y + 12}" font-family="JetBrains Mono Variable" font-weight="500" font-size="11" fill="${MUTED}">${cnt}</text></a>`
   }
   return o + '</svg>'
 }
