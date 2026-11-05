@@ -644,32 +644,6 @@ svg.qm {
 .zb-s i.pop {
   animation: pop 220ms var(--back);
 }
-.zb-to {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  color: var(--hi);
-  font: 500 13px/20px var(--face-ui);
-  opacity: 0;
-  transform: translateX(-4px);
-  transition:
-    opacity 140ms var(--in),
-    transform 140ms var(--in);
-}
-.zb-to.on {
-  opacity: 1;
-  transform: none;
-  transition:
-    opacity 240ms var(--out),
-    transform 240ms var(--out);
-}
-.zb-to .num {
-  font-size: 13px;
-}
-.zb-tn {
-  color: var(--ink);
-}
 
 /* THE CARD beside a level pointed at: its region, number, name, difficulty. */
 .tip {
@@ -1637,9 +1611,6 @@ body:not(.zoomed) .mini {
   }
   .zbar {
     padding-right: 16px;
-  }
-  .zb-to {
-    display: none;
   }
 }
 @media (min-width: 700px) and (max-width: 1199px) {

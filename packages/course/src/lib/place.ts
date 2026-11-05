@@ -404,76 +404,8 @@ export function labelGap(lb: Label, own: number): number {
   return Math.max(b[0] - own, -own - b[2], b[1] - own, -own - b[3], 0)
 }
 
-// REGION TITLES (a wide world): an eyebrow, a 2-px tick in the region's ink, the region's name
-// and its counter, standing on its land's rim: over the top-left-most top edge of its land;
-// else inside its land, under that edge; else under its bottom-left-most bottom edge; else
-// inside, over it. Each edge in order, the first that is free. A region with no free place is
-// named in its tab (the same rule, a taller box) while it is pointed at; with no place for that
-// either, the briefing names it (a note).
-export const TITLE = { h: 16, tick: 2, gap: 6, count: 8, off: 4, inset: 8 }
-export const TAB = { h: 24, pad: 12 }
+// The obstacles a card or a tag may be given beside the map's own (a box with a region).
 export type Title = { reg: string; box: Box; inside: boolean }
-export const titleW = (name: string, count: string, tk = 1) => TITLE.tick + TITLE.gap + (textW(name, 'eyebrow') + TITLE.count + textW(count, 'num')) * tk
-export const tabW = (name: string, count: string, tk = 1) => Math.ceil((TAB.pad + (textW(name, 'eyebrow') + 8 + textW(count, 'num')) * tk + TAB.pad) / 4) * 4
-export function titles(sc: Scene, regs: { id: string; nom: string; count: string }[], labelBoxes: Map<string, Box>, bounds: Box, dims: (r: { nom: string; count: string }) => [number, number] = (r) => [Math.ceil(titleW(r.nom, r.count, textK(sc.v))), Math.round(TITLE.h * textK(sc.v))], taken: Box[] = []): { titles: Title[]; notes: string[] } {
-  const out: Title[] = []
-  const notes: string[] = []
-  const s = sc.v.s
-  const lands = [...sc.LY.lands.entries()].map(([id, l]) => ({ id, rings: l.rings.map((r) => r.map((p) => [p[0] * s, p[1] * s] as Pt)) }))
-  const inLand = (rings: Pt[][], b: Box) => corners(b).every(([x, y]) => inRings(rings, x!, y!))
-  const touches = (rings: Pt[][], b: Box) => rings.some((r) => r.some((p, i) => segBox(p, r[(i + 1) % r.length]!, b))) || inRings(rings, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2)
-  for (const r of regs) {
-    const land = lands.find((l) => l.id === r.id)
-    if (!land) continue
-    const [w, hh] = dims(r)
-    const edges = (top: boolean) =>
-      land.rings
-        .flatMap((ring) => ring.map((p, i) => [p, ring[(i + 1) % ring.length]!] as Seg))
-        .filter(([p, q]) => Math.abs(p[1] - q[1]) < 1e-6)
-        .map(([p, q]) => ({ x0: Math.min(p[0], q[0]), x1: Math.max(p[0], q[0]), y: p[1] }))
-        .filter((e) => inRings(land.rings, (e.x0 + e.x1) / 2, e.y + (top ? 1 : -1)))
-        .sort((a, b) => (top ? a.y - b.y : b.y - a.y) || a.x0 - b.x0)
-    // Over an edge, the title starts at its left end, else ends at its right end; inside, it
-    // starts TITLE.inset in from its left end.
-    const cands: { box: Box; inside: boolean }[] = []
-    const row = (y0: number, e: { x0: number; x1: number }, inside: boolean) => {
-      const y = Math.round(y0)
-      const xs = inside ? [Math.round(e.x0) + TITLE.inset] : [Math.round(e.x0), Math.round(e.x1) - w]
-      for (const x of xs) cands.push({ box: [x, y, x + w, y + hh], inside })
-    }
-    for (const e of edges(true)) {
-      row(e.y - TITLE.off - hh, e, false)
-      row(e.y + TITLE.inset, e, true)
-    }
-    for (const e of edges(false)) {
-      row(e.y + TITLE.off, e, false)
-      row(e.y - TITLE.inset - hh, e, true)
-    }
-    // Beside its land: left of its leftmost edge, right of its rightmost, centred on it.
-    const vert = land.rings.flatMap((ring) => ring.map((p, i) => [p, ring[(i + 1) % ring.length]!] as Seg)).filter(([p, q]) => Math.abs(p[0] - q[0]) < 1e-6)
-    if (vert.length) {
-      const l = vert.reduce((a, b) => (b[0][0] < a[0][0] ? b : a))
-      const rr = vert.reduce((a, b) => (b[0][0] > a[0][0] ? b : a))
-      const yc = (sg: Seg) => Math.round((sg[0][1] + sg[1][1]) / 2 - hh / 2)
-      cands.push({ box: [Math.round(l[0][0]) - TITLE.off - w, yc(l), Math.round(l[0][0]) - TITLE.off, yc(l) + hh], inside: false })
-      cands.push({ box: [Math.round(rr[0][0]) + TITLE.off, yc(rr), Math.round(rr[0][0]) + TITLE.off + w, yc(rr) + hh], inside: false })
-    }
-    const free = (c: { box: Box; inside: boolean }) => {
-      if (c.box[0] < bounds[0] || c.box[1] < bounds[1] || c.box[2] > bounds[2] || c.box[3] > bounds[3]) return false
-      if (hits(sc, c.box, null, labelBoxes).length) return false
-      if ([...out.map((t) => t.box), ...taken].some((t) => meets(grow(c.box, 6), t))) return false
-      if (c.inside ? !inLand(land.rings, grow(c.box, 2)) : lands.some((l) => touches(l.rings, grow(c.box, 2)))) return false
-      return true
-    }
-    const pick = cands.find(free)
-    if (!pick) {
-      notes.push(`${r.id}: no free place on its rim at a step of ${s}`)
-      continue
-    }
-    out.push({ reg: r.id, ...pick })
-  }
-  return { titles: out, notes }
-}
 
 // DOORS, zoomed on a region: where a link leaves it. A road's door is its groove; it carries a
 // chip (the far level's icon) where the far plate stands more than NEAR steps away, OR where the far
@@ -539,33 +471,12 @@ export function doors(LY: Layout, reg: string | null, v: View, o: { sc?: Scene; 
   }
   return out
 }
-// WHAT IS DRAWN OF A LINK, zoomed: a link only ends on a drawn plate or a drawn chip. A link of the
-// region in focus whose far plate is not drawn stops at its door's chip (`to`: the chip, from its own
-// level's end); a link between two other levels with either plate undrawn is not drawn. On the world,
-// all of every link.
-export type Span = { hidden: boolean; to: Pt | null; from: 'a' | 'b' }
-export function spanOf(l: Link, v: View, drawn: (id: string) => boolean, ds: Door[]): Span {
-  if (!v.z || !v.focus) return { hidden: false, to: null, from: 'a' }
-  const d = ds.find((x) => x.link === l.id)
-  if (d && !l.relay) {
-    if (drawn(d.far)) return { hidden: false, to: null, from: 'a' }
-    const own = ds.find((x) => x.far === d.far && x.chip)
-    return own ? { hidden: false, to: own.at, from: d.mine === l.a ? 'a' : 'b' } : { hidden: true, to: null, from: 'a' }
-  }
-  if (l.relay) return { hidden: !(drawn(l.a) || drawn(l.b)), to: null, from: 'a' }
-  return { hidden: !drawn(l.a) || !drawn(l.b), to: null, from: 'a' }
-}
-// A plate is drawn when it stands whole in the pane (its bezel included, 4 px in), at a camera.
-export const plateDrawn = (n: Node, v: View, cam: { s: number; tx: number; ty: number }, p: Pane) => {
-  const r = reach(n, v) + 4
-  const x = cam.tx + n.x * cam.s
-  const y = cam.ty + n.y * cam.s
-  return x - r >= 0 && x + r <= p.w && y - r >= p.top && y + r <= p.h - p.foot
-}
-
 // PORTS AT A VIEW: a relay's (or a warp's) port stands where the lattice put it (PORT past its
 // coast), slid on out along its stub, a px at a time, until its chip's box grown CHIP_CLEAR px clears
-// every rim the view draws (the world: every land's; zoomed: the focused land's) and their notches.
+// every rim the view draws and their notches, covers no plate, and stands 4 px off every chip placed
+// before it. A warp's stub runs straight from its level to its port, so where its own side has no
+// such room near, it takes the nearest that has round its level (never behind another port of its
+// level where another side is free).
 const portCache = new WeakMap<Layout, Map<string, Map<string, Pt>>>()
 export function portsAt(LY: Layout, v: Pick<View, 'kind' | 'z' | 's' | 'focus'>): Map<string, Pt> {
   const key = `${v.kind}|${v.z}|${v.s}|${v.z ? v.focus : ''}`
@@ -577,15 +488,41 @@ export function portsAt(LY: Layout, v: Pick<View, 'kind' | 'z' | 's' | 'focus'>)
   const rings = [...LY.lands.entries()].flatMap(([, l]) => l.rings)
   const segs = rings.flatMap((r) => r.map((p, i) => [p, r[(i + 1) % r.length]!] as Seg))
   const half = (chipOf(v) / 2 + CHIP_CLEAR) / v.s
-  const clear = (q: Pt) => {
+  const gap = (chipOf(v) + 5) / v.s
+  const plates = [...LY.nodes.values()].map((n) => ({ x: n.x, y: n.y, r: (reach(n, v as View) + 2) / v.s + chipOf(v) / 2 / v.s }))
+  const ground = (q: Pt) => {
     const b: Box = [q[0] - half, q[1] - half, q[0] + half, q[1] + half]
-    return !segs.some(([a, c]) => segBox(a, c, b)) && !inRings(rings, q[0], q[1])
+    return !segs.some(([a, c]) => segBox(a, c, b)) && !inRings(rings, q[0], q[1]) && plates.every((n) => Math.abs(n.x - q[0]) >= n.r || Math.abs(n.y - q[1]) >= n.r)
   }
+  const apart = (q: Pt) => [...res.values()].every((o) => Math.abs(o[0] - q[0]) >= gap || Math.abs(o[1] - q[1]) >= gap)
+  // the directions a level's ports leave it by
+  const used = new Map<string, Pt[]>()
+  const dirOf = (n: Node, q: Pt): Pt => {
+    const h = Math.hypot(q[0] - n.x, q[1] - n.y) || 1
+    return [(q[0] - n.x) / h, (q[1] - n.y) / h]
+  }
+  const behind = (n: Node, u: Pt) => (used.get(n.id) ?? []).some((w) => w[0] * u[0] + w[1] * u[1] > 0.9)
   for (const l of LY.links)
     for (const p of l.ports) {
+      const at = (d: number): Pt => [p.at[0] + p.dir[0] * d, p.at[1] + p.dir[1] * d]
+      const own = LY.nodes.get(p.end === 'a' ? l.a : l.b)!
       let q = p.at
-      for (let d = 0; d < 1 && !clear(q); d += 1 / v.s) q = [p.at[0] + p.dir[0] * d, p.at[1] + p.dir[1] * d]
+      let found = false
+      for (let d = 0; d < (l.warp ? 0.3 : 1.5) && !found; d += 1 / v.s) if (ground(at(d)) && apart(at(d)) && !(l.warp && behind(own, dirOf(own, at(d))))) (q = at(d)), (found = true)
+      if (!found && l.warp) {
+        const ways = [0, 1, 2, 3, 4, 5, 6, 7]
+          .map((i) => [Math.cos((i * Math.PI) / 4), Math.sin((i * Math.PI) / 4)] as Pt)
+          .sort((a, b) => Number(behind(own, a)) - Number(behind(own, b)) || b[0] * p.dir[0] + b[1] * p.dir[1] - (a[0] * p.dir[0] + a[1] * p.dir[1]))
+        for (const u of ways)
+          for (let d = 0.3; d < 2 && !found; d += 1 / v.s) {
+            const c: Pt = [own.x + u[0] * d, own.y + u[1] * d]
+            if (ground(c) && apart(c) && LY.links.every((o) => o.warp || !o.pts.slice(1).some((b, k) => segBox(o.pts[k]!, b, [c[0] - half, c[1] - half, c[0] + half, c[1] + half])))) (q = c), (found = true)
+          }
+      }
+      for (let d = 0; d < 1.5 && !found; d += 1 / v.s) if (ground(at(d)) && apart(at(d))) (q = at(d)), (found = true)
+      for (let d = 0; d < 1.5 && !found; d += 1 / v.s) if (ground(at(d))) (q = at(d)), (found = true)
       res.set(`${l.id}|${p.end}`, q)
+      used.set(own.id, [...(used.get(own.id) ?? []), dirOf(own, q)])
     }
   m.set(key, res)
   return res
@@ -690,7 +627,7 @@ export const MIN_RUN = { desk: 12, phone: 7 }
 // labels included) fits the pane's safe area. A region is seen at k times the step.
 export const MAX_STEP = { h: 128, v: 64 }
 export const MIN_STEP = 48
-export type Fit = { s0: number; kind: Kind; box: Box; labels: Labels; titles: Title[]; titleNotes: string[]; tabs: Title[] }
+export type Fit = { s0: number; kind: Kind; box: Box; labels: Labels }
 // `fresh`: levels a clear just opened (« Nouveau » over their labels).
 export type Course = { order: string[]; text: (id: string) => { label: string; name: string }; regs: { id: string; nom: string; count: string }[]; quest: string | null; fresh?: Set<string> }
 // The box a view frames: plates, labels, ports, titles, the q, door chips, and the lands' rings (a
@@ -707,8 +644,8 @@ export function contentBox(sc: Scene, L: Labels, T: Title[], only?: string, ds: 
   for (const d of ds) if (d.chip) b = join(b, [d.at[0] * sc.v.s - c, d.at[1] * sc.v.s - c, d.at[0] * sc.v.s + c, d.at[1] * sc.v.s + c])
   return b
 }
-// The world's titles stand inside the safe area around that box (they never set the step); the
-// tabs of the untitled regions are placed by the same rule.
+// THE WORLD AT REST: its box, at the largest step that fits the safe area with every label in place.
+// A region is named in no place of its own on the map.
 export function fitWorld(LY: Layout, p: Pane, home: string | null, C: Course, faces: Map<string, Set<number>>): Fit {
   const sa = safe(p)
   const stepBy = 4
@@ -722,117 +659,16 @@ export function fitWorld(LY: Layout, p: Pane, home: string | null, C: Course, fa
     const fits = box[2] - box[0] <= sa[2] - sa[0] && box[3] - box[1] <= sa[3] - sa[1]
     // a label with no place near its plate: the step drops a notch
     if ((!fits || L.faults.length) && s > MIN_STEP) continue
-    const c = centre(box, p)
-    const bounds: Box = [sa[0] - c.tx, sa[1] - c.ty, sa[2] - c.tx, sa[3] - c.ty]
-    const T = LY.axis === 'h' ? titles(sc, C.regs, L.boxes, bounds) : { titles: [], notes: [] }
-    const left = C.regs.filter((r) => !T.titles.some((t) => t.reg === r.id))
-    const tabs = LY.axis === 'h' ? titles(sc, left, L.boxes, bounds, (r) => [tabW(r.nom, r.count, textK(v)), Math.round(TAB.h * textK(v))], T.titles.map((t) => t.box)) : { titles: [], notes: [] }
-    last = { s0: s, kind, box, labels: L, titles: T.titles, titleNotes: [...T.notes, ...tabs.notes.map((n) => n + ' (nor for its tab: the briefing names it when pointed at)')], tabs: tabs.titles }
+    last = { s0: s, kind, box, labels: L }
     return last
   }
   return last!
-}
-// A PHONE'S WORLD is never drawn under PHONE_WORLD: a world that fits the pane only smaller is drawn
-// at that step and pans under a drag. A region's zoom is still framed from the fitted step.
-export const PHONE_WORLD = 72
-export type Pan = { s: number; box: Box; labels: Labels }
-export function panWorld(LY: Layout, f: Fit, home: string | null, C: Course, faces: Map<string, Set<number>>): Pan | null {
-  if (f.kind !== 'phone' || f.s0 >= PHONE_WORLD) return null
-  const sc = scene(LY, { axis: LY.axis, kind: f.kind, z: false, s: PHONE_WORLD, focus: null, home })
-  const L = labels(sc, C.order, C.text, () => false, faces, C.fresh)
-  return { s: PHONE_WORLD, box: contentBox(sc, L, []), labels: L }
 }
 // The world's camera: its box centred in the safe area.
 export const centre = (box: Box, p: Pane) => {
   const sa = safe(p)
   return { tx: Math.round((sa[0] + sa[2]) / 2 - (box[0] + box[2]) / 2), ty: Math.round((sa[1] + sa[3]) / 2 - (box[1] + box[3]) / 2) }
 }
-// The ring of a region: the plates of other regions one lattice step from one of its levels.
-export const ringOf = (LY: Layout, reg: string, radius = 1) => {
-  const own = [...LY.nodes.values()].filter((n) => n.reg === reg)
-  return [...LY.nodes.values()].filter((n) => n.reg !== reg && own.some((o) => Math.max(Math.abs(o.x - n.x), Math.abs(o.y - n.y)) <= radius + 1e-6))
-}
-// A ZOOM REVEALS MORE: its frame fills FILL of the safe area or more. A small region (one or two
-// levels) is framed with a wider ring of its neighbours (radius 1, then 2, 3, 4 lattice steps), at
-// the k that fits: never one plate alone in an empty pane (a fault for a region of one or two
-// levels on a desktop or a phone; a note for a larger one, whose own shape sets its frame, and on a
-// tablet's short pane).
-export const FILL = 0.5
-// A REGION ZOOMED is framed with one ring of its neighbours' plates, centred under the sector bar,
-// at the largest k (ZOOM_K) at which that fits AND every level of the region shows its name on one
-// side (under, else right) within its coast; else the largest k at which the region alone fits
-// with its names. A region whose names cannot stand at any k fails (`faults`). Under 1200 px (a
-// phone, a tablet: the sheet names the level chosen) it shows numbers, by the same side rule.
-export function frameRegion(LY: Layout, reg: string, s0: number, p: Pane, home: string | null, C: Course, faces: Map<string, Set<number>>, names = LY.axis === 'h') {
-  const kind = kindOf(LY.axis)
-  const zs = safe(p)
-  const fmax = fmaxOf(LY, reg)
-  let ring = ringOf(LY, reg)
-  const ks: number[] = []
-  for (let k = ZOOM_K[1]; k >= ZOOM_K[0] - 1e-9; k -= ZOOM_K[2]) ks.push(Math.round(k * 1000) / 1000)
-  const mine = (L: Labels) => [...L.at.keys()].filter((id) => LY.nodes.get(id)!.reg === reg)
-  const named = (n: Node) => n.reg === reg && names
-  const why: string[] = []
-  const tryK = (k: number, withRing: boolean) => {
-    const v: View = { axis: LY.axis, kind, z: true, s: k * s0, focus: reg, home, fmax, s0 }
-    const sc = scene(LY, v)
-    // a quick test first: the plates alone must fit
-    let pb: Box = [Infinity, Infinity, -Infinity, -Infinity]
-    for (const q of sc.plates) if (LY.nodes.get(q.id)!.reg === reg || (withRing && ring.some((r) => r.id === q.id))) pb = join(pb, q.box)
-    if (pb[2] - pb[0] > zs[2] - zs[0] || pb[3] - pb[1] > zs[3] - zs[1]) return null
-    for (const side of ['S', 'E'] as Side[]) {
-      const L = labels(sc, C.order, C.text, named, faces, C.fresh, side)
-      const own = new Set(mine(L))
-      const bad = L.faults.filter((f) => [...own].some((id) => f.includes(id)))
-      if (bad.length || own.size < [...LY.nodes.values()].filter((n) => n.reg === reg).length) {
-        why.push(`k ${k} ${side}: ${bad.join('; ')}`)
-        continue
-      }
-      const ds = doors(LY, reg, v, { sc, labels: L.boxes })
-      const regionBox = contentBox(sc, L, [], reg, ds)
-      let box = regionBox
-      if (withRing) for (const q of sc.plates) if (ring.some((r) => r.id === q.id)) box = join(box, q.box)
-      if (box[2] - box[0] > zs[2] - zs[0] || box[3] - box[1] > zs[3] - zs[1]) return null
-      return { v, sc, labels: L, doors: ds, box, regionBox, side, k, ring: withRing }
-    }
-    return null
-  }
-  let r: NonNullable<ReturnType<typeof tryK>> | null = null
-  const fill = (x: NonNullable<ReturnType<typeof tryK>>) => (Math.min(x.box[2] - x.box[0], zs[2] - zs[0]) * Math.min(x.box[3] - x.box[1], zs[3] - zs[1])) / ((zs[2] - zs[0]) * (zs[3] - zs[1]))
-  let best: { r: NonNullable<ReturnType<typeof tryK>>; ring: Node[] } | null = null
-  for (const radius of [1, 2, 3, 4]) {
-    ring = ringOf(LY, reg, radius)
-    let rr: NonNullable<ReturnType<typeof tryK>> | null = null
-    for (const k of ks) if ((rr = tryK(k, true))) break
-    if (!rr) break
-    if (!best || fill(rr) > fill(best.r) + 1e-9) best = { r: rr, ring }
-    if (fill(rr) >= FILL) break
-  }
-  if (best) {
-    r = best.r
-    ring = best.ring
-  } else for (const k of ks) if ((r = tryK(k, false))) break
-  const faults: string[] = []
-  if (!r) {
-    faults.push(`${reg} zoomed: its names cannot stand on one side within its coast at any k from ${ZOOM_K[0]} to ${ZOOM_K[1]} (${why.slice(-2).join(' | ')})`)
-    // the least k, to show something
-    const v: View = { axis: LY.axis, kind, z: true, s: ZOOM_K[0] * s0, focus: reg, home, fmax, s0 }
-    const sc = scene(LY, v)
-    const L = labels(sc, C.order, C.text, named, faces, C.fresh)
-    const ds = doors(LY, reg, v, { sc, labels: L.boxes })
-    const box = contentBox(sc, L, [], reg, ds)
-    r = { v, sc, labels: L, doors: ds, box, regionBox: box, side: 'S', k: ZOOM_K[0], ring: false }
-  }
-  const sa = (zs[2] - zs[0]) * (zs[3] - zs[1])
-  const iw = Math.min(r.box[2] - r.box[0], zs[2] - zs[0])
-  const ih = Math.min(r.box[3] - r.box[1], zs[3] - zs[1])
-  const cam = { s: r.v.s, ...centre(r.box, p) }
-  // the camera known, the far plates it does not draw get their chips, inside the safe area
-  const drawn = (id: string) => plateDrawn(LY.nodes.get(id)!, r.v, cam, p)
-  const doorsNow = doors(LY, reg, r.v, { sc: r.sc, labels: r.labels.boxes, drawn, sa: [zs[0] - cam.tx, zs[1] - cam.ty, zs[2] - cam.tx, zs[3] - cam.ty] })
-  return { ...r, doors: doorsNow, drawn, named: names && !faults.length, faults, empty: 1 - (iw * ih) / sa, cam }
-}
-
 // THE CARD beside a level pointed at: right of its plate (centred on it, then aligned to its
 // top, then to its foot), the same on its left, then under, then over: the first inside the pane
 // that covers no plate (its own and the reticle round it included), no number or name, no region
@@ -928,11 +764,11 @@ export function cardOthers(sc: Scene, L: Labels | null, T: Title[], ds: Door[], 
 }
 export const cardSegs = (sc: Scene, cam: { tx: number; ty: number }): Seg[] => sc.segs.map((s) => [[s.seg[0][0] + cam.tx, s.seg[0][1] + cam.ty], [s.seg[1][0] + cam.tx, s.seg[1][1] + cam.ty]] as Seg)
 
-// THE AUDIT at a pane: the world and every region zoomed, in three save states (a first visit, a
+// THE AUDIT at a pane: the world, in three save states (a first visit, a
 // reader in progress, a reader who has cleared everything: the q on the first level, the middle
 // one, the last). Faults fail the build; notes are for the owner.
-export type Audit = { faults: string[]; notes: string[]; flags: { off: string[]; unnamed: string[]; numOnly: string[]; ks: Record<string, number>; empty: Record<string, number>; qc: number }; s0: number; kind: Kind }
-export function audit(LY: Layout, p: Pane, zp: Pane, home: string | null, C: Course, name: string, desk: boolean): Audit {
+export type Audit = { faults: string[]; notes: string[]; flags: { off: string[]; numOnly: string[]; qc: number }; s0: number; kind: Kind }
+export function audit(LY: Layout, p: Pane, home: string | null, C: Course, name: string, desk: boolean): Audit {
   const faults: string[] = []
   const notes: string[] = []
   const faces = facesOf(LY)
@@ -956,9 +792,7 @@ export function audit(LY: Layout, p: Pane, zp: Pane, home: string | null, C: Cou
     const g = fitWorld(LY, p, h, C, faces)
     if (g.s0 !== f.s0) add(`world: the step changes with the q on ${h} (${g.s0}, not ${f.s0})`)
     for (const [id, lb] of g.labels.at) if (f.labels.at.get(id)?.side !== lb.side || f.labels.boxes.get(id)!.join() !== g.labels.boxes.get(id)!.join()) add(`world: the label of ${id} moves when the q stands on ${h}`)
-    if (g.titles.map((t) => t.reg + t.box.join()).join() !== f.titles.map((t) => t.reg + t.box.join()).join()) add(`world: a title moves when the q stands on ${h}`)
   }
-  const unnamed = LY.axis === 'h' ? C.regs.filter((r) => !f.titles.some((t) => t.reg === r.id)).map((r) => r.id) : C.regs.map((r) => r.id)
   const off = new Set(f.labels.off)
   const numOnly = new Set<string>()
   const wsc = scene(LY, wv)
@@ -994,18 +828,16 @@ export function audit(LY: Layout, p: Pane, zp: Pane, home: string | null, C: Cou
       }
   }
   runCheck(wv, 'world')
-  const pan = panWorld(LY, f, homes[0]!, C, faces)
-  if (pan) {
-    for (const x of pan.labels.faults) add(`panned world: ${x}`)
-    runCheck({ ...wv, s: pan.s }, 'panned world')
-  }
-  // Ports: each chip clears every drawn rim by CHIP_CLEAR px (world, and each region zoomed below).
+  // Ports: each chip clears every drawn rim by CHIP_CLEAR px, every other chip by 4 px, and covers
+  // no plate: two chips never stack.
   const portCheck = (sc: Scene, where: string) => {
-    for (const p of sc.ports) {
+    sc.ports.forEach((p, i) => {
       const g = grow(p.box, CHIP_CLEAR)
       const r = sc.rims.find((x) => segBox(x.seg[0], x.seg[1], g))
       if (r) add(`${where}: the port of ${p.link} stands within ${CHIP_CLEAR} px of the rim of ${r.land}`)
-    }
+      for (const o of sc.ports.slice(i + 1)) if (meets(grow(p.box, 4), o.box)) add(`${where}: the chips of ${p.link} and ${o.link} meet`)
+      for (const q of sc.plates) if (meets(p.box, q.box)) add(`${where}: the chip of ${p.link} covers the plate of ${q.id}`)
+    })
   }
   portCheck(scene(LY, wv), 'world')
   // Labels stand within NEAR_LABEL of their row's plates (zoomed, in the region in focus).
@@ -1020,14 +852,14 @@ export function audit(LY: Layout, p: Pane, zp: Pane, home: string | null, C: Cou
   gapCheck(f.labels, wv, null, 'world')
   // Cards and tags: where one stands it covers nothing and crosses no rim and no link (re-measured
   // here); a level with neither is named by the HUD (counted).
-  const named = { world: [0, 0, 0], zoom: [0, 0, 0] }
+  const named = { world: [0, 0, 0] }
   const cardCheck = (sc: Scene, L: Labels, T: Title[], ds: Door[], cam: { s: number; tx: number; ty: number }, pane: Pane, ids: string[]) => {
     if (!desk) return
     const all = clearOf(sc, L, T, ds, cam)
     for (const id of ids) {
       const n = LY.nodes.get(id)!
       const c = cardAt(n, cam, sc.v, pane, [CARD.w, CARD.h], all, cardSegs(sc, cam))
-      const k = sc.v.z ? named.zoom : named.world
+      const k = named.world
       if (c.box) {
         k[0]!++
         const why = blocked(c.box, all)
@@ -1045,66 +877,7 @@ export function audit(LY: Layout, p: Pane, zp: Pane, home: string | null, C: Cou
       if (why.length) add(`the tag of ${id} meets ${why.join(', ')} (${sc.v.focus ?? 'world'})`)
     }
   }
-  cardCheck(wsc, f.labels, f.titles, [], wcam, p, [...LY.nodes.keys()])
-  const ks: Record<string, number> = {}
-  const empty: Record<string, number> = {}
-  for (const reg of new Set([...LY.nodes.values()].map((n) => n.reg))) {
-    let first: ReturnType<typeof frameRegion> | null = null
-    for (const h of homes) {
-      const r = frameRegion(LY, reg, f.s0, zp, h, C, faces, desk)
-      for (const x of r.faults) add(x)
-      for (const x of r.labels.faults) add(`${reg} zoomed: ${x}`)
-      const zq = qCellAt(LY, r.v)
-      if (zq.bad.length) add(`${reg} zoomed: the q does not stand inside the land of ${zq.bad.join(', ')}`)
-      if (!first) first = r
-      else {
-        if (r.k !== first.k) add(`${reg} zoomed: its k changes with the q on ${h}`)
-        for (const id of r.labels.at.keys()) if (LY.nodes.get(id)!.reg === reg && first.labels.boxes.get(id)?.join() !== r.labels.boxes.get(id)!.join()) add(`${reg} zoomed: the label of ${id} moves when the q stands on ${h}`)
-      }
-    }
-    const r = first!
-    ks[reg] = r.k
-    empty[reg] = Math.round(r.empty * 100)
-    const zs = safe(zp)
-    if (r.box[2] - r.box[0] > zs[2] - zs[0] + 1e-6 || r.box[3] - r.box[1] > zs[3] - zs[1] + 1e-6) add(`${reg} zoomed does not fit under the sector bar (${Math.round(r.box[2] - r.box[0])} × ${Math.round(r.box[3] - r.box[1])} for ${zs[2] - zs[0]} × ${zs[3] - zs[1]})`)
-    const small = [...LY.nodes.values()].filter((n) => n.reg === reg).length <= 2
-    if (r.empty > 1 - FILL + 1e-9) (small && (desk || LY.axis === 'v') ? add : (m: string) => notes.push(tag(m)))(`${reg} zoomed: ${Math.round(r.empty * 100)} % of the safe area is outside its frame at k ${r.k} (a zoom reveals more: ${Math.round((1 - FILL) * 100)} % at the most)`)
-    if (desk && !r.named) numOnly.add(`${reg} zoomed: numbers only`)
-    gapCheck(r.labels, r.v, reg, `${reg} zoomed`)
-    portCheck(r.sc, `${reg} zoomed`)
-    runCheck(r.v, `${reg} zoomed`)
-    for (const o of r.labels.off) if (LY.nodes.get(o.split(' ')[0]!)!.reg === reg) off.add(o + ' zoomed')
-    // Doors: their chips meet no plate and no label, never name a plate within NEAR steps, and
-    // name each far level once.
-    const c = chipOf(r.v) / 2
-    const named = new Set<string>()
-    for (const l of LY.links) {
-      // a link only ends on a drawn plate or a drawn chip
-      const sp = spanOf(l, r.v, r.drawn, r.doors)
-      if (sp.hidden || l.relay) continue
-      for (const end of [l.a, l.b]) if (!r.drawn(end) && !(sp.to && (end === l.a ? sp.from === 'b' : sp.from === 'a'))) add(`${reg} zoomed: link ${l.id} ends on ${end}, which is not drawn, with no chip`)
-    }
-    for (const d of r.doors) {
-      if (!d.chip) continue
-      const b: Box = [d.at[0] * r.v.s - c, d.at[1] * r.v.s - c, d.at[0] * r.v.s + c, d.at[1] * r.v.s + c]
-      const g = grow(b, CHIP_CLEAR)
-      for (const rm of r.sc.rims) if (segBox(rm.seg[0], rm.seg[1], g)) {
-        add(`${reg} zoomed: the chip of ${d.link} stands within ${CHIP_CLEAR} px of the rim of ${rm.land}`)
-        break
-      }
-      const zs2 = safe(zp)
-      if (b[0] + r.cam.tx < zs2[0] - 1e-6 || b[2] + r.cam.tx > zs2[2] + 1e-6 || b[1] + r.cam.ty < zs2[1] - 1e-6 || b[3] + r.cam.ty > zs2[3] + 1e-6) if (d.cut) add(`${reg} zoomed: the chip of ${d.link} (its far plate undrawn) leaves the safe area`)
-      for (const q of r.sc.plates) if (meets(grow(b, 2), q.box)) add(`${reg} zoomed: the door of ${d.link} meets the plate of ${q.id}`)
-      for (const [id, lb] of r.labels.boxes) if (meets(grow(b, 2), lb)) add(`${reg} zoomed: the door of ${d.link} meets the label of ${id}`)
-      const fn = LY.nodes.get(d.far)!
-      const isPort = LY.links.find((l) => l.id === d.link)!.relay
-      if (!d.cut && !isPort && Math.hypot(fn.x - d.at[0], fn.y - d.at[1]) <= NEAR) add(`${reg} zoomed: the chip of ${d.link} names ${d.far}, within ${NEAR} steps of it`)
-      if (named.has(d.far)) add(`${reg} zoomed: two chips name ${d.far}`)
-      named.add(d.far)
-    }
-    cardCheck(r.sc, r.labels, [], r.doors, r.cam, zp, [...LY.nodes.values()].filter((n) => n.reg === reg).map((n) => n.id))
-  }
-  for (const n of f.titleNotes) notes.push(tag(n))
-  if (desk) notes.push(tag(`a level pointed is named by its card / its tag / the HUD: world ${named.world.join(' / ')}; zoomed ${named.zoom.join(' / ')}`))
-  return { faults, notes, flags: { off: [...off], unnamed, numOnly: [...numOnly], ks, empty, qc: wq.c }, s0: f.s0, kind: f.kind }
+  cardCheck(wsc, f.labels, [], [], wcam, p, [...LY.nodes.keys()])
+  if (desk) notes.push(tag(`a level pointed is named by its card / its tag / the HUD: ${named.world.join(' / ')}`))
+  return { faults, notes, flags: { off: [...off], numOnly: [...numOnly], qc: wq.c }, s0: f.s0, kind: f.kind }
 }

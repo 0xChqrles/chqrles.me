@@ -6,7 +6,7 @@ import type { Course } from './course'
 import type { World } from './game'
 import { treeOf } from './lattice'
 import { paletteFaults } from './palette'
-import { audit, GUTTER, ZBAR, type Course as PlaceCourse } from './place'
+import { audit, GUTTER, type Course as PlaceCourse } from './place'
 import { layout, type Axis } from './tree'
 
 // The map's pane at each reference screen, as the page's grid lays it out: the head (56), the
@@ -20,7 +20,7 @@ export const PANES: { name: string; w: number; h: number; foot: number; axis: Ax
   { name: '390 × 844', w: 390, h: 748, foot: 88, axis: 'v', desk: false },
 ]
 
-export type MapAudit = { faults: string[]; notes: string[]; flags: { pane: string; s0: number; kind: string; off: string[]; untitled: string[]; numOnly: string[]; extra: { ks: Record<string, number>; empty: Record<string, number>; qc: number } }[] }
+export type MapAudit = { faults: string[]; notes: string[]; flags: { pane: string; s0: number; kind: string; off: string[]; numOnly: string[]; qc: number }[] }
 export function auditMap(course: Course, w: World): MapAudit & { tree: ReturnType<typeof treeOf> } {
   const tree = treeOf(course, w)
   const faults = [...tree.faults, ...paletteFaults(), ...flightFaults()]
@@ -30,7 +30,6 @@ export function auditMap(course: Course, w: World): MapAudit & { tree: ReturnTyp
   for (const P of PANES) {
     const LY = layout(tree.data, levels, P.axis)
     const g = P.axis === 'v' ? GUTTER.phone : GUTTER.desk
-    const gz = P.axis === 'v' ? GUTTER.phone : GUTTER.zoom
     const C: PlaceCourse = {
       order: w.order,
       text: (id) => ({ label: levels.get(id)!.label, name: tree.data.names[id]! }),
@@ -38,10 +37,10 @@ export function auditMap(course: Course, w: World): MapAudit & { tree: ReturnTyp
       quest: tree.data.quest,
     }
     const home = w.order.find((id) => LY.nodes.has(id)) ?? null
-    const a = audit(LY, { w: P.w, h: P.h, top: 0, foot: P.foot, gutter: g }, { w: P.w, h: P.h, top: ZBAR, foot: P.foot, gutter: gz }, home, C, P.name, P.desk)
+    const a = audit(LY, { w: P.w, h: P.h, top: 0, foot: P.foot, gutter: g }, home, C, P.name, P.desk)
     faults.push(...a.faults)
     notes.push(...a.notes)
-    flags.push({ pane: P.name, s0: a.s0, kind: a.kind, off: a.flags.off, untitled: a.flags.unnamed, numOnly: a.flags.numOnly, extra: { ks: a.flags.ks, empty: a.flags.empty, qc: a.flags.qc } })
+    flags.push({ pane: P.name, s0: a.s0, kind: a.kind, off: a.flags.off, numOnly: a.flags.numOnly, qc: a.flags.qc })
   }
   return { faults, notes, flags, tree }
 }

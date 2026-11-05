@@ -37,6 +37,9 @@ export const STRAIT = 0.1
 // A port's box (in steps) meets no land here; each view then slides the port out along its stub
 // until its chip clears every drawn rim by 4 px (lib/place.ts, `portsAt`).
 export const PORT_CLEAR = 0.167
+// TWO PORTS NEVER MEET: their centres stand PORT_GAP steps apart at the least, a chip and its 4 px
+// at the largest chip a step carries (a phone's world: 20 px over 52).
+export const PORT_GAP = 0.42
 const segInBox = (p: Pt, q: Pt, b: [number, number, number, number]) => {
   let t0 = 0
   let t1 = 1
@@ -451,7 +454,12 @@ export function plan(axis: Axis, input: Input, L: ReturnType<typeof lands>): Pla
         for (const [a, b] of edgesOf(ring)) if (segInBox(a, b, [q[0] - h, q[1] - h, q[0] + h, q[1] + h])) return ld.id
     return null
   }
+  // the ports placed so far (relays first, then warps): a port is free off every land and
+  // PORT_GAP from each of them
+  const placed: Pt[] = []
+  const free = (q: Pt) => !onLand(q) && placed.every((p) => Math.hypot(p[0] - q[0], p[1] - q[1]) >= PORT_GAP - 1e-9)
   const clearFrom = (pts: Pt[], d0: number): Pt => {
+    for (let d = d0; d < d0 + 1; d += 0.01) if (free(along(pts, d))) return along(pts, d)
     for (let d = d0; d < d0 + 1; d += 0.01) if (!onLand(along(pts, d))) return along(pts, d)
     return along(pts, d0)
   }
@@ -489,27 +497,7 @@ export function plan(axis: Axis, input: Input, L: ReturnType<typeof lands>): Pla
     const A = byId.get(e.a)
     const B = byId.get(e.b)
     if (!A || !B) continue
-    if (e.coupee) {
-      // A warp comes into its level from behind, three quarters of a step; where its port would
-      // stand on another region's land, from over it, else from under it.
-      const ways: Pt[] = [[-0.75, 0], [0, -0.75], [0, 0.75]]
-      // its port: PORT past the coast its way crosses, on the ground (not on another land)
-      const portOn = (w: Pt): Pt => {
-        const u: Pt = [w[0] / 0.75, w[1] / 0.75]
-        let d = 0
-        while (d < 2 && landAt([B.x + u[0] * d, B.y + u[1] * d]) === B.region) d += 0.005
-        let e = d + PORT
-        while (e < d + 1 && onLand([B.x + u[0] * e, B.y + u[1] * e])) e += 0.01
-        return [r2(B.x + u[0] * e), r2(B.y + u[1] * e)]
-      }
-      const way = ways.map((w) => map(w)).find((w) => !onLand(portOn(w)))
-      if (!way) {
-        fault(`the warp ${e.a} > ${e.b} has no free side for its port`)
-        continue
-      }
-      warps.push({ id: `${e.a}>${e.b}`, a: e.a, b: e.b, end: [B.x + way[0], B.y + way[1]], port: portOn(way) })
-      continue
-    }
+    if (e.coupee) continue
     let pts: Pt[] = [P(e.a), ...(e.via ?? []).map(([c, r]) => map([r, Math.round(c)])), P(e.b)]
     pts = pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1]![0], p[1] - pts[i - 1]![1]) > 1e-6)
     if (pts.length < 2) {
@@ -524,7 +512,33 @@ export function plan(axis: Axis, input: Input, L: ReturnType<typeof lands>): Pla
     const pp = portsOf(pts, pieces)
     const relay = gutter > RELAY_RUN + 1e-6 && portFar(pts, pp) > RELAY_RUN + 1e-6
     if (relay) for (const q of pp) if (onLand(q)) fault(`link ${e.a} > ${e.b}: its port at ${q} stands on the land of ${onLand(q)}`)
+    if (relay) placed.push(...pp)
     roads.push({ id: `${e.a}>${e.b}`, a: e.a, b: e.b, ra: A.region, rb: B.region, pts, pieces: relay ? pieces : midline(pieces), relay, ...(relay ? { ports: pp } : {}) })
+  }
+  // A WARP comes into its level from behind, three quarters of a step; where its port would stand
+  // on a land or meet another port, from over it, from under it, from the diagonals behind, then
+  // from ahead.
+  const ways: Pt[] = [[-1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, 0], [1, -1], [1, 1]]
+  for (const e of input.aretes) {
+    const B = byId.get(e.b)
+    if (!e.coupee || !byId.get(e.a) || !B) continue
+    // its port: PORT past the coast its way crosses, on the ground and clear of every other port
+    const portOn = (u: Pt): Pt => {
+      let d = 0
+      while (d < 2 && landAt([B.x + u[0] * d, B.y + u[1] * d]) === B.region) d += 0.005
+      let k = d + PORT
+      while (k < d + 1.5 && !free([B.x + u[0] * k, B.y + u[1] * k])) k += 0.01
+      return [r2(B.x + u[0] * k), r2(B.y + u[1] * k)]
+    }
+    const unitOf = (w: Pt): Pt => [w[0] / Math.hypot(w[0], w[1]), w[1] / Math.hypot(w[0], w[1])]
+    const way = ways.map((w) => unitOf(map(w))).find((u) => free(portOn(u)))
+    if (!way) {
+      fault(`the warp ${e.a} > ${e.b} has no free side for its port`)
+      continue
+    }
+    const port = portOn(way)
+    placed.push(port)
+    warps.push({ id: `${e.a}>${e.b}`, a: e.a, b: e.b, end: [B.x + way[0] * 0.75, B.y + way[1] * 0.75], port })
   }
   if (axis === 'h') notes.push(`relays (a gutter run over ${RELAY_RUN} steps): ${roads.filter((r) => r.relay).map((r) => r.id).join(', ') || 'none'}; warps: ${warps.map((w) => w.id).join(', ') || 'none'}`)
 
