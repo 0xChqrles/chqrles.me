@@ -59,4 +59,24 @@ describe('a course build', () => {
       for (const [, path] of readFileSync(file, 'utf8').matchAll(/(?:href|src)="(\/[^"]*)"/g)) expect(path, file).toMatch(/^\/fixture\//)
     }
   })
+
+  it('gives every page but the 404 a 1200 × 630 share image in the build, a card its own', () => {
+    const meta = (html: string, key: string) => html.match(new RegExp(`<meta (?:property|name)="${key}" content="([^"]*)"`))?.[1]
+    for (const file of files('.html')) {
+      const path = file.slice(out.length + 1)
+      const html = readFileSync(file, 'utf8')
+      if (path === '404.html') {
+        expect(meta(html, 'og:image'), path).toBeUndefined()
+        continue
+      }
+      const image = meta(html, 'og:image')
+      expect(image, path).toBe(`${SITE}/fixture/${path === 'index.html' || path === 'tout/index.html' ? '' : path.replace(/index\.html$/, '')}share.png`)
+      expect(meta(html, 'twitter:image'), path).toBe(image)
+      expect(meta(html, 'twitter:card'), path).toBe('summary_large_image')
+      expect(meta(html, 'og:image:alt'), path).toBeTruthy()
+      // a PNG's width and height are the IHDR chunk's first two words
+      const png = readFileSync(join(out, image!.slice(`${SITE}/fixture/`.length)))
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)], path).toEqual([1200, 630])
+    }
+  })
 })

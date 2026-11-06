@@ -290,7 +290,8 @@ translation leaves the original published.
 - `https://learn.chqrles.me/<slug>/` is the home page and the map, `/<slug>/<card-id>/` a
   written card, and `/<slug>/tout/` every written card, so a card named `tout` fails the
   build. The other URLs are files under `/<slug>/`: `_astro/*`, `math.css`, `search.js`,
-  `favicon.svg`, `apple-touch-icon.png`.
+  `favicon.svg`, `apple-touch-icon.png`, `share.png`, and each written card's
+  `<card-id>/share.png`.
 - **Every URL a course writes goes through `url`** (`packages/course/src/lib/base.ts`), which
   puts the course's path in front (Astro's `base`, set in `packages/course/astro.config.ts`
   from the folder's name). **Every key a course saves goes through `saved`**, under the same
@@ -314,6 +315,17 @@ translation leaves the original published.
   `site.css`, the figures and the blog's rendering stay in `packages/site`.
 - **Every written card is its own page, and reads without JavaScript**: the math and the
   map are drawn at build time.
+- **Every page but the 404 unfurls into a share card** (`packages/course/src/lib/share-card.ts`),
+  1200 × 630, drawn at build time and named by `og:image` and `twitter:image`
+  (`summary_large_image`), by absolute URL. The home's, which `tout` shares, is
+  `/<slug>/share.png`: the q and the course's title beside its whole map. A written card's is
+  `/<slug>/<card-id>/share.png`: the q and the course's title, then its region, plate, number
+  and title, beside the map framed on its level at twice the world's step, the level chosen
+  (open, lifted, its chain lit, the reticle round it). The map is the page's own at a first
+  visit, laid out at the 1280 × 800 desk pane and drawn by the same rules
+  (`packages/course/src/lib/share-map.ts`). The words are the course's own, drawn as outlines
+  from static WOFF cuts, so the build needs no font installed; the alt text is those words. A
+  title too long for the card, or a character its faces lack, fails the build.
 - **KaTeX's styles go through `data-k`** (`packages/course/src/lib/math-styles.ts`): each
   `style` it writes becomes a `data-k` attribute and an `!important` rule in `/math.css`,
   because the CSP forbids a style attribute. So a course's policy, read off its own build,

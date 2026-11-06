@@ -1,6 +1,9 @@
 import { getEntry } from 'astro:content'
 import type { Course } from './course'
 import { world as buildWorld, type World } from './game'
+import { treeOf } from './lattice'
+import { shareCard } from './share-card'
+import type { TreeData } from './tree'
 import { apos } from './render-card'
 
 // The collection's one entry, as the pages read it.
@@ -31,3 +34,25 @@ export async function getWorld(): Promise<World> {
   if (cached?.course !== course) cached = { course, world: buildWorld(course) }
   return cached.world
 }
+
+let tree: { world: World; data: TreeData } | undefined
+// The map's lattice, built once per course (the home audits it at the reference panes).
+export async function getTree(): Promise<TreeData> {
+  const w = await getWorld()
+  if (tree?.world !== w) tree = { world: w, data: treeOf(await getCourse(), w).data }
+  return tree.data
+}
+
+// A page's share image (lib/share-card.ts): the home's, or a level's.
+export async function sharePng(id: string | null): Promise<Response> {
+  const { cours } = await getCourse()
+  const w = await getWorld()
+  const T = await getTree()
+  const l = id ? w.levels.find((x) => x.id === id)! : null
+  const png = await shareCard(T, w, cours.titre, l && { id: l.id, label: l.label, titre: l.titre, region: w.regions.find((r) => r.id === l.region)!.nom, hue: l.hue, icon: T.icons[l.id] ?? null })
+  return new Response(new Uint8Array(png), { headers: { 'Content-Type': 'image/png' } })
+}
+
+// What a page's share image shows, as its alt text: the words printed on it.
+export const shareAlt = (course: string, level?: { label: string; titre: string; region: string }) =>
+  level ? `${course} · ${level.region} · ${level.label} ${level.titre}` : course
