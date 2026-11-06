@@ -41,9 +41,10 @@ function outline(t: string, font: FontName, size: number, track = 0): { d: strin
   const f = FONTS[font]
   const scale = size / f.unitsPerEm
   // The Latin files have no narrow no-break space: a no-break space stands in for it.
-  const run = f.layout(t.replaceAll(' ', ' '))
-  const missing = run.glyphs.find((g) => g.id === 0)
-  if (missing) throw new Error(`The share card cannot set “${String.fromCodePoint(...missing.codePoints)}” in “${t}”.`)
+  const s = t.replaceAll('\u202f', '\u00a0')
+  const missing = [...s].find((ch) => !f.hasGlyphForCodePoint(ch.codePointAt(0)!))
+  if (missing) throw new Error(`The share card cannot set “${missing}” in “${t}”.`)
+  const run = f.layout(s)
   let d = ''
   let x = 0
   run.glyphs.forEach((g, i) => {
@@ -79,7 +80,8 @@ function balance(words: string[], measure: (line: string) => number, width: numb
 function title(t: string, font: FontName, sizes: number[], lines: number, leading: number, column = COLUMN) {
   for (const size of sizes) {
     const ls = balance(t.split(' '), (s) => outline(s, font, size).w, column)
-    if (ls.length <= lines) return { size, lines: ls, step: Math.round(size * leading) }
+    // a word wider than the column stays alone on its line: the size drops until it fits
+    if (ls.length <= lines && ls.every((l) => outline(l, font, size).w <= column)) return { size, lines: ls, step: Math.round(size * leading) }
   }
   throw new Error(`“${t}” is too long for the share card: more than ${lines} lines at ${sizes.at(-1)}px.`)
 }
@@ -102,25 +104,35 @@ const sceneOf = (T: TreeData, w: World) => {
   return scene.s
 }
 
-export type ShareLevel = { id: string; label: string; titre: string; region: string; hue: number; icon: string[] | null }
+// `near`: the levels that frame one off the map (a chapter's notions).
+export type ShareLevel = { id: string; label: string; titre: string; region: string; hue: number; icon: string[] | null; near: string[] }
 export async function shareCard(T: TreeData, w: World, course: string, level: ShareLevel | null): Promise<Buffer> {
   const sc = sceneOf(T, w)
   const s = sc.fit.s0
   // the window over the map, in the layout's pixels
   let vb: [number, number, number, number]
   let win: [number, number, number, number]
+  const [bx0, by0, bx1, by1] = sc.fit.box
   if (level) {
+    // a level on the map is framed on its plate; one off it (a chapter) on the levels near it, at
+    // the same zoom at most; with none on the map, the whole world
     const n = sc.LY.nodes.get(level.id)
-    const side = SIDE / LEVEL_K
-    const [bx0, by0, bx1, by1] = sc.fit.box
-    // centred on the level, kept within the world's box (a level near its edge is not centred)
-    const cx = n ? Math.max(bx0 + side / 2, Math.min(bx1 - side / 2, n.x * s)) : (bx0 + bx1) / 2
-    const cy = n ? Math.max(by0 + side / 2, Math.min(by1 - side / 2, n.y * s)) : (by0 + by1) / 2
+    const near = n ? [n] : level.near.flatMap((id) => sc.LY.nodes.get(id) ?? [])
+    const pad = s
+    const span = near.length ? Math.max(...near.map((x) => x.x * s)) - Math.min(...near.map((x) => x.x * s)) : bx1 - bx0
+    const tall = near.length ? Math.max(...near.map((x) => x.y * s)) - Math.min(...near.map((x) => x.y * s)) : by1 - by0
+    const side = Math.round(Math.max(SIDE / LEVEL_K, near.length ? Math.max(span, tall) + 2 * pad : Math.max(span, tall)))
+    const mid = (a: number[], lo: number, hi: number) => (a.length ? (Math.min(...a) + Math.max(...a)) / 2 : (lo + hi) / 2)
+    const fx = mid(near.map((x) => x.x * s), bx0, bx1)
+    const fy = mid(near.map((x) => x.y * s), by0, by1)
+    // kept within the world's box (a level near its edge is not centred), centred when wider
+    const keep = (c: number, lo: number, hi: number) => (hi - lo <= side ? (lo + hi) / 2 : Math.max(lo + side / 2, Math.min(hi - side / 2, c)))
+    const cx = keep(fx, bx0, bx1)
+    const cy = keep(fy, by0, by1)
     vb = [Math.round(cx - side / 2), Math.round(cy - side / 2), side, side]
     win = [LEFT, M, SIDE, SIDE]
   } else {
     // the whole world, as large as the room the course's title leaves
-    const [bx0, by0, bx1, by1] = sc.fit.box
     const pad = 16
     const bw = bx1 - bx0 + 2 * pad
     const bh = by1 - by0 + 2 * pad
@@ -133,7 +145,7 @@ export async function shareCard(T: TreeData, w: World, course: string, level: Sh
     win = [SHARE.w - M - ww, M + Math.round((SIDE - wh) / 2), ww, wh]
   }
   let o = `<svg xmlns="http://www.w3.org/2000/svg" width="${SHARE.w}" height="${SHARE.h}" viewBox="0 0 ${SHARE.w} ${SHARE.h}"><rect width="${SHARE.w}" height="${SHARE.h}" fill="${GROUND}"/>`
-  o += `<svg x="${win[0]}" y="${win[1]}" width="${win[2]}" height="${win[3]}" viewBox="${vb.join(' ')}" overflow="hidden">${sc.svg({ chosen: level?.id ?? null, text: mapText })}</svg>`
+  o += `<svg x="${win[0]}" y="${win[1]}" width="${win[2]}" height="${win[3]}" viewBox="${vb.join(' ')}" overflow="hidden">${sc.svg({ chosen: level && sc.LY.nodes.has(level.id) ? level.id : null, text: mapText })}</svg>`
   // crop marks at the window's corners, outside it
   const { gap, arm, width } = CROP
   const [wx, wy, ww, wh] = win
@@ -147,8 +159,10 @@ export async function shareCard(T: TreeData, w: World, course: string, level: Sh
   o += `<path d="${cellsD(Q, M, M, qc)}" fill="${INK}" shape-rendering="crispEdges"/>`
   const foot = M + SIDE
   if (level) {
-    const head = outline(course, 'serif', 30)
-    o += textAt(head.d, M + 5 * qc + 18, M + 7 * qc - 8, INK)
+    // the course's title on one line between the q and the map's crop marks
+    const hx = M + 5 * qc + 18
+    const hs = title(course, 'serif', [30, 26, 22], 1, 1, LEFT - CROP.gap - CROP.arm - 24 - hx)
+    o += textAt(outline(hs.lines[0]!, 'serif', hs.size).d, hx, M + 7 * qc - 8, INK)
     const t = TONES[level.hue]!
     const ti = title(level.titre, 'serif', [64, 56, 48, 40], 4, 1.12)
     // from the foot up: the title, the plate and its number, the region
@@ -173,6 +187,7 @@ export async function shareCard(T: TreeData, w: World, course: string, level: Sh
     const num = outline(level.label, 'mono', numSize)
     o += textAt(num.d, M + P + 20, cyp + Math.round(numSize * 0.36), t.ink)
     const eye = outline(level.region.toLocaleUpperCase('fr'), 'sans600', 20, 0.08)
+    if (eye.w > COLUMN) throw new Error(`The region « ${level.region} » is too long for the share card: ${Math.round(eye.w)}px, ${COLUMN} at most.`)
     o += textAt(eye.d, M, plateTop - 24, t.ink)
   } else {
     const ti = homeTitle(course)

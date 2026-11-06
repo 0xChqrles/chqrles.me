@@ -71,18 +71,27 @@ export function mapScene(T: TreeData, w: World, pane: Pane): MapScene {
     const st = (id: string): Etat => (id === chosen ? 'dispo' : etat(id))
     const [x0, y0, x1, y1] = LY.box
     let o = ''
-    // L0: the field, a dot every half step; each land's texture, a 2-px dot every eighth step
-    o += `<defs><pattern id="field" x="${-0.5}" y="${-0.5}" width="${s / 2}" height="${s / 2}" patternUnits="userSpaceOnUse"><rect width="1" height="1" fill="${FIELD}"/></pattern>`
-    TONES.forEach((t, i) => (o += `<pattern id="tx${i}" x="-1" y="-1" width="${s / 8}" height="${s / 8}" patternUnits="userSpaceOnUse"><rect width="2" height="2" fill="${t.dot}"/></pattern>`))
-    o += '</defs>'
-    o += `<rect x="${(x0 - 3) * s}" y="${(y0 - 3) * s}" width="${(x1 - x0 + 6) * s}" height="${(y1 - y0 + 6) * s}" fill="url(#field)"/>`
-    // L1: the lands: tint, texture, rim (2 px, the wire)
+    // L0 + L1: the lands' tint; on a grid of eighth steps, a 1-px field dot every half step outside
+    // every land, a 2-px dot of its texture inside one; no dot within 2 px of a label's box
     const landD = (rings: Pt[][]) => rings.map((g) => 'M' + g.map((p) => P(p).join(' ')).join('L') + 'Z').join('')
-    for (const land of LY.lands.values()) {
-      const t = TONES[land.hue]!
-      const d = landD(land.rings)
-      o += `<path d="${d}" fill="${t.tint}" fill-rule="evenodd"/><path d="${d}" fill="url(#tx${land.hue})" fill-rule="evenodd"/>`
-    }
+    for (const land of LY.lands.values()) o += `<path d="${landD(land.rings)}" fill="${TONES[land.hue]!.tint}" fill-rule="evenodd"/>`
+    const N = 8
+    const lands = [...LY.lands.values()]
+    const boxes = [...fit.labels.boxes.values()]
+    const dots = new Map<string, string>()
+    for (let i = Math.floor((x0 - 3) * N); i <= Math.ceil((x1 + 3) * N); i++)
+      for (let j = Math.floor((y0 - 3) * N); j <= Math.ceil((y1 + 3) * N); j++) {
+        const land = lands.find((l) => inRings(l.rings, i / N, j / N))
+        if (!land && (i % (N / 2) !== 0 || j % (N / 2) !== 0)) continue
+        const x = Math.round((i / N) * s)
+        const y = Math.round((j / N) * s)
+        const sz = land ? 2 : 1
+        if (boxes.some((b) => x + sz > b[0] - 2 && x - sz < b[2] + 2 && y + sz > b[1] - 2 && y - sz < b[3] + 2)) continue
+        const col = land ? TONES[land.hue]!.dot : FIELD
+        dots.set(col, (dots.get(col) ?? '') + `M${x - (sz >> 1)} ${y - (sz >> 1)}h${sz}v${sz}h-${sz}z`)
+      }
+    for (const [col, d] of dots) o += `<path d="${d}" fill="${col}" shape-rendering="crispEdges"/>`
+    // the rims, 2 px in the wire
     for (const land of LY.lands.values()) o += `<path d="${landD(land.rings)}" fill="none" stroke="${TONES[land.hue]!.wire}" stroke-width="2" stroke-linejoin="miter"/>`
 
     // L2: grooves, one 3-px channel with a 1-px highlight along its top edge; the chosen level's

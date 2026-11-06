@@ -4,14 +4,19 @@ import { world as buildWorld, type World } from './game'
 import { treeOf } from './lattice'
 import { shareCard } from './share-card'
 import type { TreeData } from './tree'
-import { apos } from './render-card'
+import { apos, typo } from './render-card'
 
-// The collection's one entry, as the pages read it.
+// The collection's one entry, as the pages read it: the same object while the entry is, so the
+// world and the map built from it are built once.
+let read: { data: unknown; course: Course } | undefined
 export async function getCourse(): Promise<Course> {
   const entry = await getEntry('course', 'course')
   if (!entry) throw new Error('No course to render: the loader logged why.')
-  const { titre, sousTitre, court } = entry.data.cours
-  return { ...entry.data, cours: { ...entry.data.cours, titre: apos(titre), sousTitre: apos(sousTitre), court: apos(court) } }
+  if (read?.data !== entry.data) {
+    const { titre, sousTitre, court } = entry.data.cours
+    read = { data: entry.data, course: { ...entry.data, cours: { ...entry.data.cours, titre: apos(titre), sousTitre: apos(sousTitre), court: apos(court) } } }
+  }
+  return read.course
 }
 
 // A card's strings are HTML. An attribute or the search needs the words alone.
@@ -49,7 +54,9 @@ export async function sharePng(id: string | null): Promise<Response> {
   const w = await getWorld()
   const T = await getTree()
   const l = id ? w.levels.find((x) => x.id === id)! : null
-  const png = await shareCard(T, w, cours.titre, l && { id: l.id, label: l.label, titre: l.titre, region: w.regions.find((r) => r.id === l.region)!.nom, hue: l.hue, icon: T.icons[l.id] ?? null })
+  // set as the pages set them (lib/render-card.ts typo): no line starts with « : » or splits « 10 000 »
+  const near = l ? w.levels.filter((x) => x.chap === l.id).map((x) => x.id) : []
+  const png = await shareCard(T, w, typo(cours.titre), l && { id: l.id, label: l.label, titre: typo(apos(l.titre)), region: typo(apos(w.regions.find((r) => r.id === l.region)!.nom)), hue: l.hue, icon: T.icons[l.id] ?? null, near })
   return new Response(new Uint8Array(png), { headers: { 'Content-Type': 'image/png' } })
 }
 

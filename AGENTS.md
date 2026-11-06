@@ -321,11 +321,13 @@ translation leaves the original published.
   `/<slug>/share.png`: the q and the course's title beside its whole map. A written card's is
   `/<slug>/<card-id>/share.png`: the q and the course's title, then its region, plate, number
   and title, beside the map framed on its level at twice the world's step, the level chosen
-  (open, lifted, its chain lit, the reticle round it). The map is the page's own at a first
+  (open, lifted, its chain lit, the reticle round it); a chapter, off the map, is framed on its
+  notions, and a card with neither on the map, on the whole world. The map is the page's own at a first
   visit, laid out at the 1280 × 800 desk pane and drawn by the same rules
   (`packages/course/src/lib/share-map.ts`). The words are the course's own, drawn as outlines
-  from static WOFF cuts, so the build needs no font installed; the alt text is those words. A
-  title too long for the card, or a character its faces lack, fails the build.
+  from static WOFF cuts and set as the pages set them, so the build needs no font installed; the
+  alt text is those words. A title or region name too long for the card, or a character its
+  faces lack, fails the build.
 - **KaTeX's styles go through `data-k`** (`packages/course/src/lib/math-styles.ts`): each
   `style` it writes becomes a `data-k` attribute and an `!important` rule in `/math.css`,
   because the CSP forbids a style attribute. So a course's policy, read off its own build,
