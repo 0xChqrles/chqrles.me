@@ -1,0 +1,232 @@
+// THE SHARE CARDS, drawn at build time: the 1200 × 630 image a link to the course or to one of its
+// levels unfurls into. The blog's card, in the course's voice: on the left the q and the course's
+// title, then (a level) its region, its plate and number, and its title, the last baseline on the
+// map's foot; on the right the map itself, the world at rest (the home) or the level chosen in its
+// neighbourhood. The text is the course's own, set as on its pages and drawn as outlines, so the
+// build needs no font installed.
+import { openSync, type Font } from 'fontkit'
+import { createRequire } from 'node:module'
+import sharp from 'sharp'
+import type { World } from './game'
+import { cells, GLYPH } from './glyphs'
+import { FACE, type Face } from './metrics'
+import { GROUND, INK, LINE_STRONG, mix, SOCKET, TONES } from './palette'
+import { mapScene, type MapScene } from './share-map'
+import { inRings, Q, type Box, type TreeData } from './tree'
+import { grow, meets, scene as sceneAt, segBox } from './place'
+import { PANES } from './audit'
+
+export const SHARE = { w: 1200, h: 630 }
+const M = 64
+// The map's window: the blog's square on the right, trimmed by crop marks.
+const SIDE = SHARE.h - 2 * M
+const LEFT = SHARE.w - M - SIDE
+const COLUMN = LEFT - 2 * M
+const CROP = { gap: 12, arm: 24, width: 2 }
+// A level is framed at twice the world's step, as the page's camera shows it zoomed in.
+const LEVEL_K = 2
+// The q's cell.
+const QC = 6
+
+// The faces, static cuts in WOFF (fontkit cannot vary a WOFF2 file).
+const file = (p: string) => openSync(createRequire(import.meta.url).resolve(p)) as Font
+const FONTS = {
+  serif: file('@fontsource/source-serif-4/files/source-serif-4-latin-600-normal.woff'),
+  serifItalic: file('@fontsource/source-serif-4/files/source-serif-4-latin-400-italic.woff'),
+  sans500: file('@fontsource/instrument-sans/files/instrument-sans-latin-500-normal.woff'),
+  sans600: file('@fontsource/instrument-sans/files/instrument-sans-latin-600-normal.woff'),
+  mono: file('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff'),
+}
+type FontName = keyof typeof FONTS
+
+// A line of text as one path of glyph outlines, its baseline at y = 0, from x = 0; `track` in em.
+function outline(t: string, font: FontName, size: number, track = 0): { d: string; w: number } {
+  const f = FONTS[font]
+  const scale = size / f.unitsPerEm
+  // The Latin files have no narrow no-break space: a no-break space stands in for it.
+  const s = t.replaceAll('\u202f', '\u00a0')
+  const missing = [...s].find((ch) => !f.hasGlyphForCodePoint(ch.codePointAt(0)!))
+  if (missing) throw new Error(`The share card cannot set “${missing}” in “${t}”.`)
+  const run = f.layout(s)
+  let d = ''
+  let x = 0
+  run.glyphs.forEach((g, i) => {
+    const { xAdvance, xOffset, yOffset } = run.positions[i]!
+    d += g.path.scale(scale, -scale).translate(x + xOffset * scale, -yOffset * scale).toSVG()
+    x += xAdvance * scale + track * size
+  })
+  return { d, w: x - (t.length ? track * size : 0) }
+}
+const MAP_FONT: Record<Face, FontName> = { num: 'mono', name: 'sans500', eyebrow: 'sans600' }
+const mapText = (t: string, face: Face, k: number) => outline(t, MAP_FONT[face], FACE[face].px * k, FACE[face].track)
+
+// Words in balanced lines (the pages' text-wrap: balance): as many lines as the width needs, each
+// as short as that allows.
+function balance(words: string[], measure: (line: string) => number, width: number): string[] {
+  const wrap = (max: number) =>
+    words.reduce<string[]>((lines, word) => {
+      const last = lines.at(-1)
+      if (last !== undefined && measure(`${last} ${word}`) <= max) lines[lines.length - 1] = `${last} ${word}`
+      else lines.push(word)
+      return lines
+    }, [])
+  const count = wrap(width).length
+  let [narrow, wide] = [0, width]
+  while (wide - narrow > 1) {
+    const mid = Math.floor((narrow + wide) / 2)
+    if (wrap(mid).length === count) wide = mid
+    else narrow = mid
+  }
+  return wrap(wide)
+}
+// A title set at the largest size that keeps it to `lines` lines in the column.
+function title(t: string, font: FontName, sizes: number[], lines: number, leading: number, column = COLUMN) {
+  for (const size of sizes) {
+    const ls = balance(t.split(' '), (s) => outline(s, font, size).w, column)
+    // a word wider than the column stays alone on its line: the size drops until it fits
+    if (ls.length <= lines && ls.every((l) => outline(l, font, size).w <= column)) return { size, lines: ls, step: Math.round(size * leading) }
+  }
+  throw new Error(`“${t}” is too long for the share card: more than ${lines} lines at ${sizes.at(-1)}px.`)
+}
+// The home's title: three lines at most in a narrower column, the map taking the rest of the
+// width, GUTTER away from its longest line.
+const GUTTER = 72
+const homeTitle = (t: string) => title(t, 'serif', [64, 56, 48, 40], 3, 1.08, 440)
+const textAt =(d: string, x: number, y: number, fill: string) => `<path transform="translate(${x} ${y})" d="${d}" fill="${fill}"/>`
+const cellsD = (rows: readonly string[], x: number, y: number, c: number) =>
+  cells(rows).reduce((d, [a, b]) => d + `M${x + a * c} ${y + b * c}h${c}v${c}h-${c}z`, '')
+
+// The world, laid out once for every card: at the 1280 × 800 desk pane, the smallest step the page
+// lays the world out at on a desk.
+let scene: { T: TreeData; s: MapScene } | null = null
+const sceneOf = (T: TreeData, w: World) => {
+  if (scene?.T !== T) {
+    const P = PANES.find((p) => p.name === '1280 × 800')!
+    scene = { T, s: mapScene(T, w, { w: P.w, h: P.h, top: 0, foot: P.foot, gutter: 24 }) }
+  }
+  return scene.s
+}
+
+// `near`: the levels that frame one off the map (a chapter's notions).
+export type ShareLevel = { id: string; label: string; titre: string; region: string; hue: number; icon: string[] | null; near: string[] }
+export async function shareCard(T: TreeData, w: World, course: string, level: ShareLevel | null): Promise<Buffer> {
+  const sc = sceneOf(T, w)
+  const s = sc.fit.s0
+  // the window over the map, in the layout's pixels
+  let vb: [number, number, number, number]
+  // the card's boxes the map leaves to the q and the title (the home's): no field dot under them
+  let hold: Box[] = []
+  let win: [number, number, number, number]
+  const [bx0, by0, bx1, by1] = sc.fit.box
+  if (level) {
+    // a level on the map is framed on its plate; one off it (a chapter) on the levels near it, at
+    // the same zoom at most; with none on the map, the whole world
+    const n = sc.LY.nodes.get(level.id)
+    const near = n ? [n] : level.near.flatMap((id) => sc.LY.nodes.get(id) ?? [])
+    const pad = s
+    const span = near.length ? Math.max(...near.map((x) => x.x * s)) - Math.min(...near.map((x) => x.x * s)) : bx1 - bx0
+    const tall = near.length ? Math.max(...near.map((x) => x.y * s)) - Math.min(...near.map((x) => x.y * s)) : by1 - by0
+    const side = Math.round(Math.max(SIDE / LEVEL_K, near.length ? Math.max(span, tall) + 2 * pad : Math.max(span, tall)))
+    const mid = (a: number[], lo: number, hi: number) => (a.length ? (Math.min(...a) + Math.max(...a)) / 2 : (lo + hi) / 2)
+    const fx = mid(near.map((x) => x.x * s), bx0, bx1)
+    const fy = mid(near.map((x) => x.y * s), by0, by1)
+    // kept within the world's box (a level near its edge is not centred), centred when wider
+    const keep = (c: number, lo: number, hi: number) => (hi - lo <= side ? (lo + hi) / 2 : Math.max(lo + side / 2, Math.min(hi - side / 2, c)))
+    const cx = keep(fx, bx0, bx1)
+    const cy = keep(fy, by0, by1)
+    vb = [Math.round(cx - side / 2), Math.round(cy - side / 2), side, side]
+    win = [LEFT, M, SIDE, SIDE]
+  } else {
+    // the whole world, as large as it goes without touching the q or the course's title: from the
+    // margins' full height down to the width the title's column leaves; the map may reach into the
+    // column where its own ground is empty
+    const pad = 16
+    const bw = bx1 - bx0 + 2 * pad
+    const bh = by1 - by0 + 2 * pad
+    vb = [bx0 - pad, by0 - pad, bw, bh]
+    const ti = homeTitle(course)
+    const tw = Math.max(...ti.lines.map((l) => outline(l, 'serif', ti.size).w))
+    hold = [grow([M, M, M + 5 * QC, M + 7 * QC], GUTTER / 2), grow([M, SIDE + M - Math.round(ti.size * 0.75) - (ti.lines.length - 1) * ti.step, M + tw, SIDE + M + Math.round(ti.size * 0.25)], GUTTER / 2)] as Box[]
+    const sc_ = sceneAt(sc.LY, sc.v)
+    const lands = [...sc.LY.lands.values()]
+    // does a box of the card meet anything the map draws, with the window at scale k?
+    const at = (k: number): [number, number, number, number] => {
+      const ww = Math.round(bw * k)
+      const wh = Math.round(bh * k)
+      return [SHARE.w - M - ww, M + Math.round((SIDE - wh) / 2), ww, wh]
+    }
+    const clear = (k: number) => {
+      const w_ = at(k)
+      return hold.every((h) => {
+        const b: Box = [vb[0] + (h[0] - w_[0]) / k, vb[1] + (h[1] - w_[1]) / k, vb[0] + (h[2] - w_[0]) / k, vb[1] + (h[3] - w_[1]) / k]
+        if ([...sc_.plates, ...sc_.ports, ...sc_.qs].some((x) => meets(x.box, b)) || (sc_.q && meets(sc_.q, b))) return false
+        if ([...sc.fit.labels.boxes.values()].some((x) => meets(x, b))) return false
+        if ([...sc_.segs, ...sc_.rims].some((x) => segBox(x.seg[0], x.seg[1], b))) return false
+        return !lands.some((l) => inRings(l.rings, b[0] / s, b[1] / s))
+      })
+    }
+    const kMax = Math.min((SHARE.w - 2 * M) / bw, SIDE / bh)
+    const kMin = Math.min((SHARE.w - 2 * M - tw - GUTTER) / bw, SIDE / bh)
+    let k = kMin
+    for (let t = kMax; t > kMin; t -= 0.005)
+      if (clear(t)) {
+        k = t
+        break
+      }
+    win = at(k)
+  }
+  let o = `<svg xmlns="http://www.w3.org/2000/svg" width="${SHARE.w}" height="${SHARE.h}" viewBox="0 0 ${SHARE.w} ${SHARE.h}"><rect width="${SHARE.w}" height="${SHARE.h}" fill="${GROUND}"/>`
+  o += `<svg x="${win[0]}" y="${win[1]}" width="${win[2]}" height="${win[3]}" viewBox="${vb.join(' ')}" overflow="hidden">${sc.svg({ chosen: level && sc.LY.nodes.has(level.id) ? level.id : null, text: mapText })}</svg>`
+  for (const h of hold) o += `<rect x="${h[0]}" y="${h[1]}" width="${h[2] - h[0]}" height="${h[3] - h[1]}" fill="${GROUND}"/>`
+  // a level's map is a crop: crop marks at the window's corners, outside it. The home's is the
+  // whole world, and stands on the ground as the page's does.
+  const { gap, arm, width } = CROP
+  const [wx, wy, ww, wh] = win
+  if (level) for (const [cx, cy, dx, dy] of [[wx, wy, -1, -1], [wx + ww, wy, 1, -1], [wx, wy + wh, -1, 1], [wx + ww, wy + wh, 1, 1]] as const) {
+    const hx = dx < 0 ? cx - gap - arm : cx + gap
+    const vy = dy < 0 ? cy - gap - arm : cy + gap
+    o += `<rect x="${hx}" y="${dy < 0 ? cy : cy - width}" width="${arm}" height="${width}" fill="${LINE_STRONG}"/><rect x="${dx < 0 ? cx : cx - width}" y="${vy}" width="${width}" height="${arm}" fill="${LINE_STRONG}"/>`
+  }
+  // the head: the q and the course's title, as the pages' head carries them
+  const qc = QC
+  o += `<path d="${cellsD(Q, M, M, qc)}" fill="${INK}" shape-rendering="crispEdges"/>`
+  const foot = M + SIDE
+  if (level) {
+    // the course's title on one line between the q and the map's crop marks
+    const hx = M + 5 * qc + 18
+    const hs = title(course, 'serif', [30, 26, 22], 1, 1, LEFT - CROP.gap - CROP.arm - 24 - hx)
+    o += textAt(outline(hs.lines[0]!, 'serif', hs.size).d, hx, M + 7 * qc - 8, INK)
+    const t = TONES[level.hue]!
+    const ti = title(level.titre, 'serif', [64, 56, 48, 40], 4, 1.12)
+    // from the foot up: the title, the plate and its number, the region
+    let y = foot - (ti.lines.length - 1) * ti.step
+    ti.lines.forEach((ln, i) => (o += textAt(outline(ln, 'serif', ti.size).d, M, y + i * ti.step, INK)))
+    const P = 64
+    const numSize = 56
+    const plateTop = y - Math.round(ti.size * 0.95) - 28 - P
+    const cxp = M + P / 2
+    const cyp = plateTop + P / 2
+    const dark = mix(SOCKET, t.plate, 0.3)
+    const oc = (F: number) => {
+      const h = F / 2
+      const k = Math.round(h * (2 - Math.SQRT2))
+      return `M${cxp - h + k} ${cyp - h}L${cxp + h - k} ${cyp - h}L${cxp + h} ${cyp - h + k}L${cxp + h} ${cyp + h - k}L${cxp + h - k} ${cyp + h}L${cxp - h + k} ${cyp + h}L${cxp - h} ${cyp + h - k}L${cxp - h} ${cyp - h + k}Z`
+    }
+    o += `<path d="${oc(P)}" fill="${t.ink}"/><path d="${oc(P - 6)}" fill="${dark}"/>`
+    // its icon at 4 px a cell; a level off the map has none, and shows the chapters' glyph
+    const rows = level.icon ?? GLYPH.chapters!
+    const c = 4
+    o += `<path d="${cellsD(rows, cxp - (rows[0]!.length * c) / 2, cyp - (rows.length * c) / 2, c)}" fill="${INK}" shape-rendering="crispEdges"/>`
+    const num = outline(level.label, 'mono', numSize)
+    o += textAt(num.d, M + P + 20, cyp + Math.round(numSize * 0.36), t.ink)
+    const eye = outline(level.region.toLocaleUpperCase('fr'), 'sans600', 20, 0.08)
+    if (eye.w > COLUMN) throw new Error(`The region « ${level.region} » is too long for the share card: ${Math.round(eye.w)}px, ${COLUMN} at most.`)
+    o += textAt(eye.d, M, plateTop - 24, t.ink)
+  } else {
+    const ti = homeTitle(course)
+    const y = foot - (ti.lines.length - 1) * ti.step
+    ti.lines.forEach((ln, i) => (o += textAt(outline(ln, 'serif', ti.size).d, M, y + i * ti.step, INK)))
+  }
+  o += '</svg>'
+  return sharp(Buffer.from(o)).png().toBuffer()
+}

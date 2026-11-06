@@ -2,12 +2,12 @@
 import Card from '../components/Card.astro'
 import Hud from '../components/Hud.astro'
 import Course from '../layouts/Course.astro'
-import { getCourse } from '../lib/pages'
+import { getCourse, shareAlt } from '../lib/pages'
 
 const { cours, pages } = await getCourse()
 ---
 
-<Course title={cours.titre} description={cours.sousTitre} path="/tout/">
+<Course title={cours.titre} description={cours.sousTitre} path="/tout/" share={{ path: 'share.png', alt: shareAlt(cours.titre) }}>
   <Hud />
   <main id="main">
     {pages.map((page) => <Card page={page} />)}

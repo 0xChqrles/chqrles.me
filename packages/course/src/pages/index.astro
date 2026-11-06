@@ -4,7 +4,7 @@ import Course from '../layouts/Course.astro'
 import { auditMap } from '../lib/audit'
 import { glyphSvg, qSvg } from '../lib/glyphs'
 import { nojsSvg } from '../lib/nojs'
-import { getCourse, getWorld, json } from '../lib/pages'
+import { getCourse, getWorld, json, shareAlt } from '../lib/pages'
 import { esc } from '../lib/render-card'
 import { url } from '../lib/base'
 
@@ -36,7 +36,7 @@ const list = chapters
 const home = course.home.replace(/<ol\b[^>]*\bid="chapitres"[^>]*>/, (open) => open + list)
 ---
 
-<Course title={cours.titre} description={cours.sousTitre} path="/" home>
+<Course title={cours.titre} description={cours.sousTitre} path="/" home share={{ path: 'share.png', alt: shareAlt(cours.titre) }}>
   <div class="app" id="app">
     <header class="head">
       <a class="brand" href={url()} aria-label={cours.titre}>

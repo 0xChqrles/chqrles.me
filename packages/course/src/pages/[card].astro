@@ -3,7 +3,7 @@ import Card from '../components/Card.astro'
 import Hud from '../components/Hud.astro'
 import Course from '../layouts/Course.astro'
 import { around } from '../lib/game'
-import { getCourse, getWorld, plain } from '../lib/pages'
+import { getCourse, getWorld, plain, shareAlt } from '../lib/pages'
 
 export async function getStaticPaths() {
   const { pages } = await getCourse()
@@ -18,7 +18,13 @@ const level = w.levels.find((l) => l.id === page.id)!
 const { prev, next } = around(w, page.id)
 ---
 
-<Course title={`${card.court || card.titre} · ${cours.titre}`} description={plain(card.resume)} path={`/${page.id}/`}>
+<Course
+  title={`${card.court || card.titre} · ${cours.titre}`}
+  description={plain(card.resume)}
+  path={`/${page.id}/`}
+  article
+  share={{ path: `${page.id}/share.png`, alt: shareAlt(cours.titre, { label: level.label, titre: level.titre, region: w.regions.find((r) => r.id === level.region)!.nom }) }}
+>
   <Hud level={level} region={page.quartier} sections={page.sections} prev={prev} next={next} />
   <main id="main" data-level={page.id}>
     <Card page={page} next={next} />
