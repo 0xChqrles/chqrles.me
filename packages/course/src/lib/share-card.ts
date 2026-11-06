@@ -12,7 +12,8 @@ import { cells, GLYPH } from './glyphs'
 import { FACE, type Face } from './metrics'
 import { GROUND, INK, LINE_STRONG, mix, SOCKET, TONES } from './palette'
 import { mapScene, type MapScene } from './share-map'
-import { Q, type TreeData } from './tree'
+import { inRings, Q, type Box, type TreeData } from './tree'
+import { grow, meets, scene as sceneAt, segBox } from './place'
 import { PANES } from './audit'
 
 export const SHARE = { w: 1200, h: 630 }
@@ -24,6 +25,8 @@ const COLUMN = LEFT - 2 * M
 const CROP = { gap: 12, arm: 24, width: 2 }
 // A level is framed at twice the world's step, as the page's camera shows it zoomed in.
 const LEVEL_K = 2
+// The q's cell.
+const QC = 6
 
 // The faces, static cuts in WOFF (fontkit cannot vary a WOFF2 file).
 const file = (p: string) => openSync(createRequire(import.meta.url).resolve(p)) as Font
@@ -111,6 +114,8 @@ export async function shareCard(T: TreeData, w: World, course: string, level: Sh
   const s = sc.fit.s0
   // the window over the map, in the layout's pixels
   let vb: [number, number, number, number]
+  // the card's boxes the map leaves to the q and the title (the home's): no field dot under them
+  let hold: Box[] = []
   let win: [number, number, number, number]
   const [bx0, by0, bx1, by1] = sc.fit.box
   if (level) {
@@ -132,30 +137,58 @@ export async function shareCard(T: TreeData, w: World, course: string, level: Sh
     vb = [Math.round(cx - side / 2), Math.round(cy - side / 2), side, side]
     win = [LEFT, M, SIDE, SIDE]
   } else {
-    // the whole world, as large as the room the course's title leaves
+    // the whole world, as large as it goes without touching the q or the course's title: from the
+    // margins' full height down to the width the title's column leaves; the map may reach into the
+    // column where its own ground is empty
     const pad = 16
     const bw = bx1 - bx0 + 2 * pad
     const bh = by1 - by0 + 2 * pad
-    const ti = homeTitle(course)
-    const room = SHARE.w - 2 * M - Math.max(...ti.lines.map((l) => outline(l, 'serif', ti.size).w)) - GUTTER
-    const k = Math.min(room / bw, SIDE / bh)
     vb = [bx0 - pad, by0 - pad, bw, bh]
-    const ww = Math.round(bw * k)
-    const wh = Math.round(bh * k)
-    win = [SHARE.w - M - ww, M + Math.round((SIDE - wh) / 2), ww, wh]
+    const ti = homeTitle(course)
+    const tw = Math.max(...ti.lines.map((l) => outline(l, 'serif', ti.size).w))
+    hold = [grow([M, M, M + 5 * QC, M + 7 * QC], GUTTER / 2), grow([M, SIDE + M - Math.round(ti.size * 0.75) - (ti.lines.length - 1) * ti.step, M + tw, SIDE + M + Math.round(ti.size * 0.25)], GUTTER / 2)] as Box[]
+    const sc_ = sceneAt(sc.LY, sc.v)
+    const lands = [...sc.LY.lands.values()]
+    // does a box of the card meet anything the map draws, with the window at scale k?
+    const at = (k: number): [number, number, number, number] => {
+      const ww = Math.round(bw * k)
+      const wh = Math.round(bh * k)
+      return [SHARE.w - M - ww, M + Math.round((SIDE - wh) / 2), ww, wh]
+    }
+    const clear = (k: number) => {
+      const w_ = at(k)
+      return hold.every((h) => {
+        const b: Box = [vb[0] + (h[0] - w_[0]) / k, vb[1] + (h[1] - w_[1]) / k, vb[0] + (h[2] - w_[0]) / k, vb[1] + (h[3] - w_[1]) / k]
+        if ([...sc_.plates, ...sc_.ports, ...sc_.qs].some((x) => meets(x.box, b)) || (sc_.q && meets(sc_.q, b))) return false
+        if ([...sc.fit.labels.boxes.values()].some((x) => meets(x, b))) return false
+        if ([...sc_.segs, ...sc_.rims].some((x) => segBox(x.seg[0], x.seg[1], b))) return false
+        return !lands.some((l) => inRings(l.rings, b[0] / s, b[1] / s))
+      })
+    }
+    const kMax = Math.min((SHARE.w - 2 * M) / bw, SIDE / bh)
+    const kMin = Math.min((SHARE.w - 2 * M - tw - GUTTER) / bw, SIDE / bh)
+    let k = kMin
+    for (let t = kMax; t > kMin; t -= 0.005)
+      if (clear(t)) {
+        k = t
+        break
+      }
+    win = at(k)
   }
   let o = `<svg xmlns="http://www.w3.org/2000/svg" width="${SHARE.w}" height="${SHARE.h}" viewBox="0 0 ${SHARE.w} ${SHARE.h}"><rect width="${SHARE.w}" height="${SHARE.h}" fill="${GROUND}"/>`
   o += `<svg x="${win[0]}" y="${win[1]}" width="${win[2]}" height="${win[3]}" viewBox="${vb.join(' ')}" overflow="hidden">${sc.svg({ chosen: level && sc.LY.nodes.has(level.id) ? level.id : null, text: mapText })}</svg>`
-  // crop marks at the window's corners, outside it
+  for (const h of hold) o += `<rect x="${h[0]}" y="${h[1]}" width="${h[2] - h[0]}" height="${h[3] - h[1]}" fill="${GROUND}"/>`
+  // a level's map is a crop: crop marks at the window's corners, outside it. The home's is the
+  // whole world, and stands on the ground as the page's does.
   const { gap, arm, width } = CROP
   const [wx, wy, ww, wh] = win
-  for (const [cx, cy, dx, dy] of [[wx, wy, -1, -1], [wx + ww, wy, 1, -1], [wx, wy + wh, -1, 1], [wx + ww, wy + wh, 1, 1]] as const) {
+  if (level) for (const [cx, cy, dx, dy] of [[wx, wy, -1, -1], [wx + ww, wy, 1, -1], [wx, wy + wh, -1, 1], [wx + ww, wy + wh, 1, 1]] as const) {
     const hx = dx < 0 ? cx - gap - arm : cx + gap
     const vy = dy < 0 ? cy - gap - arm : cy + gap
     o += `<rect x="${hx}" y="${dy < 0 ? cy : cy - width}" width="${arm}" height="${width}" fill="${LINE_STRONG}"/><rect x="${dx < 0 ? cx : cx - width}" y="${vy}" width="${width}" height="${arm}" fill="${LINE_STRONG}"/>`
   }
   // the head: the q and the course's title, as the pages' head carries them
-  const qc = 6
+  const qc = QC
   o += `<path d="${cellsD(Q, M, M, qc)}" fill="${INK}" shape-rendering="crispEdges"/>`
   const foot = M + SIDE
   if (level) {

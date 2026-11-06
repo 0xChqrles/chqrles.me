@@ -318,7 +318,8 @@ translation leaves the original published.
 - **Every page but the 404 unfurls into a share card** (`packages/course/src/lib/share-card.ts`),
   1200 × 630, drawn at build time and named by `og:image` and `twitter:image`
   (`summary_large_image`), by absolute URL. The home's, which `tout` shares, is
-  `/<slug>/share.png`: the q and the course's title beside its whole map. A written card's is
+  `/<slug>/share.png`: the q and the course's title, and the whole map as large as it goes
+  without touching them, reaching over the title's column where its ground is empty. A written card's is
   `/<slug>/<card-id>/share.png`: the q and the course's title, then its region, plate, number
   and title, beside the map framed on its level at twice the world's step, the level chosen
   (open, lifted, its chain lit, the reticle round it); a chapter, off the map, is framed on its
