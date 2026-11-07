@@ -3,7 +3,7 @@
     "titre": "Construire un prouveur",
     "sousTitre": "Sur papier, jusqu’à un petit réseau de neurones, puis FlashProve",
     "court": "Prouveur",
-    "objectif": "preuve-reseau",
+    "objectif": "ce-que-dit-une-preuve",
     "macros": {
       "\\F": "\\mathbb{F}",
       "\\Fp": "\\mathbb{F}_p",
@@ -18,10 +18,6 @@
     }
   },
   "quartiers": [
-    {
-      "id": "chapitres",
-      "nom": "Le cours, dans l'ordre"
-    },
     {
       "id": "nombres",
       "nom": "Les nombres"
@@ -98,7 +94,7 @@
       "id": "prouver-sans-refaire",
       "titre": "Prouver un calcul sans le refaire",
       "court": "1. Prouver sans refaire",
-      "quartier": "chapitres",
+      "quartier": "nombres",
       "chapitre": 1,
       "prerequis": [],
       "notions": [],
@@ -113,11 +109,9 @@
       "id": "nombres",
       "titre": "Des nombres qui ne grandissent pas",
       "court": "2. Les nombres",
-      "quartier": "chapitres",
+      "quartier": "nombres",
       "chapitre": 2,
-      "prerequis": [
-        "prouver-sans-refaire"
-      ],
+      "prerequis": [],
       "notions": [
         "modulo",
         "goldilocks",
@@ -125,17 +119,17 @@
       ],
       "resume": "Le prouveur a besoin de résultats exacts sur des nombres de taille fixe, donc on calcule dans un corps fini : 𝔽₉₇ à la main, Goldilocks dans FlashProve.",
       "complexite": 2,
-      "importance": 5
+      "importance": 5,
+      "col": 2,
+      "rang": 1
     },
     {
       "id": "hasard",
       "titre": "Vérifier au hasard",
       "court": "3. Le hasard",
-      "quartier": "chapitres",
+      "quartier": "hasard",
       "chapitre": 3,
-      "prerequis": [
-        "nombres"
-      ],
+      "prerequis": [],
       "notions": [
         "freivalds",
         "polynomes",
@@ -145,34 +139,34 @@
       ],
       "resume": "Deux calculs différents donnent presque toujours des valeurs différentes en un point tiré au hasard, et c'est l'idée de tout le prouveur.",
       "complexite": 3,
-      "importance": 5
+      "importance": 5,
+      "col": 2,
+      "rang": 2
     },
     {
       "id": "sommes",
       "titre": "Vérifier une somme sans la refaire",
       "court": "4. Les sommes",
-      "quartier": "chapitres",
+      "quartier": "sommes",
       "chapitre": 4,
-      "prerequis": [
-        "hasard"
-      ],
+      "prerequis": [],
       "notions": [
         "multilineaire",
         "sumcheck"
       ],
       "resume": "Le sumcheck vérifie le total du reçu en lisant une seule valeur de chaque colonne.",
       "complexite": 4,
-      "importance": 5
+      "importance": 5,
+      "col": 2,
+      "rang": 3
     },
     {
       "id": "matrices",
       "titre": "Les produits de matrices",
       "court": "5. Les matrices",
-      "quartier": "chapitres",
+      "quartier": "sommes",
       "chapitre": 5,
-      "prerequis": [
-        "sommes"
-      ],
+      "prerequis": [],
       "notions": [
         "virgule-fixe",
         "reseau",
@@ -180,51 +174,51 @@
       ],
       "resume": "On fixe le petit réseau du cours et on vérifie ses produits de matrices sans que le prouveur les écrive.",
       "complexite": 3,
-      "importance": 5
+      "importance": 5,
+      "col": 2,
+      "rang": 4
     },
     {
       "id": "arrondir",
       "titre": "Arrondir et comparer",
       "court": "6. Arrondir",
-      "quartier": "chapitres",
+      "quartier": "tables",
       "chapitre": 6,
-      "prerequis": [
-        "matrices"
-      ],
+      "prerequis": [],
       "notions": [
         "intervalles",
         "argmax"
       ],
       "resume": "L'arrondi, l'activation et l'argmax deviennent des affirmations « cette valeur est dans cette table ».",
       "complexite": 3,
-      "importance": 4
+      "importance": 5,
+      "col": 2,
+      "rang": 5
     },
     {
       "id": "tables",
       "titre": "Les tables",
       "court": "7. Les tables",
-      "quartier": "chapitres",
+      "quartier": "tables",
       "chapitre": 7,
-      "prerequis": [
-        "arrondir"
-      ],
+      "prerequis": [],
       "notions": [
         "lookups",
         "gkr"
       ],
       "resume": "On prouve qu'une liste de clés est dans une table par une égalité de produits, vérifiée avec des sumchecks.",
       "complexite": 4,
-      "importance": 5
+      "importance": 5,
+      "col": 2,
+      "rang": 6
     },
     {
       "id": "engager",
       "titre": "S'engager sur les poids",
       "court": "8. S'engager",
-      "quartier": "chapitres",
+      "quartier": "engagement",
       "chapitre": 8,
-      "prerequis": [
-        "tables"
-      ],
+      "prerequis": [],
       "notions": [
         "domaine",
         "reed-solomon",
@@ -233,17 +227,17 @@
       ],
       "resume": "Le prouveur se lie à ses poids par une racine, et chaque lecture du vérifieur se relie à cette racine en ouvrant quelques colonnes.",
       "complexite": 4,
-      "importance": 5
+      "importance": 5,
+      "col": 2,
+      "rang": 7
     },
     {
       "id": "proximite",
       "titre": "Le test de proximité",
       "court": "9. La proximité",
-      "quartier": "chapitres",
+      "quartier": "proximite",
       "chapitre": 9,
-      "prerequis": [
-        "engager"
-      ],
+      "prerequis": [],
       "notions": [
         "distance",
         "hors-domaine",
@@ -251,17 +245,17 @@
       ],
       "resume": "Un test qui vérifie, en lisant peu, que les lignes engagées sont proches de vrais mots du code.",
       "complexite": 5,
-      "importance": 5
+      "importance": 5,
+      "col": 2,
+      "rang": 8
     },
     {
       "id": "prouveur-complet",
       "titre": "Le prouveur complet",
       "court": "10. Le prouveur",
-      "quartier": "chapitres",
+      "quartier": "preuve",
       "chapitre": 10,
-      "prerequis": [
-        "proximite"
-      ],
+      "prerequis": [],
       "notions": [
         "fiat-shamir",
         "preuve-reseau",
@@ -269,34 +263,34 @@
       ],
       "resume": "On remplace le vérifieur par une chaîne de hachage, on assemble la preuve du réseau et on la compte en bits.",
       "complexite": 4,
-      "importance": 5
+      "importance": 5,
+      "col": 2,
+      "rang": 9
     },
     {
       "id": "cacher",
       "titre": "Cacher les poids",
       "court": "11. Cacher",
-      "quartier": "chapitres",
+      "quartier": "cacher",
       "chapitre": 11,
-      "prerequis": [
-        "prouveur-complet"
-      ],
+      "prerequis": [],
       "notions": [
         "zero-knowledge",
         "sumcheck-masque"
       ],
       "resume": "La preuve laisse lire les poids, donc on ajoute les masques qui la rendent zero-knowledge, et on compte ce qu'ils coûtent.",
       "complexite": 4,
-      "importance": 4
+      "importance": 5,
+      "col": 2,
+      "rang": 10
     },
     {
       "id": "flashprove-modele",
       "titre": "FlashProve : le modèle entier",
       "court": "12. Le modèle",
-      "quartier": "chapitres",
+      "quartier": "flashprove",
       "chapitre": 12,
-      "prerequis": [
-        "cacher"
-      ],
+      "prerequis": [],
       "notions": [
         "modele-entier",
         "attention",
@@ -304,39 +298,41 @@
       ],
       "resume": "On lit comment FlashProve écrit Llama 4 Maverick avec des entiers et le prouve en 25 segments.",
       "complexite": 4,
-      "importance": 4
+      "importance": 5,
+      "col": 2,
+      "rang": 11
     },
     {
       "id": "flashprove-lots",
       "titre": "FlashProve : servir des lots",
       "court": "13. Les lots",
-      "quartier": "chapitres",
+      "quartier": "flashprove",
       "chapitre": 13,
-      "prerequis": [
-        "flashprove-modele"
-      ],
+      "prerequis": [],
       "notions": [
         "lots"
       ],
       "resume": "On lit comment FlashProve sert 64 requêtes avec une seule ouverture des poids, et ce que cela coûte.",
       "complexite": 3,
-      "importance": 4
+      "importance": 5,
+      "col": 2,
+      "rang": 12
     },
     {
       "id": "ce-que-dit-une-preuve",
       "titre": "Ce que dit une preuve",
       "court": "14. Ce que dit une preuve",
-      "quartier": "chapitres",
+      "quartier": "flashprove",
       "chapitre": 14,
-      "prerequis": [
-        "flashprove-lots"
-      ],
+      "prerequis": [],
       "notions": [
         "politiques"
       ],
       "resume": "Ce que FlashProve démontre, ce qu'il ne démontre pas, et ce que le client doit vérifier lui-même.",
       "complexite": 2,
-      "importance": 4
+      "importance": 5,
+      "col": 2,
+      "rang": 13
     },
     {
       "id": "modulo",
@@ -347,7 +343,7 @@
       "resume": "Calculer sur des restes modulo un nombre premier, où tout nombre non nul a un inverse.",
       "complexite": 1,
       "importance": 4,
-      "col": 1,
+      "col": 3,
       "rang": 1,
       "cote": "d"
     },
@@ -362,8 +358,8 @@
       "resume": "Le corps de FlashProve, modulo 2⁶⁴ − 2³² + 1, où un produit se réduit sans division.",
       "complexite": 3,
       "importance": 4,
-      "col": 0,
-      "rang": 3,
+      "col": 4,
+      "rang": 1,
       "cote": "d"
     },
     {
@@ -377,23 +373,23 @@
       "resume": "Ce que le corps oublie des entiers, et quand une égalité modulo p redevient une égalité entre entiers.",
       "complexite": 2,
       "importance": 4,
-      "col": 1,
-      "rang": 2,
+      "col": 3,
+      "rang": 0,
       "cote": "g"
     },
     {
       "id": "extension",
       "titre": "Le corps des défis",
       "court": "Extension",
-      "quartier": "nombres",
+      "quartier": "hasard",
       "prerequis": [
         "schwartz-zippel"
       ],
       "resume": "Un corps de p³ éléments où tirer les défis, pour que les tests au hasard se trompent rarement.",
       "complexite": 3,
       "importance": 4,
-      "col": 1,
-      "rang": 3,
+      "col": 0,
+      "rang": 1,
       "cote": "d"
     },
     {
@@ -408,7 +404,7 @@
       "complexite": 2,
       "importance": 4,
       "col": 3,
-      "rang": 1,
+      "rang": 2,
       "cote": "d"
     },
     {
@@ -422,7 +418,7 @@
       "resume": "Un objet qu'on interroge en n'importe quel point, et qui n'a jamais plus de racines que son degré.",
       "complexite": 2,
       "importance": 5,
-      "col": 2,
+      "col": 1,
       "rang": 2,
       "cote": "d"
     },
@@ -437,8 +433,8 @@
       "resume": "Deux polynômes différents coïncident en peu de points, donc un point tiré au hasard les sépare presque toujours.",
       "complexite": 3,
       "importance": 5,
-      "col": 2,
-      "rang": 3,
+      "col": 0,
+      "rang": 2,
       "cote": "g"
     },
     {
@@ -452,8 +448,8 @@
       "resume": "Résumer un vecteur en une valeur, et regrouper beaucoup d'affirmations en une seule avec les puissances d'un défi.",
       "complexite": 1,
       "importance": 3,
-      "col": 3,
-      "rang": 2,
+      "col": 0,
+      "rang": 3,
       "cote": "d"
     },
     {
@@ -468,8 +464,8 @@
       "resume": "Lire une colonne de 2ⁿ valeurs en un point qui n'est pas une de ses lignes.",
       "complexite": 3,
       "importance": 5,
-      "col": 4,
-      "rang": 4,
+      "col": 3,
+      "rang": 3,
       "cote": "g"
     },
     {
@@ -484,8 +480,8 @@
       "resume": "Vérifier une somme sur 2ⁿ termes en n tours, en évaluant la fonction en un seul point.",
       "complexite": 4,
       "importance": 5,
-      "col": 3,
-      "rang": 4,
+      "col": 4,
+      "rang": 3,
       "cote": "bd"
     },
     {
@@ -501,7 +497,7 @@
       "resume": "Vérifier un produit de matrices par un sumcheck sur l'indice intérieur, sans écrire le produit.",
       "complexite": 4,
       "importance": 5,
-      "col": 2,
+      "col": 1,
       "rang": 4,
       "cote": "d"
     },
@@ -509,7 +505,7 @@
       "id": "gkr",
       "titre": "GKR : prouver un produit",
       "court": "GKR",
-      "quartier": "sommes",
+      "quartier": "tables",
       "prerequis": [
         "sumcheck",
         "lookups"
@@ -517,22 +513,22 @@
       "resume": "Prouver le produit de beaucoup de valeurs cachées, étage par étage, avec un sumcheck par étage.",
       "complexite": 5,
       "importance": 4,
-      "col": 2,
-      "rang": 5,
+      "col": 0,
+      "rang": 6,
       "cote": "d"
     },
     {
       "id": "virgule-fixe",
       "titre": "Les nombres à virgule fixe",
       "court": "Virgule fixe",
-      "quartier": "tables",
+      "quartier": "sommes",
       "prerequis": [
         "entiers-signes"
       ],
       "resume": "Écrire les nombres réels d'un réseau avec des entiers, et arrondir après chaque produit.",
       "complexite": 2,
       "importance": 3,
-      "col": 5,
+      "col": 3,
       "rang": 4,
       "cote": "d"
     },
@@ -540,7 +536,7 @@
       "id": "reseau",
       "titre": "Le petit réseau",
       "court": "Le réseau",
-      "quartier": "tables",
+      "quartier": "sommes",
       "prerequis": [
         "virgule-fixe"
       ],
@@ -548,7 +544,7 @@
       "complexite": 2,
       "importance": 5,
       "col": 4,
-      "rang": 5,
+      "rang": 4,
       "cote": "g"
     },
     {
@@ -562,7 +558,7 @@
       "resume": "Prouver une division arrondie ou une racine carrée par un reste et des écarts qu'on montre positifs.",
       "complexite": 3,
       "importance": 4,
-      "col": 5,
+      "col": 1,
       "rang": 5,
       "cote": "bd"
     },
@@ -577,8 +573,8 @@
       "resume": "Prouver qu'une classe est la première position du maximum, avec des marges positives.",
       "complexite": 2,
       "importance": 4,
-      "col": 4,
-      "rang": 7,
+      "col": 0,
+      "rang": 5,
       "cote": "d"
     },
     {
@@ -592,7 +588,7 @@
       "resume": "Prouver qu'une liste de clés est dans une table par une égalité de deux produits en un point aléatoire.",
       "complexite": 4,
       "importance": 5,
-      "col": 4,
+      "col": 1,
       "rang": 6,
       "cote": "d"
     },
@@ -608,8 +604,8 @@
       "resume": "Les points où un polynôme s'évalue en n log n opérations, et pourquoi Goldilocks en a 2³².",
       "complexite": 3,
       "importance": 3,
-      "col": 0,
-      "rang": 4,
+      "col": 3,
+      "rang": 7,
       "cote": "g"
     },
     {
@@ -623,8 +619,8 @@
       "resume": "Encoder un message pour que deux messages différents diffèrent en presque toutes les positions.",
       "complexite": 3,
       "importance": 5,
-      "col": 0,
-      "rang": 5,
+      "col": 4,
+      "rang": 7,
       "cote": "bd"
     },
     {
@@ -636,7 +632,7 @@
       "resume": "Une empreinte de 32 octets qui fixe toute une liste, et dont on peut ouvrir une valeur à la fois.",
       "complexite": 2,
       "importance": 4,
-      "col": 0,
+      "col": 3,
       "rang": 6,
       "cote": "bd"
     },
@@ -653,7 +649,7 @@
       "resume": "Une table de lignes encodées, hachée par colonnes, sur laquelle une affirmation se vérifie en ouvrant quelques colonnes.",
       "complexite": 4,
       "importance": 5,
-      "col": 1,
+      "col": 4,
       "rang": 6,
       "cote": "d"
     },
@@ -669,7 +665,7 @@
       "complexite": 3,
       "importance": 4,
       "col": 1,
-      "rang": 5,
+      "rang": 7,
       "cote": "bd"
     },
     {
@@ -686,8 +682,8 @@
       "resume": "Une question posée juste après l'engagement qui fixe un seul mot du code parmi ceux qui sont proches.",
       "complexite": 4,
       "importance": 3,
-      "col": 2,
-      "rang": 6,
+      "col": 0,
+      "rang": 7,
       "cote": "d"
     },
     {
@@ -704,8 +700,8 @@
       "resume": "Plier les lignes engagées par un sumcheck, changer de code, puis envoyer le dernier message.",
       "complexite": 5,
       "importance": 5,
-      "col": 2,
-      "rang": 7,
+      "col": 0,
+      "rang": 8,
       "cote": "d"
     },
     {
@@ -719,7 +715,7 @@
       "resume": "Tirer chaque défi en hachant tout ce que le prouveur a envoyé, pour que la preuve se vérifie seule.",
       "complexite": 2,
       "importance": 4,
-      "col": 2,
+      "col": 3,
       "rang": 9,
       "cote": "d"
     },
@@ -740,8 +736,8 @@
       "resume": "Toutes les pièces assemblées sur le réseau, de l'engagement des poids à la preuve acceptée.",
       "complexite": 4,
       "importance": 5,
-      "col": 2,
-      "rang": 10,
+      "col": 4,
+      "rang": 9,
       "cote": "d"
     },
     {
@@ -759,7 +755,7 @@
       "resume": "La probabilité qu'une fausse preuve passe, tour par tour, et ce que valent les bits que FlashProve annonce.",
       "complexite": 4,
       "importance": 4,
-      "col": 2,
+      "col": 3,
       "rang": 8,
       "cote": "d"
     },
@@ -776,7 +772,7 @@
       "complexite": 4,
       "importance": 4,
       "col": 1,
-      "rang": 7,
+      "rang": 10,
       "cote": "bd"
     },
     {
@@ -792,7 +788,7 @@
       "complexite": 4,
       "importance": 3,
       "col": 1,
-      "rang": 8,
+      "rang": 9,
       "cote": "g"
     },
     {
@@ -807,8 +803,8 @@
       "resume": "Llama 4 Maverick écrit avec des entiers : limbes, norme, routeur, et comment chaque opération se prouve.",
       "complexite": 3,
       "importance": 4,
-      "col": 5,
-      "rang": 8,
+      "col": 3,
+      "rang": 11,
       "cote": "g"
     },
     {
@@ -824,8 +820,8 @@
       "resume": "Scores, maximum, exponentielle par table et division arrondie : l'attention de FlashProve.",
       "complexite": 5,
       "importance": 4,
-      "col": 5,
-      "rang": 7,
+      "col": 4,
+      "rang": 11,
       "cote": "g"
     },
     {
@@ -840,8 +836,8 @@
       "resume": "Borner toutes les cellules à la fois par des combinaisons aléatoires de coefficients −1, 0 et 1.",
       "complexite": 4,
       "importance": 3,
-      "col": 5,
-      "rang": 6,
+      "col": 1,
+      "rang": 11,
       "cote": "d"
     },
     {
@@ -861,8 +857,8 @@
       "resume": "Servir 64 requêtes avec une seule ouverture de la table des poids, grâce à l'idée de Freivalds.",
       "complexite": 4,
       "importance": 4,
-      "col": 4,
-      "rang": 9,
+      "col": 3,
+      "rang": 12,
       "cote": "d"
     },
     {
@@ -877,33 +873,26 @@
       "resume": "Exact match ou écart plafonné : ce qu'un token accepté garantit selon la politique.",
       "complexite": 2,
       "importance": 4,
-      "col": 5,
-      "rang": 10,
+      "col": 1,
+      "rang": 13,
       "cote": "d"
     }
   ],
   "aretes": [
     {
       "a": "prouver-sans-refaire",
+      "b": "nombres",
+      "ligne": "nombres"
+    },
+    {
+      "a": "nombres",
       "b": "modulo",
       "ligne": "nombres"
     },
     {
-      "a": "prouver-sans-refaire",
-      "b": "merkle",
-      "ligne": "engagement",
-      "coupee": true
-    },
-    {
       "a": "modulo",
       "b": "goldilocks",
-      "ligne": "nombres",
-      "via": [
-        [
-          0,
-          2
-        ]
-      ]
+      "ligne": "nombres"
     },
     {
       "a": "modulo",
@@ -911,17 +900,17 @@
       "ligne": "nombres"
     },
     {
-      "a": "schwartz-zippel",
-      "b": "extension",
-      "ligne": "nombres"
+      "a": "nombres",
+      "b": "hasard",
+      "ligne": "hasard"
     },
     {
-      "a": "modulo",
+      "a": "hasard",
       "b": "freivalds",
       "ligne": "hasard"
     },
     {
-      "a": "modulo",
+      "a": "hasard",
       "b": "polynomes",
       "ligne": "hasard"
     },
@@ -937,95 +926,81 @@
     },
     {
       "a": "schwartz-zippel",
+      "b": "extension",
+      "ligne": "hasard"
+    },
+    {
+      "a": "hasard",
+      "b": "sommes",
+      "ligne": "sommes"
+    },
+    {
+      "a": "sommes",
       "b": "multilineaire",
-      "ligne": "sommes",
-      "via": [
-        [
-          3,
-          3
-        ]
-      ]
+      "ligne": "sommes"
     },
     {
       "a": "multilineaire",
       "b": "sumcheck",
-      "ligne": "sommes",
-      "coupee": true
-    },
-    {
-      "a": "schwartz-zippel",
-      "b": "sumcheck",
       "ligne": "sommes"
     },
     {
-      "a": "sumcheck",
-      "b": "sumcheck-matrices",
+      "a": "sommes",
+      "b": "matrices",
       "ligne": "sommes"
     },
     {
-      "a": "freivalds",
-      "b": "sumcheck-matrices",
-      "ligne": "sommes",
-      "coupee": true
-    },
-    {
-      "a": "horner",
-      "b": "sumcheck-matrices",
-      "ligne": "sommes",
-      "coupee": true
-    },
-    {
-      "a": "sumcheck",
-      "b": "gkr",
-      "ligne": "sommes"
-    },
-    {
-      "a": "lookups",
-      "b": "gkr",
-      "ligne": "sommes",
-      "via": [
-        [
-          3,
-          5
-        ]
-      ]
-    },
-    {
-      "a": "entiers-signes",
+      "a": "matrices",
       "b": "virgule-fixe",
-      "ligne": "tables",
-      "coupee": true
+      "ligne": "sommes"
     },
     {
       "a": "virgule-fixe",
       "b": "reseau",
+      "ligne": "sommes"
+    },
+    {
+      "a": "matrices",
+      "b": "sumcheck-matrices",
+      "ligne": "sommes"
+    },
+    {
+      "a": "matrices",
+      "b": "arrondir",
       "ligne": "tables"
     },
     {
-      "a": "virgule-fixe",
+      "a": "arrondir",
       "b": "intervalles",
       "ligne": "tables"
     },
     {
       "a": "intervalles",
       "b": "argmax",
-      "ligne": "tables",
-      "coupee": true
+      "ligne": "tables"
     },
     {
-      "a": "schwartz-zippel",
+      "a": "arrondir",
+      "b": "tables",
+      "ligne": "tables"
+    },
+    {
+      "a": "tables",
       "b": "lookups",
-      "ligne": "tables",
-      "coupee": true
+      "ligne": "tables"
     },
     {
-      "a": "polynomes",
-      "b": "domaine",
-      "ligne": "engagement",
-      "coupee": true
+      "a": "lookups",
+      "b": "gkr",
+      "ligne": "tables"
     },
     {
-      "a": "goldilocks",
+      "a": "tables",
+      "b": "engager",
+      "ligne": "engagement"
+    },
+    {
+      "a": "engager",
       "b": "domaine",
       "ligne": "engagement"
     },
@@ -1035,6 +1010,11 @@
       "ligne": "engagement"
     },
     {
+      "a": "engager",
+      "b": "merkle",
+      "ligne": "engagement"
+    },
+    {
       "a": "reed-solomon",
       "b": "engagement-colonnes",
       "ligne": "engagement"
@@ -1045,13 +1025,12 @@
       "ligne": "engagement"
     },
     {
-      "a": "multilineaire",
-      "b": "engagement-colonnes",
-      "ligne": "engagement",
-      "coupee": true
+      "a": "engager",
+      "b": "proximite",
+      "ligne": "engagement"
     },
     {
-      "a": "reed-solomon",
+      "a": "proximite",
       "b": "distance",
       "ligne": "engagement"
     },
@@ -1061,84 +1040,19 @@
       "ligne": "engagement"
     },
     {
-      "a": "multilineaire",
-      "b": "hors-domaine",
-      "ligne": "engagement",
-      "coupee": true
-    },
-    {
-      "a": "extension",
-      "b": "hors-domaine",
-      "ligne": "engagement",
-      "coupee": true
-    },
-    {
-      "a": "engagement-colonnes",
-      "b": "test-proximite",
-      "ligne": "engagement"
-    },
-    {
       "a": "hors-domaine",
       "b": "test-proximite",
       "ligne": "engagement"
     },
     {
-      "a": "sumcheck",
-      "b": "test-proximite",
-      "ligne": "engagement",
-      "via": [
-        [
-          3,
-          6
-        ]
-      ]
+      "a": "proximite",
+      "b": "prouveur-complet",
+      "ligne": "preuve"
     },
     {
-      "a": "horner",
-      "b": "test-proximite",
-      "ligne": "engagement",
-      "coupee": true
-    },
-    {
-      "a": "merkle",
+      "a": "prouveur-complet",
       "b": "fiat-shamir",
-      "ligne": "preuve",
-      "coupee": true
-    },
-    {
-      "a": "reseau",
-      "b": "preuve-reseau",
-      "ligne": "preuve",
-      "coupee": true
-    },
-    {
-      "a": "sumcheck-matrices",
-      "b": "preuve-reseau",
-      "ligne": "preuve",
-      "coupee": true
-    },
-    {
-      "a": "argmax",
-      "b": "preuve-reseau",
-      "ligne": "preuve",
-      "via": [
-        [
-          4,
-          8
-        ]
-      ]
-    },
-    {
-      "a": "gkr",
-      "b": "preuve-reseau",
-      "ligne": "preuve",
-      "coupee": true
-    },
-    {
-      "a": "test-proximite",
-      "b": "preuve-reseau",
-      "ligne": "preuve",
-      "coupee": true
+      "ligne": "preuve"
     },
     {
       "a": "fiat-shamir",
@@ -1146,36 +1060,19 @@
       "ligne": "preuve"
     },
     {
-      "a": "test-proximite",
-      "b": "securite",
-      "ligne": "preuve",
-      "via": [
-        [
-          3,
-          7
-        ]
-      ]
-    },
-    {
       "a": "fiat-shamir",
       "b": "securite",
       "ligne": "preuve"
     },
     {
-      "a": "lookups",
-      "b": "securite",
-      "ligne": "preuve"
-    },
-    {
-      "a": "engagement-colonnes",
-      "b": "zero-knowledge",
+      "a": "prouveur-complet",
+      "b": "cacher",
       "ligne": "cacher"
     },
     {
-      "a": "test-proximite",
+      "a": "cacher",
       "b": "zero-knowledge",
-      "ligne": "cacher",
-      "coupee": true
+      "ligne": "cacher"
     },
     {
       "a": "zero-knowledge",
@@ -1183,7 +1080,12 @@
       "ligne": "cacher"
     },
     {
-      "a": "argmax",
+      "a": "cacher",
+      "b": "flashprove-modele",
+      "ligne": "flashprove"
+    },
+    {
+      "a": "flashprove-modele",
       "b": "modele-entier",
       "ligne": "flashprove"
     },
@@ -1193,51 +1095,27 @@
       "ligne": "flashprove"
     },
     {
-      "a": "sumcheck-matrices",
-      "b": "attention",
-      "ligne": "flashprove",
-      "coupee": true
-    },
-    {
-      "a": "lookups",
-      "b": "attention",
-      "ligne": "flashprove"
-    },
-    {
-      "a": "entiers-signes",
-      "b": "test-petitesse",
-      "ligne": "flashprove",
-      "coupee": true
-    },
-    {
-      "a": "lookups",
+      "a": "flashprove-modele",
       "b": "test-petitesse",
       "ligne": "flashprove"
     },
     {
-      "a": "freivalds",
-      "b": "lots",
-      "ligne": "flashprove",
-      "coupee": true
+      "a": "flashprove-modele",
+      "b": "flashprove-lots",
+      "ligne": "flashprove"
     },
     {
-      "a": "zero-knowledge",
-      "b": "lots",
-      "ligne": "flashprove",
-      "coupee": true
-    },
-    {
-      "a": "test-proximite",
+      "a": "flashprove-lots",
       "b": "lots",
       "ligne": "flashprove"
     },
     {
-      "a": "fiat-shamir",
-      "b": "lots",
+      "a": "flashprove-lots",
+      "b": "ce-que-dit-une-preuve",
       "ligne": "flashprove"
     },
     {
-      "a": "modele-entier",
+      "a": "ce-que-dit-une-preuve",
       "b": "politiques",
       "ligne": "flashprove"
     }

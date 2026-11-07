@@ -1,7 +1,7 @@
 // THE RENDERER'S PRIMITIVES, in device pixels (dp). The canvas transform is the identity: every
 // position and width is rounded to whole dp here, so lines land on dp centres and icon cells on
 // whole dp at rest. Strokes are 1, 2 or 3 CSS px, round(w × DPR) dp; the camera never scales one.
-import { cells, DART } from '../../lib/glyphs'
+import { cells, DART, LOCK, lockAt } from '../../lib/glyphs'
 import { GROUND, INK, rgba } from '../../lib/palette'
 import { Q, type Pt } from '../../lib/tree'
 
@@ -128,6 +128,12 @@ export function blit(ctx: CanvasRenderingContext2D, cv: HTMLCanvasElement, x: nu
 export function icon(ctx: CanvasRenderingContext2D, id: string, rows: string[], cx: number, cy: number, c: number, col: string, a = 1) {
   const cv = sprite('i:' + id, rows, col, c)
   blit(ctx, cv, cx - Math.floor(cv.width / 2), cy - Math.floor(cv.height / 2), a)
+}
+// The padlock a locked plate carries (lib/glyphs.ts), at c dp a cell, over the lower right of a
+// plate of inner flat Fi dp centred on (cx, cy), keylined by one cell in what it stands on.
+export function lock(ctx: CanvasRenderingContext2D, cx: number, cy: number, Fi: number, c: number, col: string, key: string) {
+  const t = lockAt(Fi, c)
+  blit(ctx, sprite('lock', LOCK, col, c, c, { col: key, w: c }), cx + t - c, cy + t - c)
 }
 // The q: its tail stands on (x, foot) dp, the stem continuing the tail down to the plate. An
 // actor's keyline is 2 px in the ground (L4), never a grey halo.

@@ -1,6 +1,7 @@
 // ONE ICON FAMILY: every glyph is cells on a square grid, drawn at a whole number of device
 // pixels a cell. Level icons are 11 × 11 (icones.json), the HUD's glyphs 7 × 7 (here), the q 5 × 7
 // (the mark). A glyph follows the level icons' rules: solid masses, no lone pixel, one ink.
+import { runs } from './pixels'
 import { Q, type Pt } from './tree'
 
 export const GLYPH: Record<string, string[]> = {
@@ -15,6 +16,8 @@ export const GLYPH: Record<string, string[]> = {
   flag: ['##.....', '######.', '######.', '##.....', '##.....', '##.....', '##.....'],
   chapters: ['#######', '#######', '.......', '#######', '#######', '.......', '#######'],
   map: ['###.#..', '#.###.#', '#.#.###', '#.#.#.#', '###.#.#', '..###.#', '....###'],
+  // a closed padlock: the mark a locked plate carries
+  lock: ['..###..', '.#...#.', '.#...#.', '#######', '###.###', '###.###', '#######'],
 }
 export const cells = (rows: readonly string[]): Pt[] => rows.flatMap((r, y) => [...r].flatMap((c, x) => (c === '#' ? [[x, y] as Pt] : [])))
 // The eight turns of the dart: 0 = east, then clockwise in 45° steps (screen y down). Odd turns
@@ -26,6 +29,21 @@ const rot = (p: Pt[], n: number): Pt[] =>
     return [a + 3, b + 3] as Pt
   })
 export const DART: Pt[][] = Array.from({ length: 8 }, (_, d) => rot(cells(d % 2 ? GLYPH.southeast! : GLYPH.east!), Math.floor(d / 2)))
+
+// THE LOCK on a locked plate (the map's, a mini node's, a share card's): the padlock at half the
+// icon's cell (one at the least), wholly inside the plate's lower-right face, keylined by one of
+// its cells in the plate's fill, so it cuts the icon it stands over and never meets the frame.
+export const LOCK = GLYPH.lock!
+export const lockCell = (cell: number) => Math.max(1, Math.floor(cell / 2))
+// Its box's top-left corner, from the plate's centre (on both axes), for a plate inner flat F.
+export const lockAt = (F: number, c: number) => Math.floor(F / 2 / Math.SQRT2 - 7 * c - c)
+// Its keyline: the padlock's cells grown by one, from (-1, -1).
+export const LOCK_KEY: Pt[] = (() => {
+  const own = new Set(cells(LOCK).map(([x, y]) => `${x},${y}`))
+  const out: Pt[] = []
+  for (let y = -1; y <= 7; y++) for (let x = -1; x <= 7; x++) if ([-1, 0, 1].some((a) => [-1, 0, 1].some((b) => own.has(`${x + a},${y + b}`)))) out.push([x, y])
+  return out
+})()
 
 // One path of runs (a row's consecutive cells as one rectangle): no seams at a fractional ratio.
 export function runsPath(rows: readonly string[]): string {
@@ -71,5 +89,9 @@ export function miniNode(rows: readonly string[] | null, hue: number, etat: stri
   const j = 4.5
   const kj = Math.round(((px - 2 * j) / 2) * (2 - Math.SQRT2) * 10) / 10
   const stamp = `${j + kj},${j} ${px - j - kj},${j} ${px - j},${j + kj} ${px - j},${px - j - kj} ${px - j - kj},${px - j} ${j + kj},${px - j} ${j},${px - j - kj} ${j},${j + kj}`
-  return `<svg class="mn h${hue} e-${etat}" width="${px}" height="${px}" viewBox="0 0 ${px} ${px}" aria-hidden="true"><polygon class="mn-f" points="${pts}"/><polygon class="mn-p" points="${inner}"/><polygon class="mn-g" points="${lowerOct(px, i, fill)}"/><path class="mn-i" transform="translate(${off} ${off}) scale(${c})" d="${runsPath(g)}"/><polygon class="mn-k" points="${stamp}" pathLength="1"/></svg>`
+  // locked: the padlock over the icon's lower right (CSS shows it)
+  const lc = lockCell(c)
+  const lo = px / 2 + lockAt(px - 2 * i, lc)
+  const lock = `<g class="mn-l" transform="translate(${lo} ${lo}) scale(${lc})"><path class="mn-lk" d="${runs(LOCK_KEY.map(([x, y]) => `${x},${y}`))}"/><path class="mn-lp" d="${runsPath(LOCK)}"/></g>`
+  return `<svg class="mn h${hue} e-${etat}" width="${px}" height="${px}" viewBox="0 0 ${px} ${px}" aria-hidden="true"><polygon class="mn-f" points="${pts}"/><polygon class="mn-p" points="${inner}"/><polygon class="mn-g" points="${lowerOct(px, i, fill)}"/><path class="mn-i" transform="translate(${off} ${off}) scale(${c})" d="${runsPath(g)}"/>${lock}<polygon class="mn-k" points="${stamp}" pathLength="1"/></svg>`
 }

@@ -31,6 +31,13 @@ export const NEUTRAL_DE = 0.12
 // groove reads as its region's at 1×, never as a grey.
 export const WIRE_CHROMA = 0.06
 
+// THE MAIN LINE (lib/place.ts, `trackOf`): one track in the HUD's own greys, never a region's.
+// Ahead, its bed the HUD's strong line (two value steps over the ground, so the route reads on a
+// first visit) with a 1-px rail each side; travelled (up to the furthest open chapter), the band
+// lit. A station's plaque is the bed under it, its number in the text (in the ground, lit).
+export const TRACK_BED = LINE_STRONG
+export const TRACK_RAIL = '#8b86a9'
+export const TRACK_LIT = '#c4c0d6'
 const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
 const toHex = (c: number[]) => '#' + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('')
 // a mixed into b by t (t = 0 is a, t = 1 is b).
@@ -67,7 +74,7 @@ export type Tone = {
   ink: string // marks: lit grooves, cleared plates, frames of readable nodes, corner marks
   wire: string // a groove's rails inside its region; its land's rim
   core: string // an unlit groove's channel
-  rim: string // frames at rest (soft, front)
+  rim: string // frames at rest (locked, front)
   plate: string // a readable node's fill
   hi: string // its bevel's lit faces
   shade: string // its bevel's shaded faces
@@ -119,6 +126,11 @@ export const periph = (h: string) => {
   return fromLab([Math.max(oklab(GROUND)[0], L - 0.07), a * 0.6, b * 0.6])
 }
 export const TONES: Tone[] = INKS.map((i) => toneOf(i))
+// A PLATE AT REST (locked, ahead of the reader, in the fog): a chapter's frame, plate and socket
+// frame as its tone gives them; a notion's a value step under them, so the chapters stand out of
+// their branches before anything is read.
+export const restOf = (t: Tone, chap: boolean): { rim: string; plate: string; sock: string } =>
+  chap ? { rim: t.rim, plate: t.plate, sock: t.sock } : { rim: t.sock, plate: t.shade, sock: mix(GROUND, t.ink, 0.24) }
 export const PERIPH: Tone[] = TONES.map((t) => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, periph(v)])) as Tone)
 
 // Every contrast a tone must hold.
@@ -140,6 +152,14 @@ export function paletteFaults(): string[] {
     if (d < NEUTRAL_DE) out.push(`region h${i}: its wire stands ${d.toFixed(3)} from the neutral groove (${NEUTRAL_DE} at least)`)
     if (chroma(t.wire) < WIRE_CHROMA) out.push(`region h${i}: its wire has a chroma of ${chroma(t.wire).toFixed(3)} (${WIRE_CHROMA} at least)`)
   })
+  const tc = (what: string, a: string, b: string, least: number) => {
+    const r = contrast(a, b)
+    if (r < least) out.push(`the main line: ${what} stands at ${r.toFixed(2)}:1 (${least}:1 at least)`)
+  }
+  tc('a station number, on its plaque ahead', TEXT, TRACK_BED, 4.5)
+  tc('a station number, on its lit plaque', GROUND, TRACK_LIT, 4.5)
+  tc('the lit track, against the track ahead', TRACK_LIT, TRACK_BED, 4.5)
+  tc('the rail, on the ground', TRACK_RAIL, GROUND, 3)
   if (chroma(NEUTRAL) > NEUTRAL_CHROMA) out.push(`the neutral groove (${NEUTRAL}) has a chroma of ${chroma(NEUTRAL).toFixed(3)} (${NEUTRAL_CHROMA} at most)`)
   if (contrast(NEUTRAL, GROUND) < 3) out.push(`the neutral groove stands at ${contrast(NEUTRAL, GROUND).toFixed(2)}:1 on the ground (3:1 at least)`)
   if (contrast(INK, NEUTRAL) < 3) out.push(`an open neutral groove (the ink) stands at ${contrast(INK, NEUTRAL).toFixed(2)}:1 against a closed one (3:1 at least)`)
@@ -147,7 +167,7 @@ export function paletteFaults(): string[] {
 }
 
 // The HUD's region tokens, one rule per region: its ink, a lighter ink for hover, its wire, plate,
-// rim, soft plate, fog icon and tint.
+// rim, locked plate, fog icon and tint.
 export function paletteCss(): string {
   return (
     "/* The HUD's region tokens, mixed from each region's ink at build time (lib/palette.ts). */\n" +

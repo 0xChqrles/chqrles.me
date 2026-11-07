@@ -8,7 +8,7 @@ import { openSync, type Font } from 'fontkit'
 import { createRequire } from 'node:module'
 import sharp from 'sharp'
 import type { World } from './game'
-import { cells, GLYPH } from './glyphs'
+import { cells } from './glyphs'
 import { FACE, type Face } from './metrics'
 import { GROUND, INK, LINE_STRONG, mix, SOCKET, TONES } from './palette'
 import { mapScene, type MapScene } from './share-map'
@@ -36,6 +36,7 @@ const FONTS = {
   sans500: file('@fontsource/instrument-sans/files/instrument-sans-latin-500-normal.woff'),
   sans600: file('@fontsource/instrument-sans/files/instrument-sans-latin-600-normal.woff'),
   mono: file('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff'),
+  monoBold: file('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff'),
 }
 type FontName = keyof typeof FONTS
 
@@ -58,7 +59,8 @@ function outline(t: string, font: FontName, size: number, track = 0): { d: strin
   return { d, w: x - (t.length ? track * size : 0) }
 }
 const MAP_FONT: Record<Face, FontName> = { num: 'mono', name: 'sans500', eyebrow: 'sans600' }
-const mapText = (t: string, face: Face, k: number) => outline(t, MAP_FONT[face], FACE[face].px * k, FACE[face].track)
+// a station's number is set in bold (lib/place.ts, PLAQUE)
+const mapText = (t: string, face: Face, k: number, strong = false) => outline(t, strong && face === 'num' ? 'monoBold' : MAP_FONT[face], FACE[face].px * k, FACE[face].track)
 
 // Words in balanced lines (the pages' text-wrap: balance): as many lines as the width needs, each
 // as short as that allows.
@@ -107,8 +109,7 @@ const sceneOf = (T: TreeData, w: World) => {
   return scene.s
 }
 
-// `near`: the levels that frame one off the map (a chapter's notions).
-export type ShareLevel = { id: string; label: string; titre: string; region: string; hue: number; icon: string[] | null; near: string[] }
+export type ShareLevel = { id: string; label: string; titre: string; region: string; hue: number; icon: string[] }
 export async function shareCard(T: TreeData, w: World, course: string, level: ShareLevel | null): Promise<Buffer> {
   const sc = sceneOf(T, w)
   const s = sc.fit.s0
@@ -119,21 +120,13 @@ export async function shareCard(T: TreeData, w: World, course: string, level: Sh
   let win: [number, number, number, number]
   const [bx0, by0, bx1, by1] = sc.fit.box
   if (level) {
-    // a level on the map is framed on its plate; one off it (a chapter) on the levels near it, at
-    // the same zoom at most; with none on the map, the whole world
-    const n = sc.LY.nodes.get(level.id)
-    const near = n ? [n] : level.near.flatMap((id) => sc.LY.nodes.get(id) ?? [])
-    const pad = s
-    const span = near.length ? Math.max(...near.map((x) => x.x * s)) - Math.min(...near.map((x) => x.x * s)) : bx1 - bx0
-    const tall = near.length ? Math.max(...near.map((x) => x.y * s)) - Math.min(...near.map((x) => x.y * s)) : by1 - by0
-    const side = Math.round(Math.max(SIDE / LEVEL_K, near.length ? Math.max(span, tall) + 2 * pad : Math.max(span, tall)))
-    const mid = (a: number[], lo: number, hi: number) => (a.length ? (Math.min(...a) + Math.max(...a)) / 2 : (lo + hi) / 2)
-    const fx = mid(near.map((x) => x.x * s), bx0, bx1)
-    const fy = mid(near.map((x) => x.y * s), by0, by1)
+    // every level is on the map: framed on its plate, a step round it at the least
+    const n = sc.LY.nodes.get(level.id)!
+    const side = Math.round(Math.max(SIDE / LEVEL_K, 2 * s))
     // kept within the world's box (a level near its edge is not centred), centred when wider
     const keep = (c: number, lo: number, hi: number) => (hi - lo <= side ? (lo + hi) / 2 : Math.max(lo + side / 2, Math.min(hi - side / 2, c)))
-    const cx = keep(fx, bx0, bx1)
-    const cy = keep(fy, by0, by1)
+    const cx = keep(n.x * s, bx0, bx1)
+    const cy = keep(n.y * s, by0, by1)
     vb = [Math.round(cx - side / 2), Math.round(cy - side / 2), side, side]
     win = [LEFT, M, SIDE, SIDE]
   } else {
@@ -161,7 +154,7 @@ export async function shareCard(T: TreeData, w: World, course: string, level: Sh
         const b: Box = [vb[0] + (h[0] - w_[0]) / k, vb[1] + (h[1] - w_[1]) / k, vb[0] + (h[2] - w_[0]) / k, vb[1] + (h[3] - w_[1]) / k]
         if ([...sc_.plates, ...sc_.ports, ...sc_.qs].some((x) => meets(x.box, b)) || (sc_.q && meets(sc_.q, b))) return false
         if ([...sc.fit.labels.boxes.values()].some((x) => meets(x, b))) return false
-        if ([...sc_.segs, ...sc_.rims].some((x) => segBox(x.seg[0], x.seg[1], b))) return false
+        if (sc_.segs.some((x) => segBox(x.seg[0], x.seg[1], grow(b, x.half))) || sc_.rims.some((x) => segBox(x.seg[0], x.seg[1], b))) return false
         return !lands.some((l) => inRings(l.rings, b[0] / s, b[1] / s))
       })
     }
@@ -176,7 +169,7 @@ export async function shareCard(T: TreeData, w: World, course: string, level: Sh
     win = at(k)
   }
   let o = `<svg xmlns="http://www.w3.org/2000/svg" width="${SHARE.w}" height="${SHARE.h}" viewBox="0 0 ${SHARE.w} ${SHARE.h}"><rect width="${SHARE.w}" height="${SHARE.h}" fill="${GROUND}"/>`
-  o += `<svg x="${win[0]}" y="${win[1]}" width="${win[2]}" height="${win[3]}" viewBox="${vb.join(' ')}" overflow="hidden">${sc.svg({ chosen: level && sc.LY.nodes.has(level.id) ? level.id : null, text: mapText })}</svg>`
+  o += `<svg x="${win[0]}" y="${win[1]}" width="${win[2]}" height="${win[3]}" viewBox="${vb.join(' ')}" overflow="hidden">${sc.svg({ chosen: level?.id ?? null, text: mapText })}</svg>`
   for (const h of hold) o += `<rect x="${h[0]}" y="${h[1]}" width="${h[2] - h[0]}" height="${h[3] - h[1]}" fill="${GROUND}"/>`
   // a level's map is a crop: crop marks at the window's corners, outside it. The home's is the
   // whole world, and stands on the ground as the page's does.
@@ -213,8 +206,8 @@ export async function shareCard(T: TreeData, w: World, course: string, level: Sh
       return `M${cxp - h + k} ${cyp - h}L${cxp + h - k} ${cyp - h}L${cxp + h} ${cyp - h + k}L${cxp + h} ${cyp + h - k}L${cxp + h - k} ${cyp + h}L${cxp - h + k} ${cyp + h}L${cxp - h} ${cyp + h - k}L${cxp - h} ${cyp - h + k}Z`
     }
     o += `<path d="${oc(P)}" fill="${t.ink}"/><path d="${oc(P - 6)}" fill="${dark}"/>`
-    // its icon at 4 px a cell; a level off the map has none, and shows the chapters' glyph
-    const rows = level.icon ?? GLYPH.chapters!
+    // its icon at 4 px a cell
+    const rows = level.icon
     const c = 4
     o += `<path d="${cellsD(rows, cxp - (rows[0]!.length * c) / 2, cyp - (rows.length * c) / 2, c)}" fill="${INK}" shape-rendering="crispEdges"/>`
     const num = outline(level.label, 'mono', numSize)

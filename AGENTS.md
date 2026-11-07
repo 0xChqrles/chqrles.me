@@ -249,6 +249,30 @@ translation leaves the original published.
 - **A card file means written.** With no file, a card is planned: it stays on the map, a
   `[[link]]` to it is a span, a hash link to it fails the build, and it has no page. There
   is no draft flag, for a course or for a card.
+- **The map is the course** (`packages/course/src/lib/course.ts`, `lattice.ts`): every card
+  has a place on it (`col`, `rang`). The chapters, numbered 1 to N without a gap, are its path,
+  in order, never turning back; each other card is a notion of exactly one chapter (its
+  `notions`) and branches off it, in that chapter's region. A region holds whole chapters
+  with their notions. The card the map leads to is the last chapter, on the outermost column.
+  A chapter's `prerequis` is empty, and a notion's prerequisites come before it in the course.
+  The links are derived: chapter to next chapter, chapter to each notion with no prerequisite
+  in its chapter, notion to notion inside a chapter; the `aretes` say only how each runs, and
+  a missing or extra one fails the build.
+- **The route is the map's main line** (`packages/course/src/lib/place.ts`, `tree.ts`,
+  drawn alike by `scripts/map/map.ts`, `lib/nojs.ts` and `lib/share-map.ts`): the chapters
+  stand on one straight line, notions branching on either side. A track runs under them from
+  the first to the last, one neutral colour across every region (a filled band, 0.12 of the
+  step), lit up to the furthest open chapter and quiet ahead. Each chapter's number is bold,
+  in a plaque hung under its plate, on a phone too. A plate's size follows its rank: a
+  chapter one class over its notions, and a notion at rest is a value step quieter.
+- **Gates and locks** (`packages/course/src/lib/gate.ts`, the one rule for the map, the
+  pages and `boot.js`): chapter N opens once chapter N−1 and all its notions are understood;
+  a notion once its chapter and its prerequisites are. A planned card never blocks a gate.
+  A written card whose gate is unmet is locked: it does not open from the map, its page shows
+  its gate instead of its text, decided before first paint, and « Lire quand même » opens it
+  for good (the saved key `forces`). Understood beats started, which beats open, which beats
+  locked. « Continuer » never leads to a locked card. Without JavaScript, and on `/tout/`,
+  nothing is locked.
 - **A card** (`packages/course/src/lib/render-card.ts`) is a front matter block, then
   Markdown, with `$…$` and `$$…$$` math, `[[id|text]]` links to a card, and the directives
   `:::figure`, `:::derivation`, `:::piege`, `:::note`, `:::incertain`, `:::code`,
@@ -264,9 +288,11 @@ translation leaves the original published.
   A zoom places nothing again: the camera's scale is a pixel ratio over the layout, so every
   plate, chip, label and line grows and shrinks together on whole device pixels, and the
   pane's edge cuts the map like any map. The camera ranges from the world at rest (a phone's at
-  a step of 72 at the least) to 4 times the world's step.
+  a step of 72, or less where the map's width needs it) to 4 times the world's step. On a phone
+  the map fits the screen's width and may run taller than it: the audit checks the width only.
 - **A press never moves the camera.** A level pressed, on its plate or on a link chip that shows
-  it, is chosen (its reticle there, its briefing or sheet); pressed again, it opens. A region's
+  it, is chosen (its reticle there, its briefing or sheet); pressed again, it opens, unless it
+  is locked: then it shakes, and only its « Lire quand même » opens it. A region's
   land pressed is chosen the same way (its rim in the ink, its summary). The ground pressed lets
   either go. The keyboard reaches every region, then every level in course order.
 - **Pointing only shows the tooltip** (its card, else its tag, beside the plate or chip pointed,
@@ -276,7 +302,8 @@ translation leaves the original published.
   room for one. It is named by its sector bar once in focus, and by its link for the keyboard.
 - **A link shows its direction where it plugs in**: an arrowhead, its tip on the edge of the
   level it opens, in the colour of the route's last run (lit, or on a chain, as the route is);
-  a stub out of its level ends with the head on its chip's edge. Nothing is drawn along a route.
+  a stub out of its level ends with the head on its chip's edge. Nothing is drawn along a route
+  but the chapters' track.
 - **Link chips never stack** (`portsAt` in `packages/course/src/lib/place.ts`, `PORT_GAP` in
   `packages/course/src/lib/lattice.ts`): each cut link into a level comes in from its own side,
   and the audit fails two chips that meet or a chip over a plate.
@@ -322,8 +349,7 @@ translation leaves the original published.
   without touching them, reaching over the title's column where its ground is empty. A written card's is
   `/<slug>/<card-id>/share.png`: the q and the course's title, then its region, plate, number
   and title, beside the map framed on its level at twice the world's step, the level chosen
-  (open, lifted, its chain lit, the reticle round it); a chapter, off the map, is framed on its
-  notions, and a card with neither on the map, on the whole world. The map is the page's own at a first
+  (open, lifted, its chain lit, the reticle round it). The map is the page's own at a first
   visit, laid out at the 1280 × 800 desk pane and drawn by the same rules
   (`packages/course/src/lib/share-map.ts`). The words are the course's own, drawn as outlines
   from static WOFF cuts and set as the pages set them, so the build needs no font installed; the
@@ -541,7 +567,7 @@ colour, icon or furniture is reused.
   functions (the site's slug and file-name rules, the CloudFront Functions with their
   choice of language), the infra assertions
   (including the CSP builder and cdk-nag), the French-spacing transform, and for a course:
-  the outline and its folder's shape, the folder a run reads, the card renderer's rules,
+  the outline and its folder's shape, the gates, the folder a run reads, the card renderer's rules,
   `/math.css`, what can deploy (`packages/infra/lib/deploy-gate.test.ts`) and a real build
   of the test course under the CSP (`packages/infra/lib/course-build.test.ts`, never run
   beside a course dev server). Assert against the rules in this file, not the

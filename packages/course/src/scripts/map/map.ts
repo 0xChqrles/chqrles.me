@@ -5,13 +5,14 @@
 // page without a script is a static SVG and the plan. Every place comes from lib/place.ts, the
 // rules the build audits.
 import { EARLY } from '../../lib/camera'
-import { glyphSvg, miniNode } from '../../lib/glyphs'
+import { glyphSvg, lockCell, miniNode } from '../../lib/glyphs'
+import { icon as pxIcon } from '../../lib/pixels'
 import { FACE, textW } from '../../lib/metrics'
-import { FIELD, GROUND, HUD, INK, LINE_STRONG, MUTED, NEUTRAL, RAISE, rgba, SOCKET, TEXT, TONES, mix, type Tone } from '../../lib/palette'
-import { CARD, cardAt, cardSegs, chipOf, clearOf, colourRuns, contentBox, labels, runPx, facesOf, fitWorld, GUTTER, labelled, plateF, portAt, qBox, qCellAt, qKey, qSink, reach, runsAt, safe, scene, sizeIn, tableOf, tagAt, tagW, textK, ZBAR, type Course as PlaceCourse, type Fit, type Labels, type Pane, type View } from '../../lib/place'
+import { FIELD, GROUND, HUD, INK, LINE_STRONG, MUTED, NEUTRAL, RAISE, restOf, rgba, SOCKET, TEXT, TONES, TRACK_BED, TRACK_LIT, TRACK_RAIL, mix, type Tone } from '../../lib/palette'
+import { bandPts, MAIN_BARB, plaqueBox, CARD, cardAt, cardSegs, chipOf, clearOf, colourRuns, contentBox, labels, runPx, facesOf, fitWorld, GUTTER, labelledAt, plateF, portAt, qBox, qCellAt, qKey, qSink, reach, runsAt, safe, scene, sizeIn, tableOf, tagAt, tagW, textK, trackOf, ZBAR, type Course as PlaceCourse, type Fit, type Labels, type Pane, type View } from '../../lib/place'
 import { BEZEL, ETATS, inRings, layout, U8, type Axis, type Box, type Etat, type Layout, type Link, type Node, type Pt, type TreeData } from '../../lib/tree'
-import { chapters, complete, etat as etatOf, L, load, next, reached, S, share, store, written, type Ici, type Vu, WORLD } from '../save'
-import { bevel, D, dpr, halo, icon, oct, octArc, octPath, octStroke, q as drawQ, ring, setDpr, text, W } from './draw'
+import { chapters, complete, etat as etatOf, force, L, load, missing, next, reached, S, share, store, written, type Ici, type Vu, WORLD } from '../save'
+import { bevel, D, dpr, halo, icon, lock, oct, octArc, octPath, octStroke, q as drawQ, ring, setDpr, text, W } from './draw'
 import { back, busy, inout, linear, now, out, set, still, T, tick, tw, val } from './motion'
 import { url } from '../../lib/base'
 
@@ -54,7 +55,6 @@ export function mapPage() {
     order: WORLD.order,
     text: (id) => ({ label: L[id]!.label, name: DATA.names[id]! }),
     regs: mapRegions.map((r) => ({ id: r.id, nom: r.nom, count: counter(r.id) })),
-    quest: DATA.quest,
     fresh,
   })
 
@@ -62,15 +62,12 @@ export function mapPage() {
   const held = new Map<string, Etat>() // states held back during the reward
   const lit = new Map<string, number>() // a link's lit share during the reward (0..1)
   const etat = (id: string) => held.get(id) ?? etatOf(id)
-  const linkOpen = (l: Link) => S.lus.has(l.a) && !held.has(l.a)
-  // Where the q stands: `ici` (or its chapter), else the first open level on the map.
+  // A link is lit when the level it leads to has its gate met (lib/gate.ts), whatever its source.
+  const linkOpen = (l: Link) => !missing(l.b).length
+  // Where the q stands: `ici`, else the first open level on the map.
   const homeOf = () => {
     const ici = store.get<Ici | null>('ici', null)
-    if (ici && L[ici.c]) {
-      if (onMap(ici.c)) return ici.c
-      const ch = L[ici.c]!.chap
-      if (ch && onMap(ch)) return ch
-    }
+    if (ici && onMap(ici.c)) return ici.c
     return WORLD.order.find((id) => onMap(id) && ['dispo', 'prog'].includes(etatOf(id))) ?? WORLD.order.find(onMap)!
   }
   let home = homeOf()
@@ -178,9 +175,14 @@ export function mapPage() {
     world = worldCam()
   }
   // THE CAMERA'S RANGE: from the world at rest (the whole map fitted; a phone's at PHONE_REST at the
-  // least, so its levels keep their size) to MAX_K times the world's step.
+  // least, so its levels keep their size, as long as its width still fits) to MAX_K times the
+  // world's step.
   const PHONE_REST = 72
-  const minS = () => (axis === 'v' ? Math.max(s0(), PHONE_REST) : s0())
+  const minS = () => {
+    if (axis !== 'v') return s0()
+    const sa = safe(layoutPane(false))
+    return Math.max(s0(), Math.min(PHONE_REST, (s0() * (sa[2] - sa[0])) / (fit!.box[2] - fit!.box[0])))
+  }
   const MAX_K = 4
   const maxS = () => MAX_K * s0()
   // The map's box at a scale: the world's, scaled from its step.
@@ -378,7 +380,7 @@ export function mapPage() {
     const ids = WORLD.order.filter((id) => onMap(id) && node(id).reg === reg)
     const is = (...e: Etat[]) => ids.find((id) => e.includes(etatOf(id)))
     if (home && ids.includes(home)) return home
-    return is('prog') ?? is('dispo', 'soft') ?? is('front') ?? ids[0]!
+    return is('prog') ?? is('dispo') ?? is('front') ?? ids[0]!
   }
 
   // ---------------------------------------------------------------- the chain
@@ -673,6 +675,40 @@ export function mapPage() {
     })
     const top0 = focus && zt ? ZBAR : 0
     spanLog = []
+    // THE MAIN LINE: the chapters' links as one track, a filled band under the stations, across every
+    // land and strait. Ahead: its bed between two 1-px rails (inside its width); travelled (each
+    // stretch into a chapter whose gate is met, or the share a reward has lit), the whole band lit.
+    // One piece: every rail first, then every bed, then every lit stretch, so no stretch's end shows
+    // where two meet. Zoomed on a region, the track outside its land steps back, as the gutters do.
+    const hw = Math.max(W(2), Math.round(D(trackOf(v)) / 2))
+    const back_ = (col: string, reg: string | null) => (focus && reg !== focus ? mix(col, GROUND, 0.35) : col)
+    const band = (pts: Pt[], half: number, col: string) => {
+      const q = bandPts(pts.map(([x, y]) => S_(x, y)), half)
+      ctx.beginPath()
+      q.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)))
+      ctx.closePath()
+      ctx.fillStyle = col
+      ctx.fill()
+    }
+    const mainLinks = LY.links.filter((l) => l.main)
+    const litShare = (l: Link) => (lit.has(l.id) ? lit.get(l.id)! : linkOpen(l) ? 1 : 0)
+    for (const l of mainLinks) for (const r of runsAt(l, LY, v)) band(r.pts, hw, back_(TRACK_RAIL, r.reg))
+    for (const l of mainLinks) for (const r of runsAt(l, LY, v)) band(r.pts, hw - W(1), back_(TRACK_BED, r.reg))
+    for (const l of mainLinks) {
+      const sh = litShare(l)
+      if (sh <= 0 || (l.relay && sh < 1)) continue
+      const rs = runsAt(l, LY, v)
+      const total = rs.reduce((t, r) => t + lenOf(r.pts), 0)
+      let acc = 0
+      for (const r of rs) {
+        const len = lenOf(r.pts)
+        const a0 = acc / total
+        const a1 = (acc + len) / total
+        const sub = sh >= a1 ? r.pts : sh > a0 ? partial(r.pts, 0, ((sh - a0) / (a1 - a0)) * len) : []
+        if (sub.length > 1) band(sub, hw, back_(TRACK_LIT, r.reg))
+        acc += len
+      }
+    }
     // what each link's runs are drawn in, for its arrowhead (drawn once every link is down)
     const drawnRuns: { l: Link; ch: number; share: number; runs: { pts: Pt[]; from: number; len: number; col: string; lit: string; chain: string }[] }[] = []
     for (const l of LY.links) {
@@ -701,6 +737,26 @@ export function mapPage() {
       let acc = 0
       const mine: (typeof drawnRuns)[number] = { l, ch, share: share_, runs: [] }
       drawnRuns.push(mine)
+      if (l.main) {
+        // on the main line the chain is a 3-px ink core along the track ahead; where it is lit, the
+        // track already is the way travelled
+        for (const pc of runs) {
+          const len = lenOf(pc.pts)
+          const into = node(l.b).reg
+          mine.runs.push({ pts: pc.pts, from: acc, len, col: back_(TRACK_RAIL, into), lit: back_(TRACK_LIT, into), chain: share_ >= 1 ? TRACK_LIT : INK })
+          if (ch)
+            for (const st of shown(pc.pts, acc)) {
+              const a0 = acc / total
+              const a1 = (acc + len) / total
+              const cut = share_ <= a0 ? 0 : share_ >= a1 ? len : ((share_ - a0) / (a1 - a0)) * len
+              const rest = partial(st, cut, lenOf(st) - cut)
+              if (rest.length > 1) strokePts(rest, core, rgba(INK, ch === 1 ? 1 : 0.45))
+              chainLog.push({ link: l.id, len: lenOf(st) * cam.s, clipped: near !== Infinity })
+            }
+          acc += len
+        }
+        continue
+      }
       runs.forEach((pc, i) => {
         const len = lenOf(pc.pts)
         const t = pc.reg ? tone(R.get(pc.reg)!.hue, pc.reg) : null
@@ -738,13 +794,15 @@ export function mapPage() {
     // share their last stretch) are one.
     function arrowheads() {
       const done = new Set<string>()
-      const head = (tip: Pt, u: Pt, col: string) => {
+      // on the main line the head is wider than the band (its barbs stand MAIN_BARB px past each
+      // edge), so the track ends in a point on the station, lit or not
+      const head = (tip: Pt, u: Pt, col: string, big = false) => {
         const [px, py] = S_(tip[0], tip[1])
         const k = `${Math.round(px)}|${Math.round(py)}|${Math.round(u[0] * 4)}|${Math.round(u[1] * 4)}`
         if (done.has(k)) return
         done.add(k)
-        const h = D(6)
-        const w = D(4)
+        const w = big ? hw + D(MAIN_BARB) : D(4)
+        const h = big ? w + D(2) : D(6)
         ctx.beginPath()
         ctx.moveTo(px, py)
         ctx.lineTo(px - u[0] * h - u[1] * w, py - u[1] * h + u[0] * w)
@@ -767,7 +825,7 @@ export function mapPage() {
           const pts = runsAt(l, LY, v).flatMap((x, i) => (i ? x.pts.slice(1) : x.pts))
           const b = node(l.b)
           const u = unit(pts[pts.length - 2]!, pts[pts.length - 1]!)
-          head([b.x - u[0] * edgeOf(b), b.y - u[1] * edgeOf(b)], u, colOf(d.runs[d.runs.length - 1]!))
+          head([b.x - u[0] * edgeOf(b), b.y - u[1] * edgeOf(b)], u, colOf(d.runs[d.runs.length - 1]!), !!l.main)
           continue
         }
         for (const p of l.ports) {
@@ -841,7 +899,7 @@ export function mapPage() {
         const hot = hov && hov.k === 'relay' && hov.link === l.id
         const chosen = selVia === `${l.id}|${p.end}` && sel === p.far
         chip(x, y, D(chipSz), D(4), hot ? ft.ink : ft.wire, hot ? mix(HUD, ft.ink, 0.25) : RAISE)
-        icon(ctx, p.far, DATA.icons[p.far]!, x, y, Math.max(1, Math.round(d)), etat(p.far) === 'fog' ? ft.fog : ft.ink)
+        icon(ctx, p.far, DATA.icons[p.far]!, x, y, Math.max(1, Math.round(d)), etat(p.far) === 'fog' ? ft.fog : etat(p.far) === 'verrou' ? MUTED : ft.ink)
         if (chosen) brackets(x - D(chipSz / 2 + 4), y - D(chipSz / 2 + 4), x + D(chipSz / 2 + 4), y + D(chipSz / 2 + 4))
         ctx.globalAlpha = 1
       }
@@ -869,7 +927,7 @@ export function mapPage() {
       const ph_ = F(n) / 2 + (sizeIn(n, v) === 'G' ? BEZEL + 4 : 0) + 8
       fades.set(n.id, 1)
       if (xx / d + ph_ < 0 || xx / d - ph_ > pw || y / d + ph_ < 0 || y / d - ph_ > ph) continue
-      const fw = st === 'fog' || st === 'soft' ? W(1) : W(2)
+      const fw = st === 'fog' || st === 'verrou' ? W(1) : W(2)
       const cell = Math.max(1, Math.round(CELL(n) * d))
       if (n.id === rec && !held.size) {
         const a = still.matches ? 1 : 0.4 + 0.6 * (0.5 - 0.5 * Math.cos(((now % T.breathe) / T.breathe) * Math.PI * 2))
@@ -898,8 +956,11 @@ export function mapPage() {
       // frame in its ink round a dark centre, the icon in the ink), BEGUN the same with its foot
       // filling; FRONT (opened, not written) is framed in its region's rim round a dark centre, its
       // icon in its ink (and « Nouveau » over its label when a clear just opened it); FOG is a
-      // recessed socket, the icon dim; SOFT a muted frame.
+      // recessed socket, the icon dim; LOCKED a thin rim round a raised, flat plate, its icon muted
+      // and a closed padlock over the icon's lower right.
       const dark = mix(SOCKET, t.plate, 0.3)
+      // at rest (locked, ahead, in the fog) a notion stands a value step under its chapter
+      const rest = restOf(t, !!n.chap)
       if (st === 'lu' && !(pre >= 0 && pre < 1)) {
         oct(ctx, xx, y, Fd, INK)
         bevel(ctx, xx, y, Fd - 2 * fw, W(1), mix(t.ink, INK, 0.35), mix(t.ink, GROUND, 0.3), t.ink)
@@ -935,14 +996,14 @@ export function mapPage() {
           ctx.restore()
           progEdge.set(n.id, (edgeY - y) / d)
         }
-      } else if (st === 'soft') {
-        // written but its prerequisites not met (a soft lock): a thin rim round a raised, flat plate,
-        // its icon muted — never the front's dark centre and coloured icon
-        oct(ctx, xx, y, Fd, hc(t.rim))
-        oct(ctx, xx, y, Fd - 2 * fw, t.plate)
+      } else if (st === 'verrou') {
+        // written, its gate unmet: never the front's dark centre and coloured icon, never the fog's
+        // socket
+        oct(ctx, xx, y, Fd, hc(rest.rim))
+        oct(ctx, xx, y, Fd - 2 * fw, rest.plate)
         ic = hc(MUTED)
       } else {
-        oct(ctx, xx, y, Fd, st === 'front' ? hc(t.rim) : hc(t.sock))
+        oct(ctx, xx, y, Fd, st === 'front' ? hc(rest.rim) : hc(rest.sock))
         bevel(ctx, xx, y, Fd - 2 * fw, W(1), '#040308', '#1a1926', SOCKET)
         if (st === 'front') {
           const dr = val('dash:' + n.id, 1)
@@ -951,6 +1012,7 @@ export function mapPage() {
         ic = hc(st === 'fog' ? t.fogd : t.ink)
       }
       icon(ctx, n.id, DATA.icons[n.id]!, xx, y, cell, ic)
+      if (st === 'verrou' && !(pre >= 0 && pre < 1)) lock(ctx, xx, y, Fd - 2 * fw, Math.max(1, Math.round(lockCell(CELL(n)) * d)), INK, rest.plate)
       // the press's one frame of ink
       if (val('pf:' + n.id, 0) > 0) {
         oct(ctx, xx, y, Fd, INK)
@@ -975,17 +1037,28 @@ export function mapPage() {
       // its label, by lib/place.ts's rule; a pointed level whose card has no free side shows its
       // compact tag in the label's place instead
       const lb = LB?.at.get(n.id)
-      if (lb && labelled(v)) {
+      if (lb && labelledAt(v, n)) {
         const [cx, cy] = scr(n.x, n.y)
         const bx = [cx + lb.box[0] + ox, cy + lb.box[1] + oy - lift, cx + lb.box[2] + ox, cy + lb.box[3] + oy - lift]
         const key = keyAt((bx[0]! + bx[2]!) / 2, (bx[1]! + bx[3]!) / 2)
+        // a station's plaque: the track's bed, lit once its gate is met (as the track into it);
+        // outside a region in focus it steps back with the track
+        const reachedSt = lb.plaque && !missing(n.id).length
+        const pkey = back_(reachedSt ? TRACK_LIT : TRACK_BED, n.reg)
+        if (lb.plaque) {
+          const pq = plaqueBox(lb)
+          const x0 = Math.round((cx + ox + pq[0]) * d)
+          const y0_ = Math.round((cy + oy + pq[1] - lift) * d)
+          ctx.fillStyle = pkey
+          ctx.fillRect(x0, y0_, Math.round((cx + ox + pq[2]) * d) - x0, Math.round((cy + oy + pq[3] - lift) * d) - y0_)
+        }
         for (const ln of lb.lines) {
           const eye = ln.face === 'eyebrow'
           const a = 1
-          const col = ln.face === 'num' ? t.num : eye ? t.ink : st === 'fog' ? MUTED : TEXT
+          const col = lb.plaque && ln.face === 'num' ? (reachedSt ? GROUND : TEXT) : ln.face === 'num' ? t.num : eye ? t.ink : st === 'fog' ? MUTED : TEXT
           const f = FACE[ln.face]
           const lk = ln.k ?? 1
-          text(ctx, eye ? ln.t.toLocaleUpperCase('fr') : ln.t, Math.round((cx + ox + ln.x) * d), Math.round((cy + oy + ln.base - lift) * d), f.css.replace(/(\d+)px/, (_, p) => `${Math.round(Number(p) * lk * d)}px`), col, a, key, f.track * f.px * lk * d)
+          text(ctx, eye ? ln.t.toLocaleUpperCase('fr') : ln.t, Math.round((cx + ox + ln.x) * d), Math.round((cy + oy + ln.base - lift) * d), f.css.replace(/(\d+)px/, (_, p) => `${Math.round(Number(p) * lk * d)}px`).replace(/^\d00 /, ln.strong ? '700 ' : '$&'), col, a, lb.plaque && ln.face === 'num' ? pkey : eye ? keyAt(cx + ox + ln.x, cy + oy + ln.base - lift - 4) : key, f.track * f.px * lk * d)
         }
       }
       // the reticle: four 2-px brackets, arms 6, 6 off the plate's box
@@ -1184,9 +1257,11 @@ export function mapPage() {
     ctx.fillRect(x1 - arm, y1 - w2, arm, w2)
     ctx.fillRect(x1 - w2, y1 - arm, w2, arm)
   }
+  // a level's depth in the course: one more than the deepest level of its gate
+  const depths = new Map<string, number>()
   const depthOf = (id: string): number => {
-    const l = L[id]!
-    return l.prerequis.length ? 1 + Math.max(...l.prerequis.filter(onMap).map(depthOf), 0) : 0
+    if (!depths.has(id)) depths.set(id, L[id]!.need.length ? 1 + Math.max(...L[id]!.need.filter(onMap).map(depthOf), 0) : 0)
+    return depths.get(id)!
   }
   function ghostAt(reg: string | null, h: Tg | null): string | null {
     if (h && h.k === 'relay') return h.far!
@@ -1417,7 +1492,7 @@ export function mapPage() {
   // A LEVEL PRESSED, on its plate or on a port's chip that shows it, is chosen (its reticle, its
   // briefing or sheet); pressed again, it opens. A REGION PRESSED, its land, is chosen the same way
   // (its rim in the ink, its summary in the briefing or sheet). A press never moves the camera.
-  function act(t: Tg) {
+  function act(t: Tg, kb = false) {
     if (t.k === 'region') {
       chooseRegion(t.id)
       return
@@ -1425,7 +1500,7 @@ export function mapPage() {
     regSel = null
     const id = t.k === 'node' ? t.id : t.far!
     const via = t.k === 'relay' ? `${t.link}|${LY.links.find((x) => x.id === t.link)!.ports.find((p) => p.far === id)!.end}` : null
-    if (sel === id && selVia === via) return open(id)
+    if (sel === id && selVia === via) return open(id, kb)
     choose(id)
     selVia = via
     kick()
@@ -1450,18 +1525,21 @@ export function mapPage() {
     showBrief(id)
     kick()
   }
-  // Open a level: one not written shakes no; else the q walks there (at most 3 hops along the
-  // chain), the plate pulses, the map steps back, and the page opens.
-  function open(id: string) {
-    if (L[id]!.prevu) {
+  // Open a level: one not written, or locked, shakes no (a locked one reached by the keyboard sends
+  // the focus to its « Lire quand même »); else the q walks there (at most 3 hops along the chain),
+  // the plate pulses, the map steps back, and the page opens.
+  function open(id: string, kb = false) {
+    const locked = etat(id) === 'verrou'
+    if (L[id]!.prevu || locked) {
       tw('nope:' + id, 1, 360, linear, 0)
-      announce('Pas encore écrit.')
+      announce(locked ? 'Verrouillé' : 'Pas encore écrit.')
       // every tap gets a response: the off key shakes 2 px
-      for (const k of document.querySelectorAll<HTMLElement>('#peek .badge, #brief .br-foot .badge')) {
+      for (const k of document.querySelectorAll<HTMLElement>('#peek .badge, #peek .esc, #brief .br-foot .badge')) {
         k.classList.remove('shake')
         void k.offsetWidth
         k.classList.add('shake')
       }
+      if (locked && kb) $<HTMLElement>(desk() ? '#br-esc' : '#peek .esc')?.focus({ preventScroll: true })
       kick()
       return
     }
@@ -1486,6 +1564,11 @@ export function mapPage() {
     const ici = store.get<Ici | null>('ici', null)
     at(t + 180, () => (location.href = `${url(`${id}/`)}${ici && ici.c === id && ici.s && !S.lus.has(id) ? '#' + ici.s : ''}`))
     kick()
+  }
+  // « Lire quand même »: a locked level opened anyway, for good (the save remembers it)
+  function escape(id: string) {
+    force(id)
+    open(id)
   }
   function route(a: string, b: string): string[] | null {
     const prev = new Map<string, string>([[a, '']])
@@ -1588,7 +1671,8 @@ export function mapPage() {
       })
       a.addEventListener('click', (e) => {
         e.preventDefault()
-        act(t)
+        // Enter on a link is a click with no pointer
+        act(t, e.detail === 0)
       })
       linksEl.append(a)
     }
@@ -1629,6 +1713,7 @@ export function mapPage() {
     if (nouveaux.has(id) && (e === 'dispo' || e === 'front')) return 'Nouveau'
     if (e === 'prog') return `${reached(id).length}/${L[id]!.sections.length}`
     if (e === 'lu') return 'compris'
+    if (e === 'verrou') return 'Verrouillé'
     if (e === 'front' || e === 'fog') return 'Pas encore écrit.'
     return ''
   }
@@ -1636,21 +1721,25 @@ export function mapPage() {
   const pips = (n: number | null) => `<span class="pips" role="img" aria-label="Difficulté ${n ?? 0}/5">${[1, 2, 3, 4, 5].map((i) => `<i${i <= (n ?? 0) ? ' class="on"' : ''}></i>`).join('')}</span>`
   // a row: its mini node, number, name and state word; EACH STATE WORD ONCE A VIEW: a row drops its
   // word where it is the level's own (`own`, shown once in the briefing)
-  // « Pas encore écrit. » stands once a view: the first row that would say it keeps it (`said` is
-  // reset by each render of the briefing); the mini node shows every row's state
-  let said = false
-  const row = (id: string, long = false, own: string | null = null) => {
+  // « Pas encore écrit. » and « Verrouillé » stand once a view: the first row that would say one
+  // keeps it (`said` is reset by each render of the briefing); the mini node shows every row's
+  // state. A row of a gate the level still needs is marked (`miss`).
+  const ONCE = ['Pas encore écrit.', 'Verrouillé']
+  let said = new Set<string>()
+  const row = (id: string, long = false, own: string | null = null, miss = false) => {
     const l = L[id]!
     let w = stateWord(id) === own ? '' : stateWord(id)
-    if (w === 'Pas encore écrit.') {
-      if (said) w = ''
-      said = true
+    if (ONCE.includes(w)) {
+      if (said.has(w)) w = ''
+      else said.add(w)
     }
-    return `<li class="row h${l.hue}${long ? ' long' : ''}" data-lv="${id}"><a href="${url(`${id}/`)}" data-row="${id}">${mn(id)}<span class="row-n num">${l.label}</span><span class="row-t">${esc(l.nom)}</span><span class="row-s${w === 'Nouveau' ? ' new' : ''}">${w}</span>${long ? `<span class="row-r">${l.resume}</span>` : ''}</a></li>`
+    return `<li class="row h${l.hue}${long ? ' long' : ''}${miss ? ' miss' : ''}" data-lv="${id}"><a href="${url(`${id}/`)}" data-row="${id}">${mn(id)}<span class="row-n num">${l.label}</span><span class="row-t">${esc(l.nom)}</span><span class="row-s${w === 'Nouveau' ? ' new' : ''}">${w}</span>${long ? `<span class="row-r">${l.resume}</span>` : ''}</a></li>`
   }
   // A KEY EXISTS ONLY WHEN IT ACTS: a level not written shows a state badge in its plate's language
   // (its mini octagon and the state word), never a key off.
-  const badge = (id: string) => `<span class="badge h${L[id]!.hue} e-${etat(id)}" role="status">${pipSvg}<span>${stateWord(id) || 'Pas encore écrit.'}</span></span>`
+  const badge = (id: string) => `<span class="badge h${L[id]!.hue} e-${etat(id)}" role="status">${etat(id) === 'verrou' ? pxIcon('locked', 2) : pipSvg}<span>${stateWord(id) || 'Pas encore écrit.'}</span></span>`
+  // the key that opens a locked level anyway: a secondary (the screen's one primary stays the head's)
+  const escKey = (id: string, dom = '') => `<a class="key esc" href="${url(`${id}/`)}"${dom ? ` id="${dom}"` : ''}><span>Lire quand même</span></a>`
   // the verb of the key that opens a level: the course's own (« Commencer ici », « Continuer ») where
   // the level is the next to read, else « Ouvrir la page »
   const verbOf = (id: string) => {
@@ -1669,11 +1758,16 @@ export function mapPage() {
     const l = L[id]!
     const r = R.get(l.region)!
     const notions = WORLD.order.filter((i) => L[i]!.chap === id)
-    const btn = l.prevu ? null : verbOf(id)
-    // the level's own state word stands once: in the foot's badge for a level not written, else
-    // beside its number
+    const locked = etat(id) === 'verrou'
+    const btn = l.prevu || locked ? null : verbOf(id)
+    // its gate (what to understand first, what it still lacks marked) and what it opens (a
+    // chapter's own notions listed once, as its notions)
+    const lack = new Set(missing(id))
+    const opens = l.unlocks.filter((x) => !notions.includes(x))
+    // the level's own state word stands once: in the foot's badge for a level not written or
+    // locked, else beside its number
     const own = stateWord(id)
-    said = own === 'Pas encore écrit.'
+    said = new Set([own])
     const flip = shownAs.get(id) !== undefined && shownAs.get(id) !== 'lu' && etat(id) === 'lu'
     shownAs.set(id, etat(id))
     const html =
@@ -1683,18 +1777,23 @@ export function mapPage() {
       `<h2 class="br-t">${esc(l.titre)}</h2>` +
       `<p class="br-r">${l.resume}</p>` +
       `<div class="br-stats">${l.complexite ? `<span class="stt"><span class="eyebrow">Difficulté</span>${pips(l.complexite)}</span>` : ''}${l.minutes ? `<span class="stt num">${l.minutes} min</span>` : ''}${l.sections.length ? `<span class="stt">${glyphSvg('flag', 2)}<span class="num">${reached(id).length ? reached(id).length + '/' : ''}${l.sections.length}</span></span>` : ''}</div>` +
-      (l.prerequis.length ? `<div class="br-l"><div class="rule"><span class="eyebrow">Avant ça</span></div><ul>${l.prerequis.map((x) => row(x, false, own)).join('')}</ul></div>` : '') +
+      (l.need.length ? `<div class="br-l"><div class="rule"><span class="eyebrow">Avant ça</span></div><ul>${l.need.map((x) => row(x, false, own, lack.has(x))).join('')}</ul></div>` : '') +
       (notions.length ? `<div class="br-l"><div class="rule"><span class="eyebrow">Les notions de ce chapitre</span></div><ul>${notions.map((x) => row(x, false, own)).join('')}</ul></div>` : '') +
-      (l.suite.length ? `<div class="br-l"><div class="rule"><span class="eyebrow">Ce que ça débloque</span></div><ul>${l.suite.map((x) => row(x, false, own)).join('')}</ul></div>` : '') +
+      (opens.length ? `<div class="br-l"><div class="rule"><span class="eyebrow">Ce que ça débloque</span></div><ul>${opens.map((x) => row(x, false, own)).join('')}</ul></div>` : '') +
       `</div>` +
-      // the foot: the key where it acts, else the level's state badge (its slot kept)
-      `<div class="br-foot">${btn ? `<a class="btn primary h${r.hue}" href="${url(`${id}/`)}" id="br-go"><span>${btn}</span>${glyphSvg('next', 2)}</a>` : badge(id)}</div>`
+      // the foot: the key where it acts, else the level's state badge (its slot kept); locked, the
+      // badge and the key that opens it anyway
+      `<div class="br-foot${locked ? ' lock' : ''}">${btn ? `<a class="btn primary h${r.hue}" href="${url(`${id}/`)}" id="br-go"><span>${btn}</span>${glyphSvg('next', 2)}</a>` : badge(id) + (locked ? escKey(id, 'br-esc') : '')}</div>`
     briefReg = null
     swapBrief(html, was !== id && !!was, () => {
       peek(id, btn)
       $('#br-go', brief)?.addEventListener('click', (e) => {
         e.preventDefault()
         open(id)
+      })
+      $('#br-esc', brief)?.addEventListener('click', (e) => {
+        e.preventDefault()
+        escape(id)
       })
       syncHud()
     })
@@ -1738,7 +1837,7 @@ export function mapPage() {
     const r = R.get(reg)!
     const ids = WORLD.order.filter((id) => onMap(id) && node(id).reg === reg)
     const mins = ids.reduce((t, id) => t + (L[id]!.minutes ?? 0), 0)
-    said = false
+    said = new Set()
     const html =
       `<div class="br-in h${r.hue}">` +
       `<div class="br-tab"><span class="eyebrow">${esc(r.nom)}</span><span class="num">${counter(r.id)}</span></div>` +
@@ -1760,7 +1859,7 @@ export function mapPage() {
       pk.innerHTML = `<span class="grip" aria-hidden="true"></span><span class="pk-x"><span class="num">${counter(r.id)}</span><b>${esc(r.nom)}</b></span>`
     }
   }
-  const stateKey = () => [...S.lus].join() + [...held.keys()].join()
+  const stateKey = () => [...S.lus].join() + [...S.forces].join() + [...held.keys()].join()
   // two-way hover: a row lights its node on the map; a node pointed lights its row
   bc.addEventListener('pointerover', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-row]')
@@ -1775,7 +1874,6 @@ export function mapPage() {
     e.preventDefault()
     const id = a.dataset.row!
     if (onMap(id)) zoomTo(node(id).reg, id)
-    else showBrief(id)
   })
   function lightRow(id: string | null) {
     for (const r of brief.querySelectorAll<HTMLElement>('.row')) r.classList.toggle('lit', r.dataset.lv === id)
@@ -1839,22 +1937,28 @@ export function mapPage() {
     const box = toScreen(inMap(() => tagAt(n, cam, view(), qz, w / f, null, clearOf(sc, labelsNow(), [], [], cam))))
     if (box) return show(box)
     // no free place: beside the thing pointed all the same (right, left, over, under, then a step
-    // further out), the first that keeps its own number in sight, in the pane
+    // further out), in the pane: of these, the one that hides the fewest numbers (its own counted:
+    // every number stays in sight wherever a place allows it), then the least of the other plates
+    // and chips, then the nearest
     const [cx, cy] = scr(n.x, n.y)
     const rr = (reach(n, view()) + 6) * f
-    const lb = port ? null : labelsNow()?.at.get(id)
-    const mine: Box | null = lb ? [cx + lb.box[0] * f, cy + lb.box[1] * f, cx + lb.box[2] * f, cy + lb.box[3] * f] : null
     const fits = (b: Box) => b[0] >= 8 && b[2] <= pw - 8 && b[1] >= 8 && b[3] <= ph - footOf() - 8
-    const clearOfMine = (b: Box) => !mine || !(b[0] < mine[2] && mine[0] < b[2] && b[1] < mine[3] && mine[1] < b[3])
-    const spots: Box[] = []
-    for (const k of [0, 12, 24, 36])
-      spots.push(
+    const over = (a: Box, b: Box) => Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])) * Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]))
+    const toScr = (b: Box) => b.map((x) => x * f) as Box
+    const nums = inMap(() => [...(labelsNow()?.boxes.values() ?? [])].map((b) => [b[0] + cam.tx, b[1] + cam.ty, b[2] + cam.tx, b[3] + cam.ty] as Box)).map(toScr)
+    const things = inMap(() => [...sc.plates.filter((p) => p.id !== id).map((p) => p.box), ...sc.ports.map((p) => p.box)].map((b) => [b[0] + cam.tx - 2, b[1] + cam.ty - 2, b[2] + cam.tx + 2, b[3] + cam.ty + 2] as Box)).map(toScr)
+    const spots: { b: Box; k: number }[] = []
+    for (const k of [0, 12, 24, 36, 48, 60])
+      for (const b of [
         [cx + rr + k, cy - 12, cx + rr + k + w, cy + 12],
         [cx - rr - k - w, cy - 12, cx - rr - k, cy + 12],
         [cx - w / 2, cy - rr - k - 24, cx + w / 2, cy - rr - k],
         [cx - w / 2, cy + rr + k, cx + w / 2, cy + rr + k + 24],
-      )
-    const pick = spots.find((b) => fits(b) && clearOfMine(b)) ?? spots.find(fits) ?? spots[0]!
+      ] as Box[])
+        spots.push({ b, k })
+    const score = (s: { b: Box; k: number }) => [nums.filter((o) => over(s.b, o) > 0).length, things.reduce((t, o) => t + over(s.b, o), 0), s.k]
+    const inPane = spots.filter((s) => fits(s.b))
+    const pick = (inPane.length ? inPane : spots).map((s) => ({ s, v: score(s) })).reduce((a, c) => (c.v[0]! < a.v[0]! || (c.v[0] === a.v[0] && (c.v[1]! < a.v[1]! || (c.v[1] === a.v[1] && c.v[2]! < a.v[2]!))) ? c : a)).s.b
     show(pick.map(Math.round) as Box)
   }
   let cardBox: { id: string; box: Box } | null = null
@@ -1865,11 +1969,16 @@ export function mapPage() {
     if (!pk) return
     const l = L[id]!
     pk.className = `peek h${l.hue}`
-    // the key's slot is fixed: the action, or the key off with the level's state
-    pk.innerHTML = `<span class="grip" aria-hidden="true"></span>${mn(id, 40)}<span class="pk-x"><span class="num">${l.label}</span><b>${esc(l.nom)}</b></span>${btn ? `<a class="btn primary h${l.hue}" href="${url(`${id}/`)}"><span>${btn}</span>${glyphSvg('next', 2)}</a>` : badge(id)}`
+    // the key's slot is fixed: the action, the key that opens a locked level anyway (its padlock on
+    // the mini node), or the level's state
+    pk.innerHTML = `<span class="grip" aria-hidden="true"></span>${mn(id, 40)}<span class="pk-x"><span class="num">${l.label}</span><b>${esc(l.nom)}</b></span>${btn ? `<a class="btn primary h${l.hue}" href="${url(`${id}/`)}"><span>${btn}</span>${glyphSvg('next', 2)}</a>` : etat(id) === 'verrou' ? escKey(id) : badge(id)}`
     $('a.btn', pk)?.addEventListener('click', (e) => {
       e.preventDefault()
       open(id)
+    })
+    $('a.esc', pk)?.addEventListener('click', (e) => {
+      e.preventDefault()
+      escape(id)
     })
   }
   // THE SECTOR BAR, a region in focus: « Carte », the region's tick, name, counter and segments (one
@@ -1916,7 +2025,7 @@ export function mapPage() {
     // keeping its slot
     const nx = next()
     const go = $<HTMLAnchorElement>('#go')!
-    const own = briefId && !L[briefId]!.prevu ? briefId : null
+    const own = briefId && !L[briefId]!.prevu && etat(briefId) !== 'verrou' ? briefId : null
     const target = nx ? nx.id : own
     go.hidden = false
     // ONE VERB PER DESTINATION A SCREEN: where the briefing's foot (or the sheet's key) opens the
@@ -1938,7 +2047,8 @@ export function mapPage() {
     const qch = L[home]!.chap ?? home
     for (const li of document.querySelectorAll<HTMLElement>('.seg')) {
       const ch = li.dataset.ch!
-      const ids = [ch, ...WORLD.order.filter((i) => L[i]!.chap === ch)]
+      // the levels complete() counts: the chapter and its written notions (a planned one cannot be ticked)
+      const ids = [ch, ...WORLD.order.filter((i) => L[i]!.chap === ch && !L[i]!.prevu)]
       const n = ids.filter((i) => S.lus.has(i) && !held.has(i)).length
       const f = li.querySelector<HTMLElement>('.seg-f')!
       const was = Number(f.dataset.n ?? n)
@@ -1947,6 +2057,7 @@ export function mapPage() {
       f.dataset.n = String(n)
       li.classList.toggle('here', ch === qch)
       li.classList.toggle('done', n === ids.length)
+      li.classList.toggle('e-verrou', etat(ch) === 'verrou')
     }
     syncBar()
   }
@@ -1980,8 +2091,7 @@ export function mapPage() {
     const ch = a.closest<HTMLElement>('.seg')!.dataset.ch!
     a.addEventListener('click', (e) => {
       e.preventDefault()
-      if (onMap(ch)) zoomTo(node(ch).reg, ch)
-      else showBrief(ch)
+      zoomTo(node(ch).reg, ch)
       if (!desk()) setSheet(1)
     })
     a.addEventListener('pointerenter', () => {
@@ -2025,6 +2135,18 @@ export function mapPage() {
       g.fillStyle = id === focus ? mix(GROUND, t.ink, 0.5) : id === miniHov ? mix(GROUND, t.ink, 0.4) : mix(GROUND, t.ink, 0.2)
       g.fill('evenodd')
     }
+    // the main line: 2 px, lit where it is travelled
+    for (const l of LY.links)
+      if (l.main)
+        for (const r of runsAt(l, LY, view())) {
+          g.beginPath()
+          const o = W(2) % 2 ? 0.5 : 0
+          r.pts.forEach(([x, y], i) => (i ? g.lineTo(M(x, y)[0] + o, M(x, y)[1] + o) : g.moveTo(M(x, y)[0] + o, M(x, y)[1] + o)))
+          g.lineWidth = W(2)
+          g.strokeStyle = linkOpen(l) ? TRACK_LIT : TRACK_RAIL
+          g.lineJoin = 'miter'
+          g.stroke()
+        }
     for (const n of LY.nodes.values()) {
       const [x, y] = M(n.x, n.y)
       const e = etat(n.id)
@@ -2137,14 +2259,14 @@ export function mapPage() {
   let reward: { id: string; opened: string[]; links: string[] } | null = null
   let rewardDone = false
   function playReward(id: string) {
-    const before = (() => {
-      S.lus.delete(id)
-      const m = new Map(WORLD.levels.map((l) => [l.id, etatOf(l.id)]))
-      S.lus.add(id)
-      return m
-    })()
+    S.lus.delete(id)
+    const before = new Map(WORLD.levels.map((l) => [l.id, etatOf(l.id)]))
+    const barred = new Set(WORLD.levels.filter((l) => missing(l.id).length).map((l) => l.id))
+    S.lus.add(id)
     const opened = WORLD.levels.filter((l) => onMap(l.id) && before.get(l.id) !== etatOf(l.id) && l.id !== id).map((l) => l.id)
-    const links = LY.links.filter((l) => l.a === id).map((l) => l.id)
+    // the links it lights: every link into a level whose gate it met (a chapter opened by the last
+    // notion of the one before it lights the path into it)
+    const links = LY.links.filter((l) => barred.has(l.b) && !missing(l.b).length).map((l) => l.id)
     reward = { id, opened, links }
     rewardDone = false
     tallyGo = still.matches
@@ -2209,7 +2331,23 @@ export function mapPage() {
       })
       toast(id)
     })
+    // a level opened pops as the charge reaches it; one no lit link reaches pops at once
+    const popOpen = (b: string) => {
+      if (!held.has(b)) return
+      held.delete(b)
+      tw('pop:' + b, 1.12, 120, out, 0.88)
+      tw('pop:' + b, 1, 160, back, 1.12, 120)
+      tw('hit:' + b, 0, 33, linear, 1)
+      // every level opened changes for all to see, written or not: a frontier's frame draws round in
+      // its region's ink, and « Nouveau » stands over its label
+      if (etatOf(b) === 'front') tw('dash:' + b, 1, T.reveal, out, 0)
+      fresh.add(b)
+      relayout()
+      syncBar()
+      $(`#zb-s [data-seg="${b}"]`)?.classList.add('pop')
+    }
     at(600, () => {
+      for (const o of opened) if (!links.some((lid) => LY.links.find((x) => x.id === lid)!.b === o)) popOpen(o)
       for (const lid of links) {
         const l = LY.links.find((x) => x.id === lid)!
         const len = runsAt(l, LY, view()).reduce((a, p) => a + p.pts.reduce((s, q, i) => (i ? s + Math.hypot(q[0] - p.pts[i - 1]![0], q[1] - p.pts[i - 1]![1]) : s), 0), 0) * cam.s
@@ -2226,19 +2364,7 @@ export function mapPage() {
         at(dur, () => {
           heads = heads.filter((h) => h.link !== lid)
           lit.delete(lid)
-          if (held.has(l.b)) {
-            held.delete(l.b)
-            tw('pop:' + l.b, 1.12, 120, out, 0.88)
-            tw('pop:' + l.b, 1, 160, back, 1.12, 120)
-            tw('hit:' + l.b, 0, 33, linear, 1)
-            // every level opened changes for all to see, written or not: a frontier's frame draws
-            // round in its region's ink, and « Nouveau » stands over its label
-            if (etatOf(l.b) === 'front') tw('dash:' + l.b, 1, T.reveal, out, 0)
-            fresh.add(l.b)
-            relayout()
-            syncBar()
-            $(`#zb-s [data-seg="${l.b}"]`)?.classList.add('pop')
-          }
+          popOpen(l.b)
         })
       }
     })

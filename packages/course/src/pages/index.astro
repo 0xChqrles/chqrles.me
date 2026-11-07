@@ -3,7 +3,7 @@ import Levels from '../components/Levels.astro'
 import Course from '../layouts/Course.astro'
 import { auditMap } from '../lib/audit'
 import { glyphSvg, qSvg } from '../lib/glyphs'
-import { nojsSvg } from '../lib/nojs'
+import { nojsMap } from '../lib/nojs'
 import { getCourse, getWorld, json, shareAlt } from '../lib/pages'
 import { esc } from '../lib/render-card'
 import { url } from '../lib/base'
@@ -21,7 +21,6 @@ if (map.faults.length) {
 }
 const byId = new Map(w.levels.map((l) => [l.id, l]))
 const chapters = cards.filter((c) => c.chapitre).sort((a, b) => a.chapitre! - b.chapitre!)
-const quest = w.regions.find((r) => chapters.some((c) => c.quartier === r.id))
 // The head's counter: every level on the map (the course's own total).
 const onMap = w.order.filter((id) => map.tree.data.axes.h.tiles.some((t) => t.id === id)).map((id) => byId.get(id)!)
 const first = chapters[0]!
@@ -46,13 +45,13 @@ const home = course.home.replace(/<ol\b[^>]*\bid="chapitres"[^>]*>/, (open) => o
       </a>
       <div class="counts">
         <span class="count" aria-label="compris"><Fragment set:html={glyphSvg('check', 2)} /><b class="num" id="n-lus">0/{onMap.length}</b></span>
-        <span class="count" aria-label={quest?.nom}><Fragment set:html={glyphSvg('chapters', 2)} /><b class="num" id="n-chap">0/{chapters.length}</b></span>
+        <span class="count" aria-label="chapitres"><Fragment set:html={glyphSvg('chapters', 2)} /><b class="num" id="n-chap">0/{chapters.length}</b></span>
       </div>
       <a class="btn primary" id="go" href={first.prevu ? '#plan' : url(`${first.id}/`)}><span>Commencer ici</span><Fragment set:html={glyphSvg('next', 2)} /></a>
       <a class="key" id="cherche" href="#plan" aria-label="Chercher dans le cours" aria-controls="plan" aria-expanded="false"><Fragment set:html={glyphSvg('search', 2)} /></a>
     </header>
     <main class="pane" id="pane">
-      <noscript><div class="nojs-map" set:html={nojsSvg(map.tree.data, w)} /></noscript>
+      <noscript><div class="nojs-map" set:html={nojsMap(map.tree.data, w)} /></noscript>
       <canvas id="map" aria-hidden="true"></canvas>
       <div class="links" id="links"></div>
       <div class="zbar" id="zbar">
@@ -69,8 +68,7 @@ const home = course.home.replace(/<ol\b[^>]*\bid="chapitres"[^>]*>/, (open) => o
       <div class="peek" id="peek"></div>
       <div class="bc" id="bc" aria-live="polite"></div>
     </aside>
-    <nav class:list={['track', quest && `h${quest.hue}`]} id="track" aria-label={quest?.nom}>
-      <span class="eyebrow">{quest?.nom}</span>
+    <nav class="track" id="track" aria-label="Chapitres">
       <ol>
         {
           chapters.map((c) => {

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'astro/zod'
 import { SLUG } from '../../scripts/shape.mjs'
+import { courseOrder, gates } from './gate'
 import { apos, cardRenderer, esc, typo } from './render-card'
 
 const id = z.string().regex(SLUG, 'a slug: lowercase letters, digits and single hyphens')
@@ -59,7 +60,6 @@ export type Card = {
   quartier: string
   resume: string
   prerequis: string[]
-  suite: string[]
   prevu: boolean
   chapitre: number | null
   n: number | null
@@ -169,7 +169,6 @@ export function loadCourse(dir: string): { course?: Course; errors: string[]; su
 
   const ids = new Set(outline.cartes.map((c) => c.id))
   const cardOf = (cid: string) => outline.cartes.find((c) => c.id === cid)!
-  const suite = (cid: string) => outline.cartes.filter((c) => c.prerequis.includes(cid)).map((c) => c.id)
   const chapters = outline.cartes.filter((c) => c.chapitre)
   const chapterOf = (cid: string) => chapters.find((c) => (c.notions ?? []).includes(cid))
   const cards: Card[] = outline.cartes.map((c) => ({
@@ -179,7 +178,6 @@ export function loadCourse(dir: string): { course?: Course; errors: string[]; su
     quartier: c.quartier,
     resume: apos(esc(c.resume)),
     prerequis: c.prerequis,
-    suite: suite(c.id),
     prevu: !parsed.has(c.id),
     chapitre: c.chapitre || null,
     n: c.chapitre || chapterOf(c.id)?.chapitre || null,
@@ -203,8 +201,30 @@ export function loadCourse(dir: string): { course?: Course; errors: string[]; su
     if (!quartiers.has(c.quartier)) err(c.id, `quartier inconnu ${c.quartier}`)
     for (const p of c.prerequis) if (!ids.has(p)) err(c.id, `prérequis inconnu ${p}`)
     for (const n of c.notions ?? []) if (!ids.has(n)) err(c.id, `notion inconnue ${n}`)
-    if (!c.chapitre && (c.col == null || !c.complexite || !c.importance)) err(c.id, 'notion sans position ou sans notes sur la carte')
+    if (c.col == null || c.rang == null || !c.complexite || !c.importance) err(c.id, 'sans position ou sans notes sur la carte')
   }
+  // THE COURSE'S SHAPE, which the gates (lib/gate.ts) are derived from: chapters numbered 1 to K,
+  // each notion listed by one chapter and in its region, no prerequisite on a chapter (its gate is
+  // the chapter before it), and every prerequisite earlier in the course.
+  const numbers = chapters.map((c) => c.chapitre!)
+  for (let n = 1; n <= Math.max(0, ...numbers); n++) {
+    const k = numbers.filter((x) => x === n).length
+    if (k !== 1) err('chapitres', k ? `chapitre ${n} en double` : `pas de chapitre ${n}`)
+  }
+  for (const c of outline.cartes) {
+    if (c.chapitre) {
+      if (c.prerequis.length) err(c.id, 'des prérequis sur un chapitre')
+      for (const n of c.notions ?? []) if (cardOf(n)?.chapitre) err(c.id, `le chapitre ${n} dans ses notions`)
+      continue
+    }
+    if (c.notions) err(c.id, 'des notions hors d’un chapitre')
+    const by = chapters.filter((ch) => ch.notions?.includes(c.id))
+    if (by.length !== 1) err(c.id, by.length ? `dans plusieurs chapitres : ${by.map((ch) => ch.id).join(', ')}` : 'dans aucun chapitre')
+    else if (by[0]!.quartier !== c.quartier) err(c.id, `quartier ${c.quartier} hors de celui de son chapitre, ${by[0]!.quartier}`)
+  }
+  const order = courseOrder(cards)
+  for (const c of outline.cartes)
+    for (const p of c.prerequis) if (ids.has(p) && order.indexOf(p) >= order.indexOf(c.id)) err(c.id, `prérequis ${p} pas avant elle dans le cours`)
   if (!ids.has(outline.cours.objectif)) err('cours', `objectif inconnu ${outline.cours.objectif}`)
   for (const e of outline.aretes) {
     for (const end of [e.a, e.b]) if (!ids.has(end)) err(`${e.a} > ${e.b}`, `carte inconnue ${end}`)
@@ -219,14 +239,16 @@ export function loadCourse(dir: string): { course?: Course; errors: string[]; su
       .map((x) => notion(x, titleOf(x)))
       .join(' · ')
 
+  // The search reads a page's gate and what it opens as the page shows them (« Avant ça », « Ce que
+  // ça débloque »: lib/gate.ts), a chapter's own notions listed once, as its notions.
+  const need = gates(cards)
   const pages: Page[] = outline.cartes.flatMap((c) => {
     const p = parsed.get(c.id)
     if (!p) return []
     const minutes = minutesOf(c.id)!
-    const chapter = chapterOf(c.id)
-    const meta = [`${minutes} min`, c.prerequis.length ? `Avant ça : ${list(c.prerequis)}` : 'Aucun prérequis']
-    if (chapter) meta.push(`Dans le cours : ${notion(chapter.id, titleOf(chapter.id))}`)
-    const next = suite(c.id).filter((x) => !cardOf(x).chapitre)
+    const before = need.get(c.id)!
+    const meta = [`${minutes} min`, ...(before.length ? [`Avant ça : ${list(before)}`] : [])]
+    const next = order.filter((x) => need.get(x)?.includes(c.id) && !(c.notions ?? []).includes(x))
     const prev = c.chapitre && chapters.find((x) => x.chapitre === c.chapitre! - 1)
     const nxt = c.chapitre && chapters.find((x) => x.chapitre === c.chapitre! + 1)
     const pn = c.chapitre

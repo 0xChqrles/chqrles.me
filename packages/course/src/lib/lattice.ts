@@ -229,20 +229,40 @@ function trimCoast(ring: Pt[], ok: (r: Pt[]) => boolean): Pt[] {
 }
 const union = (pieces: Pt[][]) => {
   for (const p of pieces) if (p.length < 3 || p.some((q) => !Number.isFinite(q[0]) || !Number.isFinite(q[1]))) throw new Error('a degenerate piece: ' + JSON.stringify(p))
-  const [first, ...rest] = pieces.map((p) => [[...p, p[0]!]] as [number, number][][])
+  // (to 1e-4 of a step: polygon-clipping loses its sweep on near-coincident edges)
+  const [first, ...rest] = pieces.map((p) => [[...p, p[0]!].map((q) => [r2(q[0]), r2(q[1])])] as [number, number][][])
   return polygonClipping.union(first!, ...rest)
 }
 
 // ---------------------------------------------------------------- the input
 type In = { id: string; region: string; hue: number; col: number; rang: number; size: Size; label: string; name: string }
-export type Input = { levels: In[]; regions: World['regions']; aretes: Course['aretes']; quest: string | null; start: string | null }
+export type Input = { levels: In[]; regions: World['regions']; aretes: Course['aretes']; start: string | null }
 export function inputOf(course: Course, w: World): Input {
   const cards = new Map(course.cards.map((c) => [c.id, c]))
+  // (a card without its place fails the build; the dev preview, which renders through faults,
+  // leaves it out)
   const levels = w.levels
-    .filter((l) => l.onMap)
+    .filter((l) => cards.get(l.id)!.col != null)
     .map((l) => ({ id: l.id, region: l.region, hue: l.hue, col: Math.round(cards.get(l.id)!.col!), rang: cards.get(l.id)!.rang!, size: sizeOf(l, w.objectif), label: l.label, name: cards.get(l.id)!.carte ?? l.nom }))
-  const quest = w.regions.find((r) => course.cards.some((c) => c.chapitre && c.quartier === r.id))?.id ?? null
-  return { levels, regions: w.regions, aretes: course.aretes, quest, start: w.order.find((id) => levels.some((l) => l.id === id)) ?? null }
+  return { levels, regions: w.regions, aretes: course.aretes, start: w.order.find((id) => levels.some((l) => l.id === id)) ?? null }
+}
+
+// THE LINKS THE MAP DRAWS, derived from `chapitre`, `notions` and `prerequis` (the aretes only
+// say how each runs): each chapter to the next (the path), a chapter to each of its notions that
+// needs none of its siblings, and a notion to each sibling it needs. A prerequisite in another
+// chapter is not drawn: the gates already hold it (lib/gate.ts).
+export function linksOf(cards: Course['cards']): string[] {
+  const byId = new Map(cards.map((c) => [c.id, c]))
+  const chapters = cards.filter((c) => c.chapitre).sort((a, b) => a.chapitre! - b.chapitre!)
+  const out: string[] = []
+  chapters.forEach((ch, i) => {
+    if (i) out.push(`${chapters[i - 1]!.id}>${ch.id}`)
+    for (const id of ch.notions) {
+      const sib = (byId.get(id)?.prerequis ?? []).filter((p) => ch.notions.includes(p))
+      out.push(...(sib.length ? sib.map((p) => `${p}>${id}`) : [`${ch.id}>${id}`]))
+    }
+  })
+  return out
 }
 
 // ---------------------------------------------------------------- the lands
@@ -317,6 +337,11 @@ export function lands(input: Input): { lands: LandOut[]; faults: string[]; notes
         links.get(n.id)!.add(t.id)
         const p: Pt = [t.x, t.y]
         const q: Pt = [n.x, n.y]
+        // a square of four levels of the region: its four bands join it, a square fills its middle
+        if (d % 2 && at8.get(`${t.x + L8[d]![0]},${t.y}`)?.region === g.id && at8.get(`${t.x},${t.y + L8[d]![1]}`)?.region === g.id) {
+          pieces.push([p, [q[0], p[1]], q, [p[0], q[1]]])
+          continue
+        }
         const corners = d % 2 ? [at8.get(`${t.x + L8[d]![0]},${t.y}`), at8.get(`${t.x},${t.y + L8[d]![1]}`)].filter((f): f is (typeof T)[number] => !!f && f.region !== g.id) : []
         if (!corners.length) {
           const e1 = Math.min(ext.get(t.id)![(d + 2) % 8]!, ext.get(n.id)![(d + 2) % 8]!)
@@ -603,6 +628,10 @@ export function treeOf(course: Course, w: World): { data: TreeData; faults: stri
   const faults: string[] = []
   const notes = new Set<string>()
   for (const l of input.levels) if (!course.icones[l.id]) faults.push(`${l.id}: no icon in icones.json`)
+  const want = linksOf(course.cards)
+  const have = course.aretes.map((e) => `${e.a}>${e.b}`)
+  for (const id of want) if (!have.includes(id)) faults.push(`link ${id.replace('>', ' > ')}: the map draws it, and outline.json has no arete for it`)
+  for (const id of have) if (!want.includes(id)) faults.push(`link ${id.replace('>', ' > ')}: not a link the map draws (the path, a chapter to its notions, a notion to a notion of its chapter)`)
   for (const D of DRAWINGS)
     for (const [a, b, least] of [['G', 'L', SIZE_RATIO], ['L', 'M', SIZE_RATIO], ['M', 'S', SIZE_RATIO]] as [Size, Size, number][]) {
       const r = D.t[a][0] / D.t[b][0]
@@ -610,11 +639,18 @@ export function treeOf(course: Course, w: World): { data: TreeData; faults: stri
     }
   // Every icon of a desktop world is drawn at 2 px a cell or more.
   for (const D of DRAWINGS) if (D.kind === 'wide' && !D.z) for (const s of ['S', 'M', 'L', 'G'] as Size[]) if (D.t[s][1] < 2) faults.push(`the desktop world at step ${D.step}: its ${s} icon is drawn at ${D.t[s][1]} px a cell (2 at least)`)
+  // THE PATH: the chapters in their order, each on the rang of the one before it or past it (a
+  // desktop reads it left to right, a phone top to bottom), never back.
+  const chapters = course.cards.filter((c) => c.chapitre && c.rang != null).sort((a, b) => a.chapitre! - b.chapitre!)
+  chapters.forEach((c, i) => {
+    const p = chapters[i - 1]
+    if (p && c.rang! < p.rang!) faults.push(`the path turns back: chapter ${c.chapitre} (${c.id}) stands at rang ${c.rang}, chapter ${p.chapitre} at rang ${p.rang}`)
+  })
   // The goal stands on the course's outermost column: the end of the map is the end of the course.
   const goal = input.levels.find((l) => l.size === 'G')
   if (goal && input.levels.some((l) => l.rang > goal.rang)) faults.push(`the goal ${goal.id} stands at rang ${goal.rang}, not on the outermost column (${Math.max(...input.levels.map((l) => l.rang))})`)
   const by = (s: Size) => input.levels.filter((l) => l.size === s).map((l) => l.id)
-  notes.add(`sizes from importance: G ${by('G').join(', ')}; L ${by('L').length}; M ${by('M').length}; S ${by('S').length}`)
+  notes.add(`sizes from rank and importance: G ${by('G').join(', ')}; L ${by('L').length}; M ${by('M').length}; S ${by('S').length}`)
   const L = lands(input)
   faults.push(...L.faults)
   for (const n of L.notes) notes.add(n)
@@ -628,5 +664,5 @@ export function treeOf(course: Course, w: World): { data: TreeData; faults: stri
   const cards = new Map(course.cards.map((c) => [c.id, c]))
   const names = Object.fromEntries(input.levels.map((l) => [l.id, cards.get(l.id)!.carte ?? w.levels.find((x) => x.id === l.id)!.nom]))
   const icons = Object.fromEntries(input.levels.map((l) => [l.id, course.icones[l.id] ?? []]))
-  return { data: { titre: course.cours.titre, objectif: w.objectif, quest: input.quest, icons, names, axes }, faults, notes: [...notes], input }
+  return { data: { titre: course.cours.titre, objectif: w.objectif, icons, names, axes }, faults, notes: [...notes], input }
 }

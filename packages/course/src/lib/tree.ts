@@ -10,8 +10,10 @@ export type Box = [number, number, number, number]
 // ('v': x = col, y = rang).
 export type Axis = 'h' | 'v'
 export type Size = 'S' | 'M' | 'L' | 'G'
-export type Etat = 'lu' | 'prog' | 'dispo' | 'soft' | 'front' | 'fog'
-export const ETATS: Etat[] = ['lu', 'prog', 'dispo', 'soft', 'front', 'fog']
+// A level's state (lib/gate.ts): understood, begun, open, locked (written, its gate unmet), at the
+// front (planned, its gate met), in the fog (planned).
+export type Etat = 'lu' | 'prog' | 'dispo' | 'verrou' | 'front' | 'fog'
+export const ETATS: Etat[] = ['lu', 'prog', 'dispo', 'verrou', 'front', 'fog']
 
 // SIZES ARE TIED TO THE STEP: a plate's flat-to-flat width is a share of the step it is read at, so
 // the map keeps its density at every screen (a 1920 world is a 1440 world grown, never specks in
@@ -36,6 +38,19 @@ export const NUM_ROOM = 13
 // (S takes M's; where M cannot either, both take ICON2, and L at least that): classes merge, never
 // shrink an icon to 1 px. The build fails a desktop world's icon under 2 px a cell (lib/lattice.ts).
 export const ICON2 = 30
+// THE TEXT'S SCALE at a view: 11-px numbers and titles on a world up to TEXT_STEP, 13 px beyond it
+// (1920), so a label keeps its rank beside plates that grow with the step (lib/place.ts, `textK`).
+export const TEXT_STEP = 100
+export const textScale = (kind: Kind, z: boolean, s: number) => (!z && kind === 'wide' && s >= TEXT_STEP ? 13 / 11 : 1)
+// A STATION'S PLAQUE (lib/place.ts) is PLAQUE_H px tall at 11-px text (2 px round its digits, whose
+// line is 10), its line scaled with the text. It hangs PLAQUE_TUCK px over its plate's edge, more
+// where its cell is too short to hold it (CELL·s, less the rim's 2 px), never over the icon (the
+// plate's frame round it).
+export const PLAQUE_H = 12
+export const PLAQUE_TUCK = 5
+export const plaqueH = (k: number) => Math.round(10 * k) + PLAQUE_H - 10
+export const tuckMax = (F: number) => (F - 11 * cellOf(F)) / 2
+export const tuckAt = (F: number, s: number, k = 1) => Math.max(PLAQUE_TUCK, Math.ceil(F / 2 + plaqueH(k) + 2 - CELL * s - 1e-9))
 export function tableAt(kind: Kind, z: boolean, s: number): Table {
   const world = kind === 'wide' && !z
   let L = even(Math.min(FRAC[kind][z ? 'z' : 'w'] * s, world ? 2 * (CELL * s - NUM_ROOM) : Infinity))
@@ -44,7 +59,11 @@ export function tableAt(kind: Kind, z: boolean, s: number): Table {
   if (world) {
     if (cellOf(S) < 2) S = M
     if (cellOf(M) < 2) M = S = ICON2
-    if (L < M * SIZE_RATIO) L = M
+    // A CHAPTER STANDS A CLASS OVER ITS NOTIONS wherever its cell holds the larger plate with its
+    // plaque hung under it (tucked over its frame, never its icon, and the rim's 2 px of
+    // clearance), and the goal's chamber a goal SIZE_RATIO over it. Else the two classes merge.
+    const up = even(Math.ceil(M * SIZE_RATIO) + 1)
+    if (L < M * SIZE_RATIO) L = tuckAt(up, s, textScale(kind, z, s)) <= tuckMax(up) && 2 * (GOAL_CELL * s - 4 - BEZEL - TICK) >= SIZE_RATIO * up ? up : M
   }
   // the goal: GOAL_RATIO × L, within its chamber (GOAL_CELL, less its bezel and 4 px of land)
   const G = even(world ? Math.min(GOAL_RATIO * L, 2 * (GOAL_CELL * s - 4 - BEZEL - TICK)) : GOAL_RATIO * L)
@@ -64,8 +83,9 @@ export const smaller = (a: Size, b: Size): Size => (RANK.indexOf(a) <= RANK.inde
 // the goal's, toward every lattice point free of another level, GOAL_CELL (its chamber).
 export const CELL = 0.45
 export const GOAL_CELL = 0.7
-// SIZE IS IMPORTANCE: 5 is L, 4 is M, 3 and under is S; the course's goal is G.
-export const sizeOf = (l: { id: string; importance: number | null }, goal: string): Size => (l.id === goal ? 'G' : (l.importance ?? 3) >= 5 ? 'L' : (l.importance ?? 3) >= 4 ? 'M' : 'S')
+// SIZE IS RANK: a chapter stands on the large plate (the course's goal on G), a notion one class
+// under it, M at importance 5, else S.
+export const sizeOf = (l: { id: string; importance: number | null; chapitre: number | null }, goal: string): Size => (l.id === goal ? 'G' : l.chapitre ? 'L' : (l.importance ?? 3) >= 5 ? 'M' : 'S')
 // The goal's bezel: a 1-px ring BEZEL off its plate, with 16 ticks TICK px out.
 export const BEZEL = 6
 export const TICK = 4
@@ -88,13 +108,15 @@ export type AxisData = {
   roads: { id: string; a: string; b: string; ra: string; rb: string; pts: Pt[]; pieces: Piece[]; relay: boolean; ports?: [Pt, Pt] }[]
   warps: { id: string; a: string; b: string; end: Pt; port: Pt }[]
 }
-export type TreeData = { titre: string; objectif: string; quest: string | null; icons: Record<string, string[]>; names: Record<string, string>; axes: Record<Axis, AxisData> }
+export type TreeData = { titre: string; objectif: string; icons: Record<string, string[]>; names: Record<string, string>; axes: Record<Axis, AxisData> }
 
 // THE LAYOUT of one axis: nodes, links (a relay is a link drawn as two stubs into ports that show
 // the far level's icon; a warp has only its incoming port), lands.
-export type Node = { id: string; x: number; y: number; size: Size; reg: string; hue: number }
+// `chap`: a chapter, a station of the main line.
+export type Node = { id: string; x: number; y: number; size: Size; reg: string; hue: number; chap?: boolean }
 export type Port = { at: Pt; dir: Pt; end: 'a' | 'b'; far: string }
-export type Link = { id: string; a: string; b: string; ra: string; rb: string; pts: Pt[]; pieces: Piece[]; relay: boolean; warp: boolean; ports: Port[] }
+// `main`: a chapter to the next, a stretch of the main line (its track, not a groove).
+export type Link = { id: string; a: string; b: string; ra: string; rb: string; pts: Pt[]; pieces: Piece[]; relay: boolean; warp: boolean; ports: Port[]; main?: boolean }
 export type Layout = { axis: Axis; nodes: Map<string, Node>; links: Link[]; lands: Map<string, { hue: number; rings: Pt[][] }>; box: Box }
 
 const unit = (a: Pt, b: Pt): Pt => {
@@ -106,7 +128,7 @@ export function layout(T: TreeData, levels: Map<string, Level>, axis: Axis): Lay
   const nodes = new Map<string, Node>()
   for (const t of A.tiles) {
     const lv = levels.get(t.id)!
-    nodes.set(t.id, { id: t.id, x: t.x, y: t.y, size: sizeOf(lv, T.objectif), reg: lv.region, hue: lv.hue })
+    nodes.set(t.id, { id: t.id, x: t.x, y: t.y, size: sizeOf(lv, T.objectif), reg: lv.region, hue: lv.hue, chap: lv.chapitre != null })
   }
   const links: Link[] = []
   for (const r of A.roads) {
@@ -119,13 +141,13 @@ export function layout(T: TreeData, levels: Map<string, Level>, axis: Axis): Lay
       ports.push({ at: pa, dir: u0, end: 'a', far: r.b })
       ports.push({ at: pb, dir: u1, end: 'b', far: r.a })
     }
-    links.push({ ...r, warp: false, ports })
+    links.push({ ...r, warp: false, ports, main: !!nodes.get(r.a)?.chap && !!nodes.get(r.b)?.chap })
   }
   for (const w of A.warps) {
     const a = nodes.get(w.a)!
     const b = nodes.get(w.b)!
     const u = unit([b.x, b.y], w.end)
-    links.push({ id: w.id, a: w.a, b: w.b, ra: a.reg, rb: b.reg, pts: [[a.x, a.y], [b.x, b.y]], pieces: [], relay: true, warp: true, ports: [{ at: w.port, dir: u, end: 'b', far: w.a }] })
+    links.push({ id: w.id, a: w.a, b: w.b, ra: a.reg, rb: b.reg, pts: [[a.x, a.y], [b.x, b.y]], pieces: [], relay: true, warp: true, ports: [{ at: w.port, dir: u, end: 'b', far: w.a }], main: !!a.chap && !!b.chap })
   }
   const lands = new Map(A.lands.map((l) => [l.id, { hue: l.hue, rings: l.rings }]))
   const xs = [...nodes.values()].map((n) => n.x)

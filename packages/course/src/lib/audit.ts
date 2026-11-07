@@ -34,7 +34,6 @@ export function auditMap(course: Course, w: World): MapAudit & { tree: ReturnTyp
       order: w.order,
       text: (id) => ({ label: levels.get(id)!.label, name: tree.data.names[id]! }),
       regs: w.regions.filter((r) => r.levels.some((id) => LY.nodes.has(id))).map((r) => ({ id: r.id, nom: r.nom, count: `0/${r.levels.filter((id) => LY.nodes.has(id)).length}` })),
-      quest: tree.data.quest,
     }
     const home = w.order.find((id) => LY.nodes.has(id)) ?? null
     const a = audit(LY, { w: P.w, h: P.h, top: 0, foot: P.foot, gutter: g }, home, C, P.name, P.desk)

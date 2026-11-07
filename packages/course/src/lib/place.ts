@@ -3,7 +3,7 @@
 // panes (`audit`), so a label that would cross a link or meet a plate fails the build, naming it.
 // Text is measured with lib/metrics.ts on both sides, so the two always agree.
 import { textW, type Face } from './metrics'
-import { below, cellOf, inRings, reachOf, smaller, tableAt, ZOOM_K, dir8, type Axis, type Box, type Kind, type Layout, type Link, type Node, type Pt, type Size, type Table } from './tree'
+import { below, BEZEL, cellOf, GOAL_CELL, inRings, PLAQUE_TUCK, plaqueH, reachOf, TEXT_STEP, textScale, tuckAt, smaller, tableAt, ZOOM_K, dir8, type Axis, type Box, type Kind, type Layout, type Link, type Node, type Pt, type Size, type Table } from './tree'
 
 // THE VIEW: which table, at what scale (CSS px a lattice step), which region is in focus (and its
 // largest class, which no neighbour exceeds), where the q stands.
@@ -20,6 +20,57 @@ export const fmaxOf = (LY: Layout, reg: string): Size => {
   const rank = ['S', 'M', 'L', 'G'] as const
   return rank[Math.max(...[...LY.nodes.values()].filter((n) => n.reg === reg).map((n) => rank.indexOf(n.size)))]!
 }
+// THE MAIN LINE: the chapters' links are one track, a filled band TRACK_SHARE of the step wide (an
+// even px, TRACK_MIN at least; zoomed, of the step its plates are drawn at), its 1-px rails inside
+// that width, drawn under the stations and over every land and strait it crosses. Every rule that
+// keeps a label, a card or a tag off a link keeps it off the band's edge.
+export const TRACK_SHARE = 0.12
+export const TRACK_MIN = 6
+export const trackOf = (v: Pick<View, 'kind' | 'z' | 's' | 's0'>) => Math.max(TRACK_MIN, Math.floor(((v.z ? Math.min(v.s, ZPLATE_K * (v.s0 ?? v.s / ZPLATE_K)) : v.s) * TRACK_SHARE) / 2) * 2)
+// The band's outline round a polyline (in px), `half` each side, mitred at every bend: one filled
+// shape, never a stroke.
+export function bandPts(pts0: Pt[], half: number): Pt[] {
+  const pts = pts0.filter((p, i) => !i || Math.hypot(p[0] - pts0[i - 1]![0], p[1] - pts0[i - 1]![1]) > 1e-9)
+  const n = pts.length
+  const nrm = (a: Pt, b: Pt): Pt => {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+    return [-(b[1] - a[1]) / L, (b[0] - a[0]) / L]
+  }
+  const side = (sg: number): Pt[] =>
+    pts.map((p, i) => {
+      const a = i > 0 ? nrm(pts[i - 1]!, p) : null
+      const b = i < n - 1 ? nrm(p, pts[i + 1]!) : null
+      const m: Pt = a && b ? [a[0] + b[0], a[1] + b[1]] : (a ?? b)!
+      // the mitre: (a + b) scaled so each side stands `half` off its own segment
+      const k = a && b ? half / Math.max(0.5, m[0] * b[0] + m[1] * b[1]) : half
+      return [p[0] + sg * m[0] * k, p[1] + sg * m[1] * k] as Pt
+    })
+  return [...side(1), ...side(-1).reverse()]
+}
+// A STATION'S NUMBER stands in a plaque, set in bold: PLAQUE px of the plaque either side of its
+// line (whose height already holds a px over and under the digits), so 2 px at least round them
+// (lib/tree.ts, PLAQUE_H). It hangs under its plate at every station and on every screen, centred,
+// tucked over the plate's edge (lib/tree.ts, `tuckAt`: the same at every station of a view); the
+// goal's hangs on its bezel's ring. Under it on a wide screen is the plate's own side of the
+// track; on a phone, the track itself. The station's own links leaving under it (straight or at
+// 45°) run out from under it, for the plaque's own reach from the plate's centre and no further
+// (`hits`). Where that place is not free, the number's other places under the plate (beside such
+// a branch PLAQUE.off px off its axis).
+export const PLAQUE = { x: 2, y: (plaqueH(1) - 10) / 2, off: 4 }
+// Its width: the digits' ink and PLAQUE.x either side. A figure's ink stands inside its advance
+// (JetBrains Mono's bold figures: 55 thousandths of an em at least on the left, 48 on the right,
+// so over a px in all at 11 px): the plaque is measured on the advance less PLAQUE_INK px.
+export const PLAQUE_INK = 1
+export const plaqueW = (nw: number) => Math.ceil(nw - PLAQUE_INK) + 2 * PLAQUE.x
+// The plaque's box in its label (« Nouveau » apart).
+export const plaqueBox = (lb: Pick<Label, 'box' | 'lines' | 'plq'>): Box => {
+  if (lb.plq) return lb.plq
+  const k = lb.lines.find((l) => l.face === 'num')?.k ?? 1
+  return [lb.box[0], lb.box[3] - Math.round(LINE.num * k) - 2 * PLAQUE.y, lb.box[2], lb.box[3]]
+}
+// Where a stretch of the main line plugs into its station, its arrowhead's barbs stand MAIN_BARB px
+// past the band's edges: the direction reads on the lit track as on the track ahead.
+export const MAIN_BARB = 3
 // A port or door chip, cut 4: 20 on a world, 28 zoomed; a phone's 16 and 20.
 export const chipOf = (v: Pick<View, 'kind' | 'z'>) => (v.kind === 'phone' ? (v.z ? 20 : 16) : v.z ? 28 : 20)
 
@@ -87,8 +138,14 @@ export const GAP = { num: 1, name: 6, side: 8 }
 // A number's line is its digits' height (the mono's figures stand 8 px over the baseline at 11 px)
 // and a pixel either side; a name's line is 16.
 export const LINE = { num: 10, name: 16 }
-// The farthest a label stands from its row's plates, in px (audited).
-export const NEAR_LABEL = 12
+// The farthest a label stands from its row's plates, in px (audited): 13, so a label with no room
+// in its cell can stand just past its coast under its plate on the smallest desk world (a step of
+// 56, its cell's coast 10 px under a 30-px plate, and the rim's 2 px).
+export const NEAR_LABEL = 13
+// A label stands LABEL_OWN px nearer its own plate than any other (lib/place.ts, `labels`).
+export const LABEL_OWN = 8
+// The gap between two boxes (the larger of the two axes' gaps; 0 where they meet).
+export const boxGap = (a: Box, b: Box) => Math.max(a[0] - b[2], b[0] - a[2], a[1] - b[3], b[1] - a[3], 0)
 // Labels of one lattice row share a line only where it stays this near each plate.
 export const ROW_SHARE = 6
 // A label's keyline reaches a pixel past its box; the rim's 2-px stroke a pixel inside its coast:
@@ -98,8 +155,9 @@ export const RIM_CLEAR = 2
 export const RIM_VERTEX = 4
 const inBox = (b: Box, p: Pt) => p[0] >= b[0] && p[0] <= b[2] && p[1] >= b[1] && p[1] <= b[3]
 export type Side = 'S' | 'E' | 'W'
-export type Line = { t: string; face: Face; x: number; base: number; k?: number }
-export type Label = { side: Side; form: 'one' | 'two' | 'num'; box: Box; lines: Line[]; fresh: boolean }
+export type Line = { t: string; face: Face; x: number; base: number; k?: number; strong?: boolean }
+// `plq`: a station's plaque, where it is not the box's foot (« Nouveau » under a hung plaque).
+export type Label = { side: Side; form: 'one' | 'two' | 'num'; box: Box; lines: Line[]; fresh: boolean; plaque?: boolean; hung?: boolean; plq?: Box }
 // « Nouveau » (a level a clear just opened) is an eyebrow line over the label, never in place of
 // its name: EYE px more, in the label's own slot (audited as the label is).
 export const EYE = 13
@@ -148,31 +206,34 @@ export function facesOf(LY: Layout): Map<string, Set<number>> {
 // level, in every save state.
 export const sidesOf = (_faces: Set<number>): Side[] => ['S', 'E', 'W']
 export const sideOf = (faces: Set<number>): Side | null => sidesOf(faces)[0] ?? null
-// SEMANTIC ZOOM: a desktop world shows its numbers; a phone's shows none (the sheet names the
-// level chosen). Every region zoomed shows them.
+// SEMANTIC ZOOM: a desktop world shows its numbers; a phone's shows its stations' only (the sheet
+// names the level chosen). Every region zoomed shows them.
 export const labelled = (v: Pick<View, 'kind' | 'z'>) => v.z || v.kind === 'wide'
+export const labelledAt = (v: Pick<View, 'kind' | 'z'>, n: Pick<Node, 'chap'>) => labelled(v) || !!n.chap
 
 // A label's box on its side. Under the plate it is centred, then kept between the diagonal links
 // that leave the plate on that side (a link from the centre at 45° passes x = ±y): it shifts off
 // one, and a label wider than the room between two does not stand in that form. `h` is how far its
 // row's plates reach (under), or its own plate (beside).
-function lineBox(side: Side, h: number, w: number, hgt: number, gap: number, faces: Set<number>): Box | null {
+function lineBox(side: Side, h: number, w: number, hgt: number, gap: number, faces: Set<number>, off = LINK_OFF): Box[] {
   // beside: centred on the plate; where a groove leaves straight that way, under it
-  const yb = (f: number): [number, number] => (faces.has(f) ? [LINK_OFF, LINK_OFF + hgt] : [-hgt / 2, hgt / 2])
-  if (side === 'E') return [h + GAP.side, yb(0)[0], h + GAP.side + w, yb(0)[1]]
-  if (side === 'W') return [-h - GAP.side - w, yb(4)[0], -h - GAP.side, yb(4)[1]]
+  const yb = (f: number): [number, number] => (faces.has(f) ? [off, off + hgt] : [-hgt / 2, hgt / 2])
+  if (side === 'E') return [[h + GAP.side, yb(0)[0], h + GAP.side + w, yb(0)[1]]]
+  if (side === 'W') return [[-h - GAP.side - w, yb(4)[0], -h - GAP.side, yb(4)[1]]]
   const near = h + gap
   // a 45° groove from the centre passes x = ±y: the label keeps its keyline and 3 px off it
   const room = near - 6.5
   const [lo, hi] = [faces.has(3) ? -room : -Infinity, faces.has(1) ? room : Infinity]
-  // a groove leaving straight down: the label stands beside it, right then left (LINK_OFF off it)
-  const spans: [number, number][] = faces.has(2) ? [[LINK_OFF, hi], [lo, -LINK_OFF]] : [[lo, hi]]
+  // a groove leaving straight down: the label stands beside it, right then left (LINK_OFF off it),
+  // each a form of its own
+  const spans: [number, number][] = faces.has(2) ? [[off, hi], [lo, -off]] : [[lo, hi]]
+  const out: Box[] = []
   for (const [a, b] of spans) {
     if (w > b - a) continue
     const x0 = faces.has(2) ? (a > 0 ? a : b - w) : Math.min(Math.max(-w / 2, a), b - w)
-    return [x0, near, x0 + w, near + hgt]
+    out.push([x0, near, x0 + w, near + hgt])
   }
-  return null
+  return out
 }
 // How far a label under its plate keeps off a groove leaving straight down (its keyline clear).
 export const LINK_OFF = 6
@@ -182,7 +243,7 @@ export const LINK_OFF = 6
 // box is), right of it they start at its left, left of it they end at its right.
 // `tk` is the text's scale at the view (lib/place.ts's `textK`): 11-px numbers and eyebrows on most
 // tables, 13 on the largest world, so text keeps its rank against plates that grow with the step.
-export function forms(label: string, name: string | null, side: Side, h: number, faces: Set<number>, fresh = false, numOnly = true, tk = 1): Label[] {
+export function forms(label: string, name: string | null, side: Side, h: number, faces: Set<number>, fresh = false, numOnly = true, tk = 1, plq = false): Label[] {
   const nw = textW(label, 'num') * tk
   const ew = fresh ? textW('Nouveau', 'eyebrow') * tk : 0
   const e = fresh ? Math.round(EYE * tk) : 0
@@ -191,32 +252,60 @@ export function forms(label: string, name: string | null, side: Side, h: number,
   const eye = (b: Box): Line[] => (fresh ? [{ t: 'Nouveau', face: 'eyebrow', x: xin(b, ew), base: b[1] + Math.round(10 * tk), k: tk }] : [])
   if (name) {
     const gw = nw + 6 + textW(name, 'name')
-    const b = lineBox(side, h, Math.max(ew, gw), LINE.name + e, GAP.name, faces)
-    if (b) out.push({ side, form: 'one', fresh, box: b, lines: [...eye(b), { t: label, face: 'num', x: xin(b, gw), base: b[1] + e + 12 }, { t: name, face: 'name', x: xin(b, gw) + nw + 6, base: b[1] + e + 12 }] })
+    for (const b of lineBox(side, h, Math.max(ew, gw), LINE.name + e, GAP.name, faces)) out.push({ side, form: 'one', fresh, box: b, lines: [...eye(b), { t: label, face: 'num', x: xin(b, gw), base: b[1] + e + 12 }, { t: name, face: 'name', x: xin(b, gw) + nw + 6, base: b[1] + e + 12 }] })
     const hv = halves(name)
     const gw2 = hv ? nw + 6 + Math.max(textW(hv[0], 'name'), textW(hv[1], 'name')) : 0
-    const b2 = hv && lineBox(side, h, Math.max(ew, gw2), 2 * LINE.name + e, GAP.name, faces)
-    if (hv && b2) out.push({ side, form: 'two', fresh, box: b2, lines: [...eye(b2), { t: label, face: 'num', x: xin(b2, gw2), base: b2[1] + e + 12 }, { t: hv[0], face: 'name', x: xin(b2, gw2) + nw + 6, base: b2[1] + e + 12 }, { t: hv[1], face: 'name', x: xin(b2, gw2) + nw + 6, base: b2[1] + e + 28 }] })
+    if (hv) for (const b2 of lineBox(side, h, Math.max(ew, gw2), 2 * LINE.name + e, GAP.name, faces)) out.push({ side, form: 'two', fresh, box: b2, lines: [...eye(b2), { t: label, face: 'num', x: xin(b2, gw2), base: b2[1] + e + 12 }, { t: hv[0], face: 'name', x: xin(b2, gw2) + nw + 6, base: b2[1] + e + 12 }, { t: hv[1], face: 'name', x: xin(b2, gw2) + nw + 6, base: b2[1] + e + 28 }] })
   }
   if (!numOnly) return out
-  const w = Math.max(ew, nw)
-  const lh = Math.round(LINE.num * tk)
-  const b = lineBox(side, h, w, lh + e, GAP.num, faces) ?? lineBox(side, h, w, lh + e, GAP.num, new Set())!
-  out.push({ side, form: 'num', fresh, box: b, lines: [...eye(b), { t: label, face: 'num', x: xin(b, nw), base: b[1] + e + Math.round(9 * tk), k: tk }] })
+  // a station's number: its digits in a plaque, PLAQUE round its line
+  const py = plq ? PLAQUE.y : 0
+  const pw = plq ? plaqueW(nw) : nw
+  const w = Math.max(ew, pw)
+  const lh = Math.round(LINE.num * tk) + 2 * py
+  const gap = GAP.num
+  const off = plq ? PLAQUE.off : LINK_OFF
+  const bs = lineBox(side, h, w, lh + e, gap, faces, off)
+  for (const b of bs.length ? bs : lineBox(side, h, w, lh + e, gap, new Set(), off)) out.push({ side, form: 'num', fresh, box: b, plaque: plq, ...(plq ? { plq: [xin(b, pw), b[3] - lh, xin(b, pw) + pw, b[3]] as Box } : {}), lines: [...eye(b), { t: label, face: 'num', x: xin(b, pw) + (pw - nw) / 2, base: b[1] + e + py + Math.round(9 * tk), k: tk, ...(plq ? { strong: true } : {}) }] })
   return out
 }
-// THE TEXT'S SCALE at a view: one step per table, so a label keeps its rank beside plates that grow
-// with the step: 11-px numbers and titles on a world up to TEXT_STEP, 13 px beyond it (1920).
-export const TEXT_STEP = 104
-export const textK = (v: Pick<View, 'z' | 'kind' | 's'>) => (!v.z && v.kind === 'wide' && v.s >= TEXT_STEP ? 13 / 11 : 1)
+// A station's plaque hung under its plate, centred, its top `top` px under the plate's centre (its
+// edge less the tuck); a fresh station's carries « Nouveau » under it, EYE px more, centred.
+export function hungOf(label: string, top: number, tk = 1, fresh = false): Label {
+  const nw = textW(label, 'num') * tk
+  const pw = plaqueW(nw)
+  const ph = plaqueH(tk)
+  const plq: Box = [-pw / 2, top, pw / 2, top + ph]
+  const ew = fresh ? textW('Nouveau', 'eyebrow') * tk : 0
+  const e = fresh ? Math.round(EYE * tk) : 0
+  const w = Math.max(pw, ew)
+  const box: Box = [-w / 2, top, w / 2, top + ph + e]
+  const lines: Line[] = [{ t: label, face: 'num', x: -nw / 2, base: top + PLAQUE.y + Math.round(9 * tk), k: tk, strong: true }]
+  if (fresh) lines.push({ t: 'Nouveau', face: 'eyebrow', x: -ew / 2, base: top + ph + Math.round(10 * tk), k: tk })
+  return { side: 'S', form: 'num', fresh, plaque: true, hung: true, box, plq, lines }
+}
+// Where a station's plaque hangs at a view: its top's distance under the plate's centre.
+// The goal's hangs from its bezel's ring (its top on the ring, the plate and the ring's inside
+// clear) where its chamber holds it (and the rim's 2 px), else on its plate's edge as a station's
+// does, the ring passing under it.
+export const plaqueTop = (n: Node, v: View) => {
+  const F = plateF(n, v)
+  if (sizeIn(n, v) !== 'G') return F / 2 - tuckAt(F, v.s, textK(v))
+  const out = F / 2 + BEZEL
+  return out + plaqueH(textK(v)) + 2 <= GOAL_CELL * v.s ? out : F / 2 - PLAQUE_TUCK
+}
+// THE TEXT'S SCALE at a view (lib/tree.ts, `textScale`): one step per table, so a label keeps its
+// rank beside plates that grow with the step.
+export { TEXT_STEP }
+export const textK = (v: Pick<View, 'z' | 'kind' | 's'>) => textScale(v.kind, v.z, v.s)
 // A label's box moved by (x, y), its lines with it.
-export const moved = (f: Label, x: number, y: number): Label => ({ ...f, box: [f.box[0] + x, f.box[1] + y, f.box[2] + x, f.box[3] + y], lines: f.lines.map((l) => ({ ...l, x: l.x + x, base: l.base + y })) })
+export const moved = (f: Label, x: number, y: number): Label => ({ ...f, box: [f.box[0] + x, f.box[1] + y, f.box[2] + x, f.box[3] + y], lines: f.lines.map((l) => ({ ...l, x: l.x + x, base: l.base + y })), ...(f.plq ? { plq: [f.plq[0] + x, f.plq[1] + y, f.plq[2] + x, f.plq[3] + y] as Box } : {}) })
 
 // THE SCENE at a view: every plate, link run, port and q room, in screen px (the lattice point at
 // x·s, y·s), for the rules to test against. `qs` is the q's room over every plate (reserved in
 // every save state); `q` the one the q stands in.
 type Seg = [Pt, Pt]
-export type Scene = { v: View; LY: Layout; segs: { seg: Seg; link: string }[]; rims: { seg: Seg; land: string }[]; notches: { at: Pt; land: string }[]; plates: { id: string; box: Box }[]; ports: { link: string; far: string; box: Box }[]; qs: { id: string; box: Box }[]; q: Box | null }
+export type Scene = { v: View; LY: Layout; segs: { seg: Seg; link: string; half: number }[]; rims: { seg: Seg; land: string }[]; notches: { at: Pt; land: string }[]; plates: { id: string; box: Box }[]; ports: { link: string; far: string; box: Box }[]; qs: { id: string; box: Box }[]; q: Box | null }
 export const meets = (a: Box, b: Box) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]
 export const grow = (b: Box, m: number): Box => [b[0] - m, b[1] - m, b[2] + m, b[3] + m]
 const at = (b: Box, x: number, y: number): Box => [b[0] + x, b[1] + y, b[2] + x, b[3] + y]
@@ -249,7 +338,8 @@ export function segBox(p: Pt, q: Pt, b: Box): boolean {
 export function scene(LY: Layout, v: View): Scene {
   const S = (p: Pt): Pt => [p[0] * v.s, p[1] * v.s]
   const segs: Scene['segs'] = []
-  for (const l of LY.links) for (const r of runsAt(l, LY, v)) for (let i = 1; i < r.pts.length; i++) segs.push({ seg: [S(r.pts[i - 1]!), S(r.pts[i]!)], link: l.id })
+  const half = trackOf(v) / 2
+  for (const l of LY.links) for (const r of runsAt(l, LY, v)) for (let i = 1; i < r.pts.length; i++) segs.push({ seg: [S(r.pts[i - 1]!), S(r.pts[i]!)], link: l.id, half: l.main ? half : 0 })
   // The rims drawn: every land's, on the world and zoomed (a neighbour's, zoomed, at 30 %: still a
   // line that nothing may cross).
   const rims: Scene['rims'] = []
@@ -280,12 +370,36 @@ export function scene(LY: Layout, v: View): Scene {
 }
 const inside = (rings: Pt[][], x: number, y: number) => inRings(rings, x, y)
 const corners = (b: Box): Pt[] => [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]], [(b[0] + b[2]) / 2, b[1]], [(b[0] + b[2]) / 2, b[3]]]
+// The parts of a segment outside a circle (centre c, radius r).
+function outside(p: Pt, q: Pt, c: Pt, r: number): Seg[] {
+  const dx = q[0] - p[0]
+  const dy = q[1] - p[1]
+  const fx = p[0] - c[0]
+  const fy = p[1] - c[1]
+  const A = dx * dx + dy * dy
+  const B = 2 * (fx * dx + fy * dy)
+  const C = fx * fx + fy * fy - r * r
+  const D = B * B - 4 * A * C
+  if (!A || D <= 0) return [[p, q]]
+  const t1 = Math.max(0, (-B - Math.sqrt(D)) / (2 * A))
+  const t2 = Math.min(1, (-B + Math.sqrt(D)) / (2 * A))
+  if (t1 >= t2) return [[p, q]]
+  const P = (t: number): Pt => [p[0] + dx * t, p[1] + dy * t]
+  return [...(t1 > 0 ? [[p, P(t1)] as Seg] : []), ...(t2 < 1 ? [[P(t2), q] as Seg] : [])]
+}
 // What a box meets in a scene (other than its own node's): the reasons it is not free. A label's
-// rim test counts its keyline (RIM_CLEAR).
-export function hits(sc: Scene, b: Box, own: string | null, labels: Map<string, Box>, rims = true): string[] {
+// rim test counts its keyline (RIM_CLEAR). `under`: a station's plaque may cover these links of its
+// own, within the radius given round its plate's centre (its own reach, lib/place.ts's PLAQUE), and
+// no further.
+export type Under = { at: Pt; r: number; links: Set<string> }
+export function hits(sc: Scene, b: Box, own: string | null, labels: Map<string, Box>, rims = true, under: Under | null = null): string[] {
   const out: string[] = []
   const B = grow(b, 2)
-  for (const s of sc.segs) if (segBox(s.seg[0], s.seg[1], grow(b, 3))) out.push(`link ${s.link}`)
+  for (const s of sc.segs) {
+    const g = grow(b, 3 + s.half)
+    const parts = under && under.links.has(s.link) ? outside(s.seg[0], s.seg[1], under.at, under.r) : [s.seg]
+    if (parts.some(([p, q]) => segBox(p, q, g))) out.push(`link ${s.link}`)
+  }
   if (rims) for (const r of sc.rims) if (segBox(r.seg[0], r.seg[1], grow(b, RIM_CLEAR))) out.push(`the rim of ${r.land}`)
   // a notch's corner (a rim's concave vertex) keeps RIM_VERTEX px off a box: a corner pointing at
   // a label reads as the rim running into it
@@ -310,7 +424,6 @@ export function hits(sc: Scene, b: Box, own: string | null, labels: Map<string, 
 export type Labels = { at: Map<string, Label>; boxes: Map<string, Box>; faults: string[]; notes: string[]; off: string[] }
 export function labels(sc: Scene, order: string[], text: (id: string) => { label: string; name: string }, named: (n: Node) => boolean, faces: Map<string, Set<number>>, fresh: Set<string> = new Set(), side: Side = 'S'): Labels {
   const out: Labels = { at: new Map(), boxes: new Map(), faults: [], notes: [], off: [] }
-  if (!labelled(sc.v)) return out
   const v = sc.v
   // a row: the levels of one region on one lattice row; its plates reach as far as its largest
   // (a level shares its row's line only when its plate's foot stands ROW_SHARE px or less above the
@@ -324,7 +437,7 @@ export function labels(sc: Scene, order: string[], text: (id: string) => { label
   const tk = textK(v)
   for (const id of order) {
     const n = sc.LY.nodes.get(id)
-    if (!n) continue
+    if (!n || !labelledAt(v, n)) continue
     const { label, name } = text(id)
     const f0 = faces.get(id)!
     const own = reach(n, v)
@@ -342,7 +455,7 @@ export function labels(sc: Scene, order: string[], text: (id: string) => { label
     const nearForms = (e: boolean): Label[] => {
       const res: { f: Label; d: number }[] = []
       for (const sd of ['S', 'E', 'W'] as Side[]) {
-        const base = forms(label, null, sd, sd === 'S' ? own : own, new Set(), e, true, tk).find((x) => x.form === 'num')!
+        const base = forms(label, null, sd, sd === 'S' ? own : own, new Set(), e, true, tk, !!n.chap).find((x) => x.form === 'num')!
         const bw = base.box[2] - base.box[0]
         const bh = base.box[3] - base.box[1]
         for (let g = GAP.num; g <= NEAR_LABEL; g += 1)
@@ -361,14 +474,58 @@ export function labels(sc: Scene, order: string[], text: (id: string) => { label
       }
       return res.sort((a, b) => a.d - b.d).map((x) => x.f)
     }
+    // the station's own links leaving under its plate (straight or at 45°) run out from under its
+    // plaque, for the plaque's own reach from the plate's centre (its box grown as `hits` grows it)
+    const underOf = (f: Label): Under | null => {
+      if (!f.hung) return null
+      const links = new Set(sc.LY.links.filter((l) => !l.relay && (l.a === id || l.b === id)).filter((l) => {
+        const p = l.a === id ? l.pts : [...l.pts].reverse()
+        const d = dir8(p[1]![0] - p[0]![0], p[1]![1] - p[0]![1])
+        return d >= 1 && d <= 3
+      }).map((l) => l.id))
+      const g = 3 + trackOf(v) / 2
+      const pb = grow(f.plq ?? f.box, g)
+      return { at: [n.x * v.s, n.y * v.s], r: Math.hypot(Math.max(-pb[0], pb[2]), pb[3]), links }
+    }
     const ok = (f: Label) => {
       const abs = at(f.box, n.x * v.s, n.y * v.s)
-      return !hits(sc, abs, id, out.boxes).length && (!focused || inOwn(abs))
+      return !hits(sc, abs, id, out.boxes, true, underOf(f)).length && (!focused || inOwn(abs))
+    }
+    // OF THE FREE PLACES, the first that reads as its own plate's (every other plate LABEL_OWN px
+    // further from it than its own: a number between two plates names neither) on its own land;
+    // then one that reads as its own on the ground, past its coast; then the rest, in that order
+    const ownBox = sc.plates.find((p) => p.id === id)!.box
+    const nearest = (abs: Box) => {
+      const g0 = boxGap(abs, ownBox)
+      return sc.plates.every((p) => p.id === id || boxGap(abs, p.box) >= g0 + LABEL_OWN)
+    }
+    const tier = (f: Label) => {
+      const abs = at(f.box, n.x * v.s, n.y * v.s)
+      const onLand = corners(grow(abs, RIM_CLEAR)).every(([x, y]) => inside(land.rings, x! / v.s, y! / v.s))
+      return (f.hung || nearest(abs) ? 0 : 2) + (onLand ? 0 : 1)
+    }
+    // the first free form of the least tier under `bound` (the cheap tier first, the free test only
+    // where it would improve on the best so far)
+    const best = (all: Label[], bound = 4): { f: Label; t: number } | null => {
+      let res: { f: Label; t: number } | null = null
+      for (const f of all) {
+        const t = tier(f)
+        if (t >= (res?.t ?? bound) || !ok(f)) continue
+        res = { f, t }
+        if (!t) break
+      }
+      return res
     }
     const order3 = (all: Label[]) => [...all.filter((x) => x.form === 'one'), ...all.filter((x) => x.form === 'two'), ...all.filter((x) => x.form === 'num')]
     const eyes = fresh.has(id) ? [true, false] : [false]
     // in its cell; on a world, else past its coast (sought only when no place in the cell is free)
-    let fs = eyes.flatMap((e) => order3(sides.flatMap((sd) => forms(label, nm, sd, sd === 'S' ? hS : own, f0, e, !focused || !nm, tk))))
+    let fs = eyes.flatMap((e) => order3(sides.flatMap((sd) => forms(label, nm, sd, sd === 'S' ? hS : own, f0, e, !focused || !nm, tk, !!n.chap))))
+    // a station's plaque, hung under its plate (the goal's on its bezel's ring), first: a fresh
+    // station's with « Nouveau » under it, then the other forms with it, then without
+    if (n.chap && !(focused && nm)) {
+      const hung = (e: boolean) => hungOf(label, plaqueTop(n, v), tk, e)
+      fs = fresh.has(id) ? [hung(true), ...fs.filter((x) => x.fresh), hung(false), ...fs.filter((x) => !x.fresh)] : [hung(false), ...fs]
+    }
     // zoomed in its region: each form slid along its side (2 px at a time, never off its plate's
     // span), before the region's k has to change
     const slid = (f: Label): Label[] => {
@@ -379,18 +536,25 @@ export function labels(sc: Scene, order: string[], text: (id: string) => { label
       for (let k = 2; k <= lim; k += 2) for (const sg of [1, -1]) res.push(f.side === 'S' ? moved(f, sg * k, 0) : moved(f, 0, sg * k))
       return res
     }
-    if (focused && !fs.some(ok)) fs = [...fs, ...fs.flatMap(slid)]
-    if (!focused && !fs.some(ok)) fs = [...fs, ...eyes.flatMap((e) => nearForms(e))]
-    const pick = fs.find(ok)
+    // a station's plaque keeps under its plate, at every station
+    const keeps = (f: Label) => !n.chap || focused || f.side === 'S'
+    fs = fs.filter(keeps)
+    let b = best(fs)
+    if (!b || b.t > 0) {
+      const more = focused ? fs.flatMap(slid) : eyes.flatMap((e) => nearForms(e)).filter(keeps)
+      b = best(more, b?.t) ?? b
+      fs = [...fs, ...more]
+    }
+    const pick = b?.f
     const f = pick ?? fs[fs.length - 1]
     if (!f) {
       out.faults.push(`${id}: no form of its label stands on side ${side}`)
       continue
     }
     const abs = at(f.box, n.x * v.s, n.y * v.s)
-    if (f.side !== 'S') out.off.push(`${id} (${f.side === 'E' ? 'right' : 'left'})`)
+    if (f.side !== 'S' && !f.hung) out.off.push(`${id} (${f.side === 'E' ? 'right' : 'left'})`)
     if (focused && pick && f.side !== side) out.notes.push(`${id}: its grooves close side ${side}; its label stands ${f.side === 'E' ? 'right' : f.side === 'W' ? 'left' : 'under'}`)
-    if (!pick) out.faults.push(`the label of ${id} meets ${[...hits(sc, abs, id, out.boxes), ...(focused && !inOwn(abs) ? [`the coast of ${n.reg}`] : [])].join(', ')}`)
+    if (!pick) out.faults.push(`the label of ${id} meets ${[...hits(sc, abs, id, out.boxes, true, underOf(f)), ...(focused && !inOwn(abs) ? [`the coast of ${n.reg}`] : [])].join(', ')}`)
     else if (fresh.has(id) && !f.fresh) out.notes.push(`${id}: « Nouveau » does not fit over its label`)
     out.at.set(id, f)
     out.boxes.set(id, abs)
@@ -588,8 +752,11 @@ export function clipIn(pts: Pt[], rings: Pt[][]): { pts: Pt[]; inside: boolean }
   }
   return out
 }
+// THE MAIN LINE never changes colour: one run from plate to plate, across every coast and strait,
+// on the world and zoomed (its stretches are drawn as one track).
 export function colourRuns(l: Link, LY: Layout, v: View): Run[] {
   const runs = runsAt(l, LY, v)
+  if (l.main) return l.relay ? runs.map((r) => ({ tone: null, pts: r.pts, a: true, b: true })) : [{ tone: null, pts: l.pts, a: true, b: true }]
   const ends = runs.map((_, i) => ({ a: l.relay || i === 0, b: l.relay || i === runs.length - 1 }))
   if (!v.z || !v.focus) return runs.map((r, i) => ({ tone: r.reg, pts: r.pts, ...ends[i]! }))
   // ZOOMED, THE COLOUR CHANGES ON THE DRAWN RIM: the link (or a relay's stub) is cut where it
@@ -629,7 +796,7 @@ export const MAX_STEP = { h: 128, v: 64 }
 export const MIN_STEP = 48
 export type Fit = { s0: number; kind: Kind; box: Box; labels: Labels }
 // `fresh`: levels a clear just opened (« Nouveau » over their labels).
-export type Course = { order: string[]; text: (id: string) => { label: string; name: string }; regs: { id: string; nom: string; count: string }[]; quest: string | null; fresh?: Set<string> }
+export type Course = { order: string[]; text: (id: string) => { label: string; name: string }; regs: { id: string; nom: string; count: string }[]; fresh?: Set<string> }
 // The box a view frames: plates, labels, ports, titles, the q, door chips, and the lands' rings (a
 // coast is never cut by the pane at rest).
 export function contentBox(sc: Scene, L: Labels, T: Title[], only?: string, ds: Door[] = []): Box {
@@ -645,7 +812,9 @@ export function contentBox(sc: Scene, L: Labels, T: Title[], only?: string, ds: 
   return b
 }
 // THE WORLD AT REST: its box, at the largest step that fits the safe area with every label in place.
-// A region is named in no place of its own on the map.
+// A region is named in no place of its own on the map. A PHONE'S WORLD FITS THE SAFE AREA'S WIDTH
+// ONLY: it may run taller than the pane, which pans it along the path.
+export const fits = (box: Box, sa: Box, axis: Axis) => box[2] - box[0] <= sa[2] - sa[0] && (axis === 'v' || box[3] - box[1] <= sa[3] - sa[1])
 export function fitWorld(LY: Layout, p: Pane, home: string | null, C: Course, faces: Map<string, Set<number>>): Fit {
   const sa = safe(p)
   const stepBy = 4
@@ -656,9 +825,8 @@ export function fitWorld(LY: Layout, p: Pane, home: string | null, C: Course, fa
     const sc = scene(LY, v)
     const L = labels(sc, C.order, C.text, () => false, faces, C.fresh)
     const box = contentBox(sc, L, [])
-    const fits = box[2] - box[0] <= sa[2] - sa[0] && box[3] - box[1] <= sa[3] - sa[1]
     // a label with no place near its plate: the step drops a notch
-    if ((!fits || L.faults.length) && s > MIN_STEP) continue
+    if ((!fits(box, sa, LY.axis) || L.faults.length) && s > MIN_STEP) continue
     last = { s0: s, kind, box, labels: L }
     return last
   }
@@ -679,11 +847,20 @@ export const CARD = { w: 240, h: 88, off: 12, inset: 8, edge: 4 }
 // What a card or a tag must keep clear of, on the screen: the boxes it may not cover, and the lines
 // (links, rims) it may not cross.
 export type Clear = { boxes: Box[]; links: Seg[]; rims: Seg[]; notches: Pt[] }
+// A link's lines on the screen: a groove's axis; the main line's axis and both its band's edges.
+const edgesOf = (seg: Seg, half: number): Seg[] => {
+  if (!half) return [seg]
+  const [a, b] = seg
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+  const nx = (-(b[1] - a[1]) / L) * half
+  const ny = ((b[0] - a[0]) / L) * half
+  return [seg, [[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny]], [[a[0] - nx, a[1] - ny], [b[0] - nx, b[1] - ny]]]
+}
 export function clearOf(sc: Scene, L: Labels | null, T: Title[], ds: Door[], cam: { tx: number; ty: number }, except: string | null = null): Clear {
   const sh = (p: Pt): Pt => [p[0] + cam.tx, p[1] + cam.ty]
   return {
     boxes: cardOthers(sc, L, T, ds, cam, except),
-    links: sc.segs.map((x) => [sh(x.seg[0]), sh(x.seg[1])] as Seg),
+    links: sc.segs.flatMap((x) => edgesOf([sh(x.seg[0]), sh(x.seg[1])], x.half)),
     rims: sc.rims.map((x) => [sh(x.seg[0]), sh(x.seg[1])] as Seg),
     notches: sc.notches.map((x) => sh(x.at)),
   }
@@ -762,7 +939,7 @@ export function cardOthers(sc: Scene, L: Labels | null, T: Title[], ds: Door[], 
   const c = chipOf(sc.v) / 2
   return [...sc.plates.filter((p) => p.id !== except).map((p) => grow(p.box, 2)), ...(L ? [...L.boxes].filter(([id]) => id !== except).map(([, b]) => b) : []), ...T.map((t) => t.box), ...sc.ports.map((p) => p.box), ...ds.filter((d) => d.chip).map((d) => [d.at[0] * sc.v.s - c, d.at[1] * sc.v.s - c, d.at[0] * sc.v.s + c, d.at[1] * sc.v.s + c] as Box)].map((b) => at(b, cam.tx, cam.ty))
 }
-export const cardSegs = (sc: Scene, cam: { tx: number; ty: number }): Seg[] => sc.segs.map((s) => [[s.seg[0][0] + cam.tx, s.seg[0][1] + cam.ty], [s.seg[1][0] + cam.tx, s.seg[1][1] + cam.ty]] as Seg)
+export const cardSegs = (sc: Scene, cam: { tx: number; ty: number }): Seg[] => sc.segs.flatMap((s) => edgesOf([[s.seg[0][0] + cam.tx, s.seg[0][1] + cam.ty], [s.seg[1][0] + cam.tx, s.seg[1][1] + cam.ty]], s.half))
 
 // THE AUDIT at a pane: the world, in three save states (a first visit, a
 // reader in progress, a reader who has cleared everything: the q on the first level, the middle
@@ -781,7 +958,7 @@ export function audit(LY: Layout, p: Pane, home: string | null, C: Course, name:
   }
   const f = fitWorld(LY, p, homes[0]!, C, faces)
   const sa = safe(p)
-  if (f.box[2] - f.box[0] > sa[2] - sa[0] || f.box[3] - f.box[1] > sa[3] - sa[1]) add(`the world does not fit the pane at any step`)
+  if (!fits(f.box, sa, LY.axis)) add(`the world does not fit the pane${LY.axis === 'v' ? '’s width' : ''} at any step`)
   for (const x of f.labels.faults) add(`world: ${x}`)
   const wv: View = { axis: LY.axis, kind: f.kind, z: false, s: f.s0, focus: null, home: homes[0]! }
   // THE Q: wholly inside its land, on every level, at every view
@@ -797,13 +974,13 @@ export function audit(LY: Layout, p: Pane, home: string | null, C: Course, name:
   const numOnly = new Set<string>()
   const wsc = scene(LY, wv)
   const wcam = { s: f.s0, ...centre(f.box, p) }
-  // The world's frame: every coast inside the safe area.
+  // The world's frame: every coast inside the safe area (a phone's, across it: it pans along).
   for (const [id, land] of LY.lands)
     for (const r of land.rings)
       for (const q of r) {
         const X = q[0] * f.s0 + wcam.tx
         const Y = q[1] * f.s0 + wcam.ty
-        if (X < sa[0] - 1 || X > sa[2] + 1 || Y < sa[1] - 1 || Y > sa[3] + 1) {
+        if (X < sa[0] - 1 || X > sa[2] + 1 || (LY.axis === 'h' && (Y < sa[1] - 1 || Y > sa[3] + 1))) {
           add(`the coast of ${id} leaves the safe area at (${Math.round(X)}, ${Math.round(Y)})`)
           break
         }

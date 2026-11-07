@@ -362,10 +362,12 @@ svg.qm {
   border-color: var(--hue);
 }
 .meter i.e-dispo,
-.meter i.e-soft,
 .meter i.e-prog {
   background: var(--ground);
   border: 2px solid var(--hue);
+}
+.meter i.e-verrou {
+  border-color: var(--dim);
 }
 .meter i.e-prog {
   border-bottom-width: 5px;
@@ -394,7 +396,7 @@ svg.qm {
 .e-dispo .st .st-available,
 .e-prog .st .st-progress,
 .e-lu .st .st-cleared,
-.e-soft .st .st-soft,
+.e-verrou .st .st-locked,
 .e-front .st .st-frontier,
 .e-fog .st .st-planned {
   display: inline;
@@ -462,7 +464,11 @@ svg.qm {
 .f-tile.e-front {
   color: var(--hue);
 }
-.f-tile:is(.e-dispo, .e-soft, .e-prog) {
+.f-tile.e-verrou {
+  background: var(--hs);
+  color: var(--muted);
+}
+.f-tile:is(.e-dispo, .e-prog) {
   background: var(--hp);
   color: var(--ink);
 }
@@ -474,9 +480,13 @@ svg.qm {
 #pop svg.li {
   color: var(--hf);
 }
-.row:is(.e-front, .e-dispo, .e-soft, .e-prog, .e-lu) svg.li,
-#pop:is(.e-front, .e-dispo, .e-soft, .e-prog, .e-lu) svg.li {
+.row:is(.e-front, .e-dispo, .e-prog, .e-lu) svg.li,
+#pop:is(.e-front, .e-dispo, .e-prog, .e-lu) svg.li {
   color: var(--hue);
+}
+.row.e-verrou svg.li,
+#pop.e-verrou svg.li {
+  color: var(--muted);
 }
 .lbl-n.num,
 .hud-id .num,
@@ -626,7 +636,7 @@ svg.qm {
   background: var(--line);
 }
 .zb-s i.e-front,
-.zb-s i.e-soft {
+.zb-s i.e-verrou {
   background: var(--hr);
 }
 .zb-s i.e-dispo,
@@ -1000,18 +1010,30 @@ svg.mn polygon {
   opacity: 0.7;
 }
 .mn.e-front .mn-f,
-.mn.e-soft .mn-f {
+.mn.e-verrou .mn-f {
   fill: var(--hr);
 }
 .mn.e-front .mn-i {
   opacity: 1;
 }
-.mn.e-soft .mn-p {
+/* LOCKED: a thin rim round a raised, flat plate, the icon muted, a closed padlock over its lower
+   right, keylined in the plate */
+.mn.e-verrou .mn-p,
+.mn .mn-lk {
   fill: var(--hs);
 }
-.mn.e-soft .mn-i {
+.mn.e-verrou .mn-i {
   fill: var(--muted);
   opacity: 1;
+}
+.mn .mn-l {
+  display: none;
+}
+.mn.e-verrou .mn-l {
+  display: inline;
+}
+.mn .mn-lp {
+  fill: var(--ink);
 }
 .mn.e-dispo .mn-f,
 .mn.e-prog .mn-f {
@@ -1049,10 +1071,6 @@ svg.mn polygon {
   padding: 0 24px;
   background: var(--panel);
   box-shadow: inset 0 1px 0 var(--line);
-}
-.track > .eyebrow {
-  color: var(--hi);
-  white-space: nowrap;
 }
 .track ol {
   list-style: none;
@@ -1112,6 +1130,10 @@ svg.mn polygon {
 }
 .seg.done a {
   color: var(--ink);
+}
+.seg.e-verrou a {
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 .seg .qm {
   display: none;
@@ -1365,6 +1387,23 @@ html:not(.js) .pane {
 .nojs-map svg {
   display: block;
   margin: auto;
+  max-width: 100%;
+  height: auto;
+}
+/* the phone's drawing (the path running down) under the width the page turns its map at */
+.nojs-map .nojs-v {
+  display: none;
+}
+@media (max-width: 699px) {
+  .nojs-map {
+    padding: 16px;
+  }
+  .nojs-map .nojs-h {
+    display: none;
+  }
+  .nojs-map .nojs-v {
+    display: block;
+  }
 }
 .nojs-map a:focus-visible .nf {
   stroke: var(--ink);
@@ -1588,9 +1627,6 @@ body:not(.zoomed) .mini {
   .track {
     gap: 8px;
     padding: 0 8px 0 16px;
-  }
-  .track > .eyebrow {
-    display: none;
   }
   .track ol {
     height: 32px;
@@ -2828,7 +2864,7 @@ figcaption {
   transition: fill 220ms var(--out);
 }
 .zb-s i.e-front svg,
-.zb-s i.e-soft svg {
+.zb-s i.e-verrou svg {
   fill: var(--hr);
 }
 .zb-s i.e-dispo svg,
@@ -3133,10 +3169,14 @@ figcaption {
   background: var(--dim);
 }
 .meter i.e-dispo,
-.meter i.e-soft,
 .meter i.e-prog {
   border: 0;
   background: var(--plate);
+}
+.meter i.e-verrou {
+  border: 0;
+  background: var(--fog);
+  box-shadow: inset 0 0 0 1px var(--dim);
 }
 .meter i.e-lu {
   background: var(--hue);
@@ -3236,8 +3276,26 @@ body:not(.zoomed) .mini {
 .badge.e-fog .pp {
   fill: var(--line);
 }
-.badge.shake {
+.badge.e-verrou svg.px {
+  color: var(--ink);
+}
+.badge.shake,
+.key.esc.shake {
   animation: shake 240ms linear;
+}
+/* A LOCKED LEVEL'S FOOT: its badge, and beside it the key that opens it anyway (a secondary) */
+.br-foot.lock {
+  display: flex;
+  gap: 8px;
+}
+.br-foot.lock .badge {
+  flex: 1;
+}
+.br-foot.lock .key {
+  height: 48px;
+}
+.peek .esc {
+  flex: none;
 }
 .peek .badge {
   flex: none;
@@ -3277,7 +3335,7 @@ body:not(.zoomed) .mini {
 }
 .zb-s i,
 .zb-s i.e-front,
-.zb-s i.e-soft,
+.zb-s i.e-verrou,
 .zb-s i.e-dispo,
 .zb-s i.e-prog,
 .zb-s i.e-lu {
@@ -3306,8 +3364,12 @@ body:not(.zoomed) .mini {
 .zb-s i .pp {
   fill: var(--line);
 }
-.zb-s i.e-front .pf {
+.zb-s i.e-front .pf,
+.zb-s i.e-verrou .pf {
   fill: var(--hr);
+}
+.zb-s i.e-verrou .pp {
+  fill: var(--hs);
 }
 .zb-s i.e-front .pp,
 .zb-s i.e-dispo .pp {
@@ -3479,4 +3541,28 @@ body:not(.zoomed) .mini {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* A GATE'S ROWS (« Avant ça »): each level still lacking is marked by a 2-px rule in its ink at its
+   left edge. */
+.row.miss > a,
+.row.miss > .a {
+  box-shadow: inset 2px 0 0 var(--hi);
+}
+/* A LOCKED PAGE (its gate unmet; /boot.js decides it before the first paint, so its text never
+   shows first): its gate, its badge and the key that opens it anyway stand in the text's place; its
+   text, checkpoints and tick wait. Without a script nothing is locked; /tout/ never is. */
+.lock {
+  display: none;
+}
+.locked main[data-level] .lock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+.locked main[data-level] :is(.col, .chk, .check),
+.locked .page-hud :is(.hud-chk, .pips) {
+  display: none;
 }

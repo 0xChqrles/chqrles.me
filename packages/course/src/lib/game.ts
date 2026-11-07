@@ -1,4 +1,5 @@
 import type { Card, Course } from './course'
+import { courseOrder, gates } from './gate'
 import { cellsOf, runs } from './pixels'
 
 // The course as a world of levels. Everything here is derived from outline.json:
@@ -13,16 +14,21 @@ export type Level = {
   hue: number
   region: string
   label: string
+  // A chapter's number; null for a notion.
+  chapitre: number | null
+  // A notion's chapter; null for a chapter.
   chap: string | null
   prevu: boolean
-  prerequis: string[]
-  suite: string[]
+  // Its gate (lib/gate.ts): the levels to understand before it opens; and the levels whose gate
+  // holds it.
+  need: string[]
+  unlocks: string[]
   complexite: number | null
   importance: number | null
   minutes: number | null
   sections: string[]
-  onMap: boolean
-  // Its pixel icon (icones.json) as one path of 11 x 11 cells; a level off the map has none.
+  // Its pixel icon (icones.json) as one path of 11 x 11 cells; none while icones.json lacks it (a
+  // fault the build names).
   icon: string | null
 }
 
@@ -46,11 +52,9 @@ export function world(course: Course): World {
     const ch = chapOf(c.id)
     return ch ? `${ch.chapitre}-${notions.get(ch.id)!.indexOf(c.id) + 1}` : ''
   }
-  // The course in order: each chapter, then its notions; then whatever no chapter lists, down the map.
-  const order: string[] = []
-  for (const ch of chapters) order.push(ch.id, ...(notions.get(ch.id) ?? []))
-  const rest = cards.filter((c) => !order.includes(c.id)).sort((a, b) => (a.rang ?? 99) - (b.rang ?? 99) || (a.col ?? 0) - (b.col ?? 0))
-  order.push(...rest.map((c) => c.id))
+  const order = courseOrder(cards)
+  const need = gates(cards)
+  const unlocks = (id: string) => order.filter((x) => need.get(x)!.includes(id))
 
   const levels: Level[] = cards.map((c) => ({
     id: c.id,
@@ -60,15 +64,15 @@ export function world(course: Course): World {
     hue: hue(c.quartier),
     region: c.quartier,
     label: label(c),
+    chapitre: c.chapitre,
     chap: c.chapitre ? null : (chapOf(c.id)?.id ?? null),
     prevu: c.prevu,
-    prerequis: c.prerequis,
-    suite: c.suite,
+    need: need.get(c.id)!,
+    unlocks: unlocks(c.id),
     complexite: c.complexite,
     importance: c.importance,
     minutes: c.minutes,
     sections: c.sections.map((s) => s.id),
-    onMap: c.col != null,
     icon: course.icones[c.id] ? runs(cellsOf(course.icones[c.id]!)) : null,
   }))
   const regions = quartiers
