@@ -55,8 +55,7 @@ export async function sharePng(id: string | null): Promise<Response> {
   const T = await getTree()
   const l = id ? w.levels.find((x) => x.id === id)! : null
   // set as the pages set them (lib/render-card.ts typo): no line starts with « : » or splits « 10 000 »
-  const near = l ? w.levels.filter((x) => x.chap === l.id).map((x) => x.id) : []
-  const png = await shareCard(T, w, typo(cours.titre), l && { id: l.id, label: l.label, titre: typo(apos(l.titre)), region: typo(apos(w.regions.find((r) => r.id === l.region)!.nom)), hue: l.hue, icon: T.icons[l.id] ?? null, near })
+  const png = await shareCard(T, w, typo(cours.titre), l && { id: l.id, label: l.label, titre: typo(apos(l.titre)), region: typo(apos(w.regions.find((r) => r.id === l.region)!.nom)), hue: l.hue, icon: T.icons[l.id]! })
   return new Response(new Uint8Array(png), { headers: { 'Content-Type': 'image/png' } })
 }
 

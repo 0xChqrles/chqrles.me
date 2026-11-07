@@ -19,11 +19,14 @@ const byId = new Map(w.levels.map((l) => [l.id, l]))
 const l = byId.get(page.id)!
 const region = w.regions.find((r) => r.id === l.region)!
 const chap = l.chap ? byId.get(l.chap)! : null
-const isChapter = !l.chap && /^\d+$/.test(l.label)
+const isChapter = l.chapitre != null
 
-const before = l.prerequis.map((id) => byId.get(id)!).filter(Boolean)
-const after = l.suite.map((id) => byId.get(id)!).filter(Boolean)
+// its gate (lib/gate.ts): « Avant ça », and what the script shows while it is unmet; what it opens
+// (a chapter's own notions listed once, as its notions)
+const before = l.need.map((id) => byId.get(id)!)
+const gated = before.some((o) => !o.prevu)
 const notions = isChapter ? w.order.filter((id) => byId.get(id)!.chap === l.id).map((id) => byId.get(id)!) : []
+const after = l.unlocks.filter((id) => !notions.some((n) => n.id === id)).map((id) => byId.get(id)!)
 const chapterLevels = isChapter ? [l.id, ...notions.map((n) => n.id)] : chap ? [chap.id, ...w.order.filter((id) => byId.get(id)!.chap === chap.id)] : []
 
 const html = withIcons(page.html)
@@ -65,22 +68,23 @@ const { icones } = await getCourse()
           <div class="wide">
             <dt>Avant ça</dt>
             <dd class="br-l">
-              <ul class="rows mn-rows" set:html={before.map((o) => mnRow(o, icones[o.id] ?? null)).join('')} />
-            </dd>
-          </div>
-        )
-      }
-      {
-        chap && (
-          <div class="wide">
-            <dt>Dans le cours</dt>
-            <dd class="br-l">
-              <ul class="rows mn-rows" set:html={mnRow(chap, icones[chap.id] ?? null)} />
+              <ul class="rows mn-rows" data-gate={l.id} set:html={before.map((o) => mnRow(o, icones[o.id] ?? null)).join('')} />
             </dd>
           </div>
         )
       }
     </dl>
+    {
+      gated && (
+        <div class="lock">
+          <span class:list={['badge', 'e-verrou', `h${l.hue}`]}>
+            <Fragment set:html={icon('locked', 2)} />
+            <span>Verrouillé</span>
+          </span>
+          <button class="key esc" type="button" data-force={l.id}>Lire quand même</button>
+        </div>
+      )
+    }
     <a class="key cont" data-cont={page.id} href="#" hidden><span>Continuer</span><Fragment set:html={glyphSvg('next', 2)} /></a>
   </header>
   {

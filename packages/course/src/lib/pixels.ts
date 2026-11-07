@@ -60,7 +60,8 @@ export const ICONS = {
   available: ['.........', '..#####..', '.#.....#.', '.#.....#.', '.#.....#.', '.#.....#.', '.#.....#.', '..#####..', '.........'],
   progress: ['.........', '..#####..', '.#.....#.', '.#.....#.', '.#.....#.', '.#######.', '.#######.', '..#####..', '.........'],
   cleared: ['.........', '..#####..', '.#######.', '.#####.#.', '.####.##.', '.#.#.###.', '.##.####.', '..#####..', '.........'],
-  soft: ['.........', '...###...', '..#...#..', '..#......', '.#######.', '.###.###.', '.###.###.', '.#######.', '.........'],
+  // locked: a closed padlock (written, its gate unmet)
+  locked: ['.........', '...###...', '..#...#..', '..#...#..', '.#######.', '.###.###.', '.###.###.', '.#######.', '.........'],
   planned: ['.........', '.........', '...##....', '..#..##..', '.#.....#.', '.#.....#.', '..#####..', '.........', '.........'],
   frontier: ['.........', '.........', '...##....', '..#..##..', '.#.....#.', '.#..#..#.', '..#####..', '.........', '.........'],
   new: ['.........', '....#....', '....#....', '...###...', '.###.###.', '...###...', '....#....', '....#....', '.........'],
@@ -89,7 +90,7 @@ export function iconSvg(rows: readonly string[], px: number, cls = ''): string {
 
 export const icon = (name: IconName, px = 2, cls = '') => iconSvg(ICONS[name], px, cls)
 // Every state a level can be in, as one 9×9 icon: CSS shows the one that holds.
-const STATES = ['available', 'progress', 'cleared', 'soft', 'planned', 'frontier'] as const
+const STATES = ['available', 'progress', 'cleared', 'locked', 'planned', 'frontier'] as const
 export function statesSvg(px = 2, cls = ''): string {
   return (
     `<svg class="px st${cls ? ' ' + cls : ''}" width="${9 * px}" height="${9 * px}" viewBox="0 0 9 9" aria-hidden="true">` +

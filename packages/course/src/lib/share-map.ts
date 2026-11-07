@@ -1,19 +1,20 @@
 // THE MAP IN A SHARE CARD: the world at rest as an SVG, drawn by the page's own rules (lib/place.ts)
 // and in the page's own look (scripts/map/map.ts at a first visit): the field, the lands with their
-// texture and rim, the grooves, the arrowheads where links plug in, the relay chips, the plates in
+// texture and rim, the main line with its stations' plaques, the grooves, the arrowheads where links plug in, the relay chips, the plates in
 // their state, the numbers, the q on the first level. A level shared is drawn chosen: open, lifted,
 // its chain lit and the reticle round it. Coordinates are the layout's pixels at its fitted step;
 // the card frames them with a viewBox, as the page's camera does, so everything scales together.
-import { cells } from './glyphs'
+import { cells, LOCK, LOCK_KEY, lockAt, lockCell } from './glyphs'
 import { FACE, type Face } from './metrics'
-import { FIELD, GROUND, INK, MUTED, mix, NEUTRAL, RAISE, SOCKET, TEXT, TONES, type Tone } from './palette'
-import { chipOf, colourRuns, facesOf, fitWorld, plateF, portAt, qCellAt, qKey, qSink, runsAt, sizeIn, tableOf, type Course as PlaceCourse, type Fit, type Pane, type View } from './place'
+import { FIELD, GROUND, INK, MUTED, mix, NEUTRAL, RAISE, restOf, SOCKET, TEXT, TONES, TRACK_BED, TRACK_LIT, TRACK_RAIL, type Tone } from './palette'
+import { bandPts, MAIN_BARB, plaqueBox, chipOf, colourRuns, facesOf, fitWorld, plateF, portAt, qCellAt, qKey, qSink, runsAt, sizeIn, tableOf, trackOf, type Course as PlaceCourse, type Fit, type Pane, type View } from './place'
 import { BEZEL, inRings, layout, Q, type Etat, type Layout, type Link, type Node, type Pt, type TreeData } from './tree'
 import type { World } from './game'
+import { EMPTY, etatOf, missing } from './gate'
 
 export type MapScene = { LY: Layout; fit: Fit; v: View; svg: (o: { chosen: string | null; text: TextPath }) => string }
 // A line of text as outlines: the card has no fonts installed.
-export type TextPath = (t: string, face: Face, k: number) => { d: string; w: number }
+export type TextPath = (t: string, face: Face, k: number, strong?: boolean) => { d: string; w: number }
 
 const r = (n: number) => Math.round(n * 100) / 100
 const hexA = (h: string, a: number) => `fill="${h}" fill-opacity="${a}"`
@@ -47,7 +48,7 @@ export function mapScene(T: TreeData, w: World, pane: Pane): MapScene {
   const levels = new Map(w.levels.map((l) => [l.id, l]))
   const LY = layout(T, levels, 'h')
   const regs = w.regions.filter((g) => g.levels.some((id) => LY.nodes.has(id)))
-  const C: PlaceCourse = { order: w.order, text: (id) => ({ label: levels.get(id)!.label, name: T.names[id]! }), regs: regs.map((g) => ({ id: g.id, nom: g.nom, count: `0/${g.levels.filter((id) => LY.nodes.has(id)).length}` })), quest: T.quest }
+  const C: PlaceCourse = { order: w.order, text: (id) => ({ label: levels.get(id)!.label, name: T.names[id]! }), regs: regs.map((g) => ({ id: g.id, nom: g.nom, count: `0/${g.levels.filter((id) => LY.nodes.has(id)).length}` })) }
   const home = w.order.find((id) => LY.nodes.has(id)) ?? null
   const fit = fitWorld(LY, pane, home, C, facesOf(LY))
   const v: View = { axis: 'h', kind: fit.kind, z: false, s: fit.s0, s0: fit.s0, focus: null, home }
@@ -56,13 +57,9 @@ export function mapScene(T: TreeData, w: World, pane: Pane): MapScene {
   const F = (n: Node) => plateF(n, v)
   const CELL = (n: Node) => tableOf(v)[sizeIn(n, v)][1]
   const P = (p: Pt): Pt => [Math.round(p[0] * s), Math.round(p[1] * s)]
-  // A first visit: nothing read. A written level is open when every written level before it is
-  // read (none), else soft; a planned one is at the front when it needs nothing, else in the fog.
-  const etat = (id: string): Etat => {
-    const l = levels.get(id)!
-    if (l.prevu) return l.prerequis.length ? 'fog' : 'front'
-    return l.prerequis.some((p) => levels.get(p) && !levels.get(p)!.prevu) ? 'soft' : 'dispo'
-  }
+  // A first visit: nothing read, so each level in the state lib/gate.ts gives an empty save.
+  const byId = Object.fromEntries(levels)
+  const etat = (id: string): Etat => etatOf(byId[id]!, byId, EMPTY)
   // The level « Commencer ici » opens: the first written one.
   const rec = w.order.find((id) => LY.nodes.has(id) && !levels.get(id)!.prevu) ?? null
 
@@ -129,12 +126,29 @@ export function mapScene(T: TreeData, w: World, pane: Pane): MapScene {
       }
       return `<path d="${d}" fill="none" stroke="${col}" stroke-width="1" stroke-linecap="butt"/>`
     }
+    // THE MAIN LINE, as the page draws it: every rail, then every bed, then each stretch into a
+    // chapter whose gate is met, lit; the chain an ink core along the track ahead
+    const half = trackOf(v) / 2
+    const band = (pts: Pt[], h: number, col: string) => `<path d="M${bandPts(pts.map(P), h).map(([x, y]) => `${r(x)} ${r(y)}`).join('L')}Z" fill="${col}"/>`
+    const mains = LY.links.filter((l) => l.main)
+    const gateMet = (id: string) => !missing(byId[id]!, byId, EMPTY).length
+    for (const l of mains) for (const pc of runsAt(l, LY, v)) o += band(pc.pts, half, TRACK_RAIL)
+    for (const l of mains) for (const pc of runsAt(l, LY, v)) o += band(pc.pts, half - 1, TRACK_BED)
+    for (const l of mains) if (gateMet(l.b)) for (const pc of runsAt(l, LY, v)) o += band(pc.pts, half, TRACK_LIT)
     type Drawn = { l: Link; ch: number; runs: { pts: Pt[]; col: string; chain: string }[] }
     const drawn: Drawn[] = []
     for (const l of LY.links) {
       const ch = chain.get(l.id) ?? 0
       const mine: Drawn = { l, ch, runs: [] }
       drawn.push(mine)
+      if (l.main) {
+        const lit = gateMet(l.b)
+        for (const pc of runsAt(l, LY, v)) {
+          mine.runs.push({ pts: pc.pts, col: lit ? TRACK_LIT : TRACK_RAIL, chain: lit ? TRACK_LIT : INK })
+          if (ch && !lit) o += line(pc.pts, 3, INK, ch === 1 ? 1 : 0.45)
+        }
+        continue
+      }
       for (const pc of colourRuns(l, LY, v)) {
         const reg = pc.tone && pc.tone !== 'p:' ? pc.tone.replace(/^p:/, '') : null
         const t: Tone | null = reg ? TONES[w.regions.find((g) => g.id === reg)!.hue]! : null
@@ -148,14 +162,15 @@ export function mapScene(T: TreeData, w: World, pane: Pane): MapScene {
     // the direction of a link, where it plugs into the level it opens: an arrowhead on that plate's
     // edge (a stub out of its level: on its chip's edge), in the colour of the run it ends
     const done = new Set<string>()
-    const head = (tip: Pt, u: Pt, col: string) => {
+    // on the main line the head is wider than the band (its barbs MAIN_BARB px past each edge)
+    const head = (tip: Pt, u: Pt, col: string, big = false) => {
       const px = Math.round(tip[0] * s)
       const py = Math.round(tip[1] * s)
       const k = `${px}|${py}|${Math.round(u[0] * 4)}|${Math.round(u[1] * 4)}`
       if (done.has(k)) return
       done.add(k)
-      const h = 6
-      const b = 4
+      const b = big ? half + MAIN_BARB : 4
+      const h = big ? b + 2 : 6
       o += `<path d="M${px} ${py}L${r(px - u[0] * h - u[1] * b)} ${r(py - u[1] * h + u[0] * b)}L${r(px - u[0] * h + u[1] * b)} ${r(py - u[1] * h - u[0] * b)}Z" fill="${col}"/>`
     }
     const unit = (a: Pt, b: Pt): Pt => {
@@ -171,7 +186,7 @@ export function mapScene(T: TreeData, w: World, pane: Pane): MapScene {
         const pts = runsAt(l, LY, v).flatMap((x, i) => (i ? x.pts.slice(1) : x.pts))
         const b = node(l.b)
         const u = unit(pts[pts.length - 2]!, pts[pts.length - 1]!)
-        head([b.x - u[0] * edgeOf(b), b.y - u[1] * edgeOf(b)], u, colOf(d.runs[d.runs.length - 1]!))
+        head([b.x - u[0] * edgeOf(b), b.y - u[1] * edgeOf(b)], u, colOf(d.runs[d.runs.length - 1]!), !!l.main)
         continue
       }
       for (const p of l.ports) {
@@ -207,7 +222,7 @@ export function mapScene(T: TreeData, w: World, pane: Pane): MapScene {
         const far = node(p.far)
         const ft = TONES[far.hue]!
         const [x, y] = P(portAt(LY, l, p.end, v))
-        o += chip(x, y, chipSz, 4, ft.wire, RAISE) + icon(T.icons[p.far]!, x, y, 1, st(p.far) === 'fog' ? ft.fog : ft.ink)
+        o += chip(x, y, chipSz, 4, ft.wire, RAISE) + icon(T.icons[p.far]!, x, y, 1, st(p.far) === 'fog' ? ft.fog : st(p.far) === 'verrou' ? MUTED : ft.ink)
       }
 
     // L3: plates in their state, the goal's bezel, the numbers; the chosen level last
@@ -225,7 +240,7 @@ export function mapScene(T: TreeData, w: World, pane: Pane): MapScene {
       const y = y0 - lift
       const Fd = F(n)
       const G = sizeIn(n, v) === 'G'
-      const fw = e === 'fog' || e === 'soft' ? 1 : 2
+      const fw = e === 'fog' || e === 'verrou' ? 1 : 2
       if (n.id === rec) o += ring(x, y, Fd + (G ? 2 * (BEZEL + 2) : 0) + 8, Fd + (G ? 2 * (BEZEL + 2) : 0) + 4, t.ink, 0.12) + ring(x, y, Fd + (G ? 2 * (BEZEL + 2) : 0) + 4, Fd + (G ? 2 * (BEZEL + 2) : 0), t.ink, 0.3)
       if (G) {
         const Fb = Fd + 2 * BEZEL
@@ -248,27 +263,41 @@ export function mapScene(T: TreeData, w: World, pane: Pane): MapScene {
           }
       }
       const dark = mix(SOCKET, t.plate, 0.3)
+      const rest = restOf(t, !!n.chap)
       let ic = INK
       if (e === 'dispo') {
         o += oct(x, y, Fd, t.ink) + bevel(x, y, Fd - 2 * fw, 1, '#040308', mix(dark, t.plate, 0.5), dark)
-      } else if (e === 'soft') {
-        o += oct(x, y, Fd, t.rim) + oct(x, y, Fd - 2 * fw, t.plate)
+      } else if (e === 'verrou') {
+        o += oct(x, y, Fd, rest.rim) + oct(x, y, Fd - 2 * fw, rest.plate)
         ic = MUTED
       } else {
-        o += oct(x, y, Fd, e === 'front' ? t.rim : t.sock) + bevel(x, y, Fd - 2 * fw, 1, '#040308', '#1a1926', SOCKET)
+        o += oct(x, y, Fd, e === 'front' ? rest.rim : rest.sock) + bevel(x, y, Fd - 2 * fw, 1, '#040308', '#1a1926', SOCKET)
         ic = e === 'fog' ? t.fogd : t.ink
       }
       o += icon(T.icons[n.id]!, x, y, CELL(n), ic)
+      // locked: the closed padlock over the icon's lower right, keylined in the plate (as on the page)
+      if (e === 'verrou') {
+        const c = lockCell(CELL(n))
+        const at = lockAt(Fd - 2 * fw, c)
+        o += cellsAt(LOCK_KEY, x + at, y + at, c, rest.plate) + cellsAt(LOCK, x + at, y + at, c, INK)
+      }
       if (n.id === v.home) qAt = { x, y, F: Fd }
       const lb = fit.labels.at.get(n.id)
+      // a station's plaque: the track's bed, lit once its gate is met
+      const plq = lb?.plaque ? (gateMet(n.id) ? TRACK_LIT : TRACK_BED) : null
+      if (lb && plq) {
+        const pq = plaqueBox(lb)
+        const top = Math.round(y0 + pq[1] - lift)
+        o += `<rect x="${Math.round(x + pq[0])}" y="${top}" width="${Math.round(x + pq[2]) - Math.round(x + pq[0])}" height="${Math.round(y0 + pq[3] - lift) - top}" fill="${plq}"/>`
+      }
       if (lb)
         for (const ln of lb.lines) {
           const k = ln.k ?? 1
-          const { d } = text(ln.face === 'eyebrow' ? ln.t.toLocaleUpperCase('fr') : ln.t, ln.face, k)
-          const col = ln.face === 'num' ? t.num : ln.face === 'eyebrow' ? t.ink : e === 'fog' ? MUTED : TEXT
+          const { d } = text(ln.face === 'eyebrow' ? ln.t.toLocaleUpperCase('fr') : ln.t, ln.face, k, ln.strong)
+          const col = plq && ln.face === 'num' ? (plq === TRACK_LIT ? GROUND : TEXT) : ln.face === 'num' ? t.num : ln.face === 'eyebrow' ? t.ink : e === 'fog' ? MUTED : TEXT
           const tx = Math.round(x + ln.x)
           const ty = Math.round(y0 + ln.base - lift)
-          const key = keyAt(x + ln.x, y0 + ln.base - (FACE[ln.face].px * k) / 3)
+          const key = plq && ln.face === 'num' ? plq : keyAt(x + ln.x, y0 + ln.base - (FACE[ln.face].px * k) / 3)
           o += `<g transform="translate(${tx} ${ty})"><path d="${d}" fill="none" stroke="${key}" stroke-width="4" stroke-linejoin="round"/><path d="${d}" fill="${col}"/></g>`
         }
       // the reticle: four 2-px brackets, arms 6, 6 off the plate's box

@@ -33,7 +33,7 @@ const region = new Map(w.regions.map((r) => [r.id, r.nom]))
         const inner = `${rowIcon(l)}<span class="lbl-n num">${l.label}</span>`
         const name = `<span class="nm">${l.titre}</span><small>${region.get(l.region) ?? ''}</small>`
         return (
-          <li class:list={['row', `h${l.hue}`, { chap: !l.chap && l.label && !l.label.includes('-'), prevu: l.prevu }]} id={inline ? `lv-${id}` : undefined} data-nav={id} data-lv={id}>
+          <li class:list={['row', `h${l.hue}`, { chap: l.chapitre != null, prevu: l.prevu }]} id={inline ? `lv-${id}` : undefined} data-nav={id} data-lv={id}>
             {l.prevu ? <span class="t" set:html={inner + name} /> : <a href={url(`${id}/`)} set:html={inner + name} />}
           </li>
         )

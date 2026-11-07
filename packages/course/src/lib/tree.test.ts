@@ -7,11 +7,11 @@ import { ease, FLIGHT_CHECK, flightFaults } from './camera'
 import { iconFault, iconPairFault, loadCourse } from './course'
 import { world } from './game'
 import { DART } from './glyphs'
-import { inputOf, inRing, lands, MIN_EDGE, MIN_GUTTER, RELAY_RUN, STRAIT } from './lattice'
+import { inputOf, inRing, lands, linksOf, MIN_EDGE, MIN_GUTTER, RELAY_RUN, STRAIT } from './lattice'
 import { textW } from './metrics'
 import { nojsSvg } from './nojs'
 import { chroma, contrast, deltaE, GROUND, INK, INKS, NEUTRAL, NEUTRAL_CHROMA, NEUTRAL_DE, paletteFaults, PERIPH, TONES, WIRE_CHROMA } from './palette'
-import { blocked, cardAt, cardOthers, CARD, clipIn, colourRuns, facesOf, labelGap, NEAR_LABEL, reach, tagAt, type Clear, fitWorld, forms, GUTTER, halves, MIN_RUN, NEAR, qCellAt, runPx, safe, scene, segBox, sideOf, ZBAR, type Course as PlaceCourse } from './place'
+import { blocked, cardAt, cardOthers, CARD, clipIn, colourRuns, facesOf, fits, labelGap, NEAR_LABEL, reach, tagAt, type Clear, fitWorld, forms, GUTTER, halves, MIN_RUN, NEAR, qCellAt, runPx, safe, scene, segBox, sideOf, ZBAR, type Course as PlaceCourse } from './place'
 import { CELL, GOAL_CELL, layout, runsOf, SIZE_RATIO, sizeOf, tableAt, ZOOM_K, type Kind, type Pt } from './tree'
 
 const FIXTURE = join(import.meta.dirname, '..', '..', 'fixture')
@@ -48,10 +48,30 @@ describe.each(courses)('the tree of %s', (dir) => {
     order: w.order,
     text: (id) => ({ label: levels.get(id)!.label, name: T.names[id]! }),
     regs: w.regions.filter((r) => r.levels.some((id) => LY.nodes.has(id))).map((r) => ({ id: r.id, nom: r.nom, count: `0/${r.levels.length}` })),
-    quest: T.quest,
   })
 
   it('passes every rule of the audit, at every reference pane', () => expect(map.faults).toEqual([]))
+
+  it('puts every card on the map, chapters included', () => expect(onMap.map((c) => c.id)).toEqual(course.cards.map((c) => c.id)))
+
+  it('lays the chapters out as one path, in their order, never turning back, on large plates; a region holds whole chapters', () => {
+    const chapters = course.cards.filter((c) => c.chapitre).sort((a, b) => a.chapitre! - b.chapitre!)
+    const links = linksOf(course.cards)
+    chapters.forEach((c, i) => {
+      if (!i) return
+      expect(links).toContain(`${chapters[i - 1]!.id}>${c.id}`)
+      expect(c.rang!).toBeGreaterThanOrEqual(chapters[i - 1]!.rang!)
+    })
+    for (const ch of chapters) for (const id of ch.notions) expect(course.cards.find((c) => c.id === id)!.quartier, id).toBe(ch.quartier)
+    // a chapter stands on the large plate (the goal on its own)
+    for (const ch of chapters) expect(sizeOf(ch, w.objectif), ch.id).toBe(ch.id === w.objectif ? 'G' : 'L')
+  })
+
+  it('draws the path, a chapter to its notions, a notion to a notion of its chapter, and nothing else', () => {
+    expect(course.aretes.map((e) => `${e.a}>${e.b}`).sort()).toEqual([...linksOf(course.cards)].sort())
+    const chapterOf = (id: string) => course.cards.find((c) => c.id === id || c.notions.includes(id))!.id
+    for (const e of course.aretes) if (!course.cards.find((c) => c.id === e.b)!.chapitre) expect(chapterOf(e.a), `${e.a} > ${e.b}`).toBe(chapterOf(e.b))
+  })
 
   it('stands the q wholly inside its own land, on every level, at every reference view', () => {
     for (const P of PANES) {
@@ -102,10 +122,10 @@ describe.each(courses)('the tree of %s', (dir) => {
     }
   })
 
-  it('sizes each level from its importance alone, the goal apart', () => {
-    for (const l of w.levels.filter((x) => x.onMap)) {
+  it('sizes each level from its rank: a chapter large, a notion a class under (M at importance 5, else S), the goal apart', () => {
+    for (const l of w.levels) {
       const s = sizeOf(l, w.objectif)
-      expect(s).toBe(l.id === w.objectif ? 'G' : (l.importance ?? 3) >= 5 ? 'L' : (l.importance ?? 3) >= 4 ? 'M' : 'S')
+      expect(s).toBe(l.id === w.objectif ? 'G' : l.chapitre ? 'L' : (l.importance ?? 3) >= 5 ? 'M' : 'S')
     }
   })
 
@@ -195,6 +215,22 @@ describe.each(courses)('the tree of %s', (dir) => {
     expect(Math.max(...[...rang.values()])).toBe(rang.get(T.objectif))
   })
 
+  it('fits a phone’s world to the pane’s width, and lets it run taller: the pane pans it along the path', () => {
+    const P = PANES.find((x) => x.axis === 'v')!
+    const LY = layout(T, levels, 'v')
+    const pane = { w: P.w, h: P.h, top: 0, foot: P.foot, gutter: GUTTER.phone }
+    const f = fitWorld(LY, pane, null, C(LY), facesOf(LY))
+    const sa = safe(pane)
+    expect(f.box[2] - f.box[0]).toBeLessThanOrEqual(sa[2] - sa[0])
+    const cx = (sa[0] + sa[2]) / 2 - (f.box[0] + f.box[2]) / 2
+    for (const l of LY.lands.values())
+      for (const r of l.rings)
+        for (const [x] of r) {
+          expect(x * f.s0 + cx).toBeGreaterThanOrEqual(sa[0] - 1)
+          expect(x * f.s0 + cx).toBeLessThanOrEqual(sa[2] + 1)
+        }
+  })
+
   it('frames the whole world, coasts included, centred in the safe area', () => {
     const LY = layout(T, levels, 'h')
     for (const P of PANES.filter((x) => x.axis === 'h')) {
@@ -238,10 +274,25 @@ describe.each(courses)('the tree of %s', (dir) => {
 
 describe('a placement the rules cannot draw', () => {
   it('names two levels on one point, and a link at an angle', () => {
-    const shared = mapOf(variant((o) => (o.cartes.find((c: any) => c.id === 'rapport').rang = 1)))
-    expect(shared.map.faults.join('\n')).toMatch(/(dents and rapport|rapport and dents) share the lattice point 1,1/)
-    const angled = mapOf(variant((o) => (o.aretes.find((e: any) => e.a === 'rapport').via = [[2, 4]])))
-    expect(angled.map.faults.join('\n')).toMatch(/link rapport > roue: a stretch is not at 0, 45 or 90 degrees/)
+    const shared = mapOf(variant((o) => (o.cartes.find((c: any) => c.id === 'rapport').rang = 0)))
+    expect(shared.map.faults.join('\n')).toMatch(/(dents and rapport|rapport and dents) share the lattice point 0,2/)
+    const angled = mapOf(variant((o) => (o.aretes.find((e: any) => e.a === 'dents').via = [[1, 2]])))
+    expect(angled.map.faults.join('\n')).toMatch(/link dents > rapport: a stretch is not at 0, 45 or 90 degrees/)
+  })
+  it('names a link the map does not draw, one it misses, and a path that turns back', () => {
+    const across = mapOf(variant((o) => o.aretes.push({ a: 'rapport', b: 'roue', ligne: 'atelier' })))
+    expect(across.map.faults.join('\n')).toMatch(/link rapport > roue: not a link the map draws/)
+    const missing = mapOf(variant((o) => (o.aretes = o.aretes.filter((e: any) => e.b !== 'developpement'))))
+    expect(missing.map.faults.join('\n')).toMatch(/link braquet > developpement: the map draws it, and outline.json has no arete for it/)
+    const back = mapOf(variant((o) => (o.cartes.find((c: any) => c.id === 'cadence').rang = 0)))
+    expect(back.map.faults.join('\n')).toMatch(/the path turns back: chapter 3 \(cadence\)/)
+  })
+  it('fits a phone’s world by its width alone; a desktop’s by both', () => {
+    const tall: [number, number, number, number] = [0, 0, 300, 2000]
+    const sa: [number, number, number, number] = [16, 16, 374, 644]
+    expect(fits(tall, sa, 'v')).toBe(true)
+    expect(fits(tall, sa, 'h')).toBe(false)
+    expect(fits([0, 0, 400, 100], sa, 'v')).toBe(false)
   })
   it('fails a level with no icon, by name', () => {
     const { errors } = loadCourse(variant((_, icons) => delete icons.dents))
@@ -406,7 +457,7 @@ describe('polish round 3', () => {
       const { w, map } = mapsOf(dir)
       const levels = new Map(w.levels.map((l) => [l.id, l]))
       const LY = layout(map.tree.data, levels, P.axis)
-      const C: PlaceCourse = { order: w.order, text: (id) => ({ label: levels.get(id)!.label, name: map.tree.data.names[id]! }), regs: w.regions.filter((r) => r.levels.some((id) => LY.nodes.has(id))).map((r) => ({ id: r.id, nom: r.nom, count: '0/1' })), quest: map.tree.data.quest }
+      const C: PlaceCourse = { order: w.order, text: (id) => ({ label: levels.get(id)!.label, name: map.tree.data.names[id]! }), regs: w.regions.filter((r) => r.levels.some((id) => LY.nodes.has(id))).map((r) => ({ id: r.id, nom: r.nom, count: '0/1' })) }
       const f = fitWorld(LY, { w: P.w, h: P.h, top: 0, foot: P.foot, gutter: P.axis === 'v' ? GUTTER.phone : GUTTER.desk }, null, C, facesOf(LY))
       const v = { axis: P.axis, kind: f.kind, z: false, s: f.s0, focus: null, home: null }
       for (const [id, lb] of f.labels.at) expect(labelGap(lb, reach(LY.nodes.get(id)!, v)), id).toBeLessThanOrEqual(NEAR_LABEL)

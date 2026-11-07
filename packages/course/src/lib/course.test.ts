@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadCourse } from './course'
+import { world } from './game'
 
 const FIXTURE = join(import.meta.dirname, '..', '..', 'fixture')
 const temporary: string[] = []
@@ -59,11 +60,11 @@ describe('the fixture', () => {
       expect(course!.pages.some((p) => p.id === id)).toBe(false)
     }
     expect(card('braquet').prevu).toBe(false)
-    expect(card('roue').col).toBe(3)
+    expect(card('roue').col).toBe(0)
   })
 
-  it('finds what follows a card and the chapter it belongs to', () => {
-    expect(card('braquet').suite).toEqual(['developpement', 'dents'])
+  it('finds what a card opens and the chapter it belongs to', () => {
+    expect(world(course!).levels.find((l) => l.id === 'braquet')!.unlocks).toEqual(['dents', 'rapport', 'developpement'])
     expect(card('dents').n).toBe(1)
     expect(card('roue').n).toBe(2)
     expect(card('developpement').n).toBe(2)
@@ -79,13 +80,12 @@ describe('the fixture', () => {
     expect(page('braquet').num).toBe('01')
     expect(page('dents').num).toBe('')
     expect(page('dents').quartier).toBe('La transmission')
-    expect(page('braquet').meta).toMatch(/^1 min · Aucun prérequis$/)
-    expect(page('dents').meta).toBe(
-      '1 min · Avant ça : <a class="c" href="/braquet/" data-c="braquet">1. Le braquet</a> · Dans le cours : <a class="c" href="/braquet/" data-c="braquet">1. Le braquet</a>',
-    )
+    expect(page('braquet').meta).toBe('1 min')
+    expect(page('dents').meta).toBe('1 min · Avant ça : <a class="c" href="/braquet/" data-c="braquet">1. Le braquet</a>')
+    expect(page('developpement').meta).toContain('Avant ça : <a class="c" href="/braquet/" data-c="braquet">1. Le braquet</a> · ')
+    expect(page('developpement').meta).toContain('href="/rapport/"')
     expect(page('braquet').notions).toContain('href="/dents/"')
-    expect(page('braquet').suite).not.toContain('developpement')
-    expect(page('braquet').suite).toContain('href="/dents/"')
+    expect(page('braquet').suite).toBe('<a class="c" href="/developpement/" data-c="developpement">2. Le développement</a>')
   })
 
   it('links chapters to each other, and only chapters', () => {
@@ -140,8 +140,20 @@ describe('faults in an outline', () => {
     ['an unknown prerequisite', (o) => o.cartes[0].prerequis.push('nope'), 'braquet: prérequis inconnu nope'],
     ['an unknown notion', (o) => o.cartes[0].notions.push('nope'), 'braquet: notion inconnue nope'],
     ['an unknown district', (o) => (o.cartes[3].quartier = 'nope'), 'dents: quartier inconnu nope'],
-    ['a notion off the map', (o) => delete o.cartes[3].col, 'dents: notion sans position ou sans notes sur la carte'],
-    ['a notion with no rating', (o) => delete o.cartes[3].complexite, 'dents: notion sans position ou sans notes sur la carte'],
+    ['a notion off the map', (o) => delete o.cartes[3].col, 'dents: sans position ou sans notes sur la carte'],
+    ['a chapter off the map', (o) => delete o.cartes[0].col, 'braquet: sans position ou sans notes sur la carte'],
+    ['a card with no row', (o) => delete o.cartes[3].rang, 'dents: sans position ou sans notes sur la carte'],
+    ['a notion with no rating', (o) => delete o.cartes[3].complexite, 'dents: sans position ou sans notes sur la carte'],
+    ['a gap in the chapters', (o) => (o.cartes[2].chapitre = 4), 'chapitres: pas de chapitre 3'],
+    ['two chapters with one number', (o) => (o.cartes[2].chapitre = 2), 'chapitres: chapitre 2 en double'],
+    ['a chapter with prerequisites', (o) => (o.cartes[1].prerequis = ['braquet']), 'developpement: des prérequis sur un chapitre'],
+    ['a chapter among notions', (o) => o.cartes[0].notions.push('developpement'), 'braquet: le chapitre developpement dans ses notions'],
+    ['a notion in no chapter', (o) => (o.cartes[0].notions = ['dents']), 'rapport: dans aucun chapitre'],
+    ['a notion in two chapters', (o) => o.cartes[1].notions.push('dents'), 'dents: dans plusieurs chapitres : braquet, developpement'],
+    ['notions listed by a notion', (o) => (o.cartes[3].notions = ['rapport']), 'dents: des notions hors d’un chapitre'],
+    ['a notion outside its chapter’s district', (o) => (o.cartes[3].quartier = 'route'), 'dents: quartier route hors de celui de son chapitre, transmission'],
+    ['a prerequisite later in the course', (o) => o.cartes[3].prerequis.push('roue'), 'dents: prérequis roue pas avant elle dans le cours'],
+    ['a card its own prerequisite', (o) => o.cartes[3].prerequis.push('dents'), 'dents: prérequis dents pas avant elle dans le cours'],
     ['an edge to an unknown card', (o) => (o.aretes[0].b = 'nope'), 'braquet > nope: carte inconnue nope'],
     ['an edge on an unknown line', (o) => (o.aretes[0].ligne = 'nope'), 'braquet > dents: ligne inconnue nope'],
     ['a card written twice', (o) => o.cartes.push(o.cartes[0]), 'braquet: carte en double'],

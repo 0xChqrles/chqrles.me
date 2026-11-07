@@ -4,7 +4,8 @@ import { norm } from '../lib/norm'
 import { rowIcon } from '../lib/rows'
 import { icon } from '../lib/pixels'
 import { lowerOct } from '../lib/glyphs'
-import { etat, L, load, reached, S, share, store, type Ici, WORLD } from './save'
+import { etat, force, L, load, missing, reached, S, share, store, type Ici, WORLD } from './save'
+import { ETATS } from '../lib/tree'
 import { mapPage } from './map/map'
 import { url } from '../lib/base'
 
@@ -17,7 +18,6 @@ const $ = <E extends Element = HTMLElement>(s: string, root: ParentNode = docume
 const all = <E extends Element = HTMLElement>(s: string, root: ParentNode = document) => [...root.querySelectorAll<E>(s)]
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 const still = matchMedia('(prefers-reduced-motion: reduce)')
-const ETATS = ['lu', 'prog', 'dispo', 'soft', 'front', 'fog'] as const
 
 function paintStates(root: ParentNode = document) {
   for (const el of all('[data-lv],[data-st]', root)) {
@@ -28,6 +28,11 @@ function paintStates(root: ParentNode = document) {
     // a mini node begun: its lower part filled to its share, as on the map
     const g = el.querySelector('.mn-g')
     if (g) g.setAttribute('points', lowerOct(Number(el.getAttribute('width')), 2, share(id)))
+  }
+  // A gate's rows: the ones its level still lacks are marked.
+  for (const ul of all('[data-gate]', root)) {
+    const lack = new Set(missing(ul.dataset.gate!))
+    for (const r of all('[data-lv]', ul)) r.classList.toggle('miss', lack.has(r.dataset.lv!))
   }
   // A level part read fills from the bottom, a row per share of its checkpoints.
   for (const r of all<SVGRectElement>('[data-fin] .t-prog', root)) {
@@ -43,10 +48,14 @@ function paintStates(root: ParentNode = document) {
   }
 }
 
-// A LEVEL BEING READ.
+// A LEVEL BEING READ. Locked (its gate unmet, lib/gate.ts), it shows its gate and the key that
+// opens it anyway instead of its text, its checkpoints and its tick: /boot.js decides it before the
+// first paint, the save here keeps it true (a page come back to from the history included).
 const main = $('#main[data-level]')
+const root = document.documentElement
 function level(id: string) {
   const l = L[id]!
+  const locked = () => etat(id) === 'verrou'
   const heads = l.sections.map((s) => document.getElementById(s)).filter((h): h is HTMLElement => !!h)
   const line = () => innerHeight * 0.3
   let current = ''
@@ -54,6 +63,7 @@ function level(id: string) {
   const ici = () => store.set('ici', { c: id, ...(current && { s: current }) })
 
   function paint() {
+    root.classList.toggle('locked', locked())
     paintStates()
     const got = new Set(reached(id))
     for (const el of all('[data-sec]')) {
@@ -72,6 +82,7 @@ function level(id: string) {
   // A checkpoint is reached when the reader scrolls its heading across the reading line,
   // not when a link jumps past it.
   function onScroll() {
+    if (locked()) return paint()
     const y = scrollY
     const from = lastY + line()
     const to = y + line()
@@ -111,9 +122,21 @@ function level(id: string) {
     },
     { passive: true },
   )
-  // Arriving keeps where the reader stopped in this level, for « Continuer », until they read on.
-  if (store.get<Ici | null>('ici', null)?.c !== id) ici()
+  // Arriving keeps where the reader stopped in this level, for « Continuer », until they read on;
+  // a locked level is not where they stopped.
+  if (!locked() && store.get<Ici | null>('ici', null)?.c !== id) ici()
   paint()
+  // « Lire quand même »: the level opens for good, at its text.
+  $(`[data-force="${id}"]`)?.addEventListener('click', () => {
+    force(id)
+    ici()
+    paint()
+    const col = $('.col', main!)
+    if (col) {
+      col.tabIndex = -1
+      col.focus({ preventScroll: true })
+    }
+  })
 
   // ← and → turn the page, as a book does.
   document.addEventListener('keydown', (e) => {
